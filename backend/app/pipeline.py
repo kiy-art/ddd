@@ -3,10 +3,15 @@
 two never drift apart."""
 
 import datetime
+import time
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import ai, analysis, crud, models
+from app.rakuten import search_lowest_price
+
+RAKUTEN_REQUEST_INTERVAL_SECONDS = 1.1  # stay under the API's ~1 req/sec free-tier limit
 
 
 def sync_product_analysis(db: Session, product: models.Product) -> bool:
@@ -45,3 +50,39 @@ def sync_product_analysis(db: Session, product: models.Product) -> bool:
     db.commit()
     db.refresh(product)
     return True
+
+
+def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
+    """Looks up each product's current price on Rakuten Ichiba by
+    "brand + name" keyword search and records it as a new PriceHistory row.
+
+    Returns (updated_count, skipped_count).
+    """
+    products = list(db.execute(select(models.Product)).scalars().all())
+    updated = 0
+    skipped = 0
+    for i, product in enumerate(products):
+        if i > 0:
+            time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
+        try:
+            keyword = f"{product.brand} {product.name}".strip()
+            result = search_lowest_price(keyword)
+            if result is None:
+                crud.create_error_log(
+                    db,
+                    source="price_fetch",
+                    level="info",
+                    message=f"{product.name}: 楽天市場で該当商品が見つかりませんでした（キーワード: {keyword}）",
+                    product_id=product.id,
+                )
+                skipped += 1
+                continue
+            crud.add_price(db, product, result.price)
+            updated += 1
+        except Exception as exc:  # noqa: BLE001 - keep the batch alive
+            db.rollback()
+            crud.create_error_log(
+                db, source="price_fetch", message=f"{product.name}: {exc}", product_id=product.id
+            )
+            skipped += 1
+    return updated, skipped

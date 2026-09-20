@@ -109,3 +109,8 @@ def test_run_update_endpoint(client, admin_headers):
     resp = client.post("/api/admin/run-update", headers=admin_headers)
     assert resp.status_code == 200
     assert resp.json()["products_checked"] == 1
+
+
+def test_fetch_rakuten_requires_app_id(client, admin_headers):
+    resp = client.post("/api/admin/fetch-rakuten", headers=admin_headers)
+    assert resp.status_code == 400

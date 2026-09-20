@@ -195,6 +195,18 @@ export function adminRunUpdate(token: string) {
   });
 }
 
+export function adminFetchRakuten(token: string) {
+  return apiFetch<{
+    prices_updated: number;
+    prices_skipped: number;
+    products_checked: number;
+    ai_regenerated: number;
+  }>(`/api/admin/fetch-rakuten`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
 export async function verifyAdminToken(token: string): Promise<boolean> {
   try {
     await adminListProducts(token);

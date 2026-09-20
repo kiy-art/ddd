@@ -2,7 +2,8 @@
 
 Pipeline (spec section 9):
   1. load product list
-  2. fetch prices (MVP source: CSV import, --csv PATH; pluggable later)
+  2. fetch prices — Rakuten Ichiba Item Search API when RAKUTEN_APP_ID is
+     configured, otherwise CSV import (--csv PATH), otherwise skipped
   3. save PriceHistory
   4. update price stats
   5. determine buy_score
@@ -13,7 +14,7 @@ Any per-product failure is logged to ErrorLog and skipped, the batch keeps going
 
 Usage:
   python scripts/update_prices.py --csv ../data/sample_products.csv
-  python scripts/update_prices.py            # re-run analysis/AI only, no new prices
+  python scripts/update_prices.py            # uses Rakuten if configured, else re-runs analysis only
 """
 
 import argparse
@@ -25,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import select  # noqa: E402
 
 from app import crud, models, pipeline  # noqa: E402
+from app.config import get_settings  # noqa: E402
 from app.csv_import import import_csv  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 
@@ -34,6 +36,7 @@ def main():
     parser.add_argument("--csv", help="Path to a price CSV to import before analysis", default=None)
     args = parser.parse_args()
 
+    settings = get_settings()
     db = SessionLocal()
     try:
         if args.csv:
@@ -49,24 +52,29 @@ def main():
             )
             for err in result.errors:
                 print(f"  - {err}")
+        elif settings.rakuten_app_id:
+            updated, skipped = pipeline.fetch_rakuten_prices(db)
+            print(f"Rakuten fetch: updated={updated} skipped={skipped}")
+        else:
+            print("No --csv given and RAKUTEN_APP_ID not set; re-running analysis only.")
 
         products = list(db.execute(select(models.Product)).scalars().all())
         checked = 0
         regenerated = 0
-        skipped = 0
+        skipped_analysis = 0
         for product in products:
             try:
                 checked += 1
                 if pipeline.sync_product_analysis(db, product):
                     regenerated += 1
             except Exception as exc:  # noqa: BLE001 - keep the batch alive
-                skipped += 1
+                skipped_analysis += 1
                 db.rollback()
                 crud.create_error_log(
                     db, source="price_fetch", message=f"{product.name}: {exc}", product_id=product.id
                 )
 
-        print(f"Analysis: checked={checked} ai_regenerated={regenerated} skipped_on_error={skipped}")
+        print(f"Analysis: checked={checked} ai_regenerated={regenerated} skipped_on_error={skipped_analysis}")
     finally:
         db.close()
 

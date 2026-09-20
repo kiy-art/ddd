@@ -5,8 +5,10 @@ import { notFound } from "next/navigation";
 import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
 import FadeIn from "@/components/FadeIn";
+import MonthlyTrendChart from "@/components/MonthlyTrendChart";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SafeProductImage from "@/components/SafeProductImage";
+import SeasonalTrend from "@/components/SeasonalTrend";
 import { CATEGORY_LABELS, getProduct } from "@/lib/api";
 
 export const revalidate = 0;
@@ -167,10 +169,22 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
         <FadeIn className="mt-16 rounded-2xl border border-border bg-card p-6 sm:p-10">
           <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Price History</span>
-          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">価格推移</h2>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">直近の価格推移</h2>
           <div className="mt-8">
             <PriceHistoryChart history={product.price_history} />
           </div>
+        </FadeIn>
+
+        <FadeIn className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-10">
+          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Long-Term Trend</span>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">長期価格推移（月次・最大3年）</h2>
+          <div className="mt-8">
+            <MonthlyTrendChart history={product.price_history} />
+          </div>
+        </FadeIn>
+
+        <FadeIn className="mt-10">
+          <SeasonalTrend category={product.category} />
         </FadeIn>
 
         {(product.buy_reason || product.ai_summary) && (

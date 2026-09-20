@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     claude_model: str = "claude-sonnet-5"
     admin_api_token: str = "change-me-to-a-random-secret"
     cors_origins: str = "http://localhost:3000"
+    rakuten_app_id: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

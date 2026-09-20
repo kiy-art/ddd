@@ -84,3 +84,25 @@ def run_update(db: Session = Depends(get_db)):
         if pipeline.sync_product_analysis(db, product):
             regenerated += 1
     return {"products_checked": updated, "ai_regenerated": regenerated}
+
+
+@router.post("/fetch-rakuten")
+def fetch_rakuten(db: Session = Depends(get_db)):
+    from app.config import get_settings
+
+    if not get_settings().rakuten_app_id:
+        raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID is not configured")
+
+    price_updated, price_skipped = pipeline.fetch_rakuten_prices(db)
+    analyzed = 0
+    regenerated = 0
+    for product in db.execute(select(models.Product)).scalars().all():
+        analyzed += 1
+        if pipeline.sync_product_analysis(db, product):
+            regenerated += 1
+    return {
+        "prices_updated": price_updated,
+        "prices_skipped": price_skipped,
+        "products_checked": analyzed,
+        "ai_regenerated": regenerated,
+    }

@@ -199,6 +199,7 @@ Base URL: `${API_URL}/api`
 | POST   | /admin/import/csv                     | CSVインポート            |
 | GET    | /admin/logs                           | エラーログ確認           |
 | POST   | /admin/run-update                     | 分析+AI生成パイプライン手動実行 |
+| POST   | /admin/fetch-rakuten                  | 楽天市場から全商品の価格を取得（`RAKUTEN_APP_ID`必須） |
 
 ## 6. 環境変数
 
@@ -210,7 +211,12 @@ ANTHROPIC_API_KEY=sk-ant-xxxx
 CLAUDE_MODEL=claude-sonnet-5
 ADMIN_API_TOKEN=change-me-to-a-random-secret
 CORS_ORIGINS=http://localhost:3000
+RAKUTEN_APP_ID=
 ```
+
+`RAKUTEN_APP_ID` は楽天ウェブサービス（https://webservice.rakuten.co.jp/ ）で無料発行できる
+「アプリID」。設定すると、`scripts/update_prices.py`（CSVを指定しない場合）と管理画面の
+「今すぐ価格を取得」ボタンが、楽天市場商品検索APIから各商品の最安値を自動取得するようになる。
 
 ### frontend/.env
 
