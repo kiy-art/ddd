@@ -56,8 +56,9 @@ MVPの目的は **売上ではなく「商品→価格→価格履歴→価格�
   `scripts/init_db.py` でテーブル作成する運用とし、スキーマが安定してから
   Alembicを導入する想定 (将来課題としてREADMEに明記)。
 - **スケジューラ: GitHub Actions** — 追加インフラ不要でコストゼロのため cron より優先。
-- **ホスティング候補**: Frontend = Vercel、Backend = Railway / Render / Fly.io など
-  PostgreSQL込みで無料枠のあるPaaS、DB = 同PaaSのマネージドPostgres。
+- **ホスティング: Render**（`render.yaml` Blueprint） — Frontend / Backend / PostgreSQLを
+  1つのサービス（1アカウント）にまとめてデプロイできるため、Vercel等と複数サービスを
+  併用するより運用がシンプルになると判断。無料プランで開始可能。
 
 ## 2. ディレクトリ構造
 
@@ -262,7 +263,8 @@ npm run dev                        # http://localhost:3000
 - [x] Phase 8: 管理画面
 - [x] Phase 9: 自動更新 (GitHub Actions)
 - [x] Phase 10: テスト (pytest)
-- [ ] Phase 11: デプロイ (Vercel / Railway等へのデプロイはユーザー側のアカウント設定が必要なため未実施。手順は本READMEの通り)
+- [x] Phase 11: デプロイ (`render.yaml` によるRender Blueprintデプロイ設定を用意。
+  実際のデプロイにはRenderアカウントでのBlueprint実行が必要)
 
 ## 10. セキュリティ / コスト制御メモ
 
