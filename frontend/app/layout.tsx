@@ -46,8 +46,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
-        <footer className="border-t border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400 dark:border-zinc-800">
-          本サイトはアフィリエイトプログラムを利用して収益を得ています。価格・在庫は変動する可能性があるため、購入前に販売元サイトでご確認ください。
+        <footer className="flex flex-col items-center gap-2 border-t border-zinc-200 px-4 py-6 text-center text-xs text-zinc-400 dark:border-zinc-800">
+          <p>
+            本サイトはアフィリエイトプログラムを利用して収益を得ています。価格・在庫は変動する可能性があるため、購入前に販売元サイトでご確認ください。
+          </p>
+          <Link href="/disclaimer" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
+            運営者情報・免責事項
+          </Link>
         </footer>
       </body>
     </html>

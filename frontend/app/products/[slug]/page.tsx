@@ -39,8 +39,34 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   const product = await loadProduct(slug);
   if (!product) notFound();
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    brand: { "@type": "Brand", name: product.brand },
+    ...(product.model_number ? { mpn: product.model_number } : {}),
+    ...(product.image_url ? { image: [product.image_url] } : {}),
+    url: `${siteUrl}/products/${product.slug}`,
+    ...(product.current_price !== null
+      ? {
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "JPY",
+            price: product.current_price,
+            availability: "https://schema.org/InStock",
+            url: product.affiliate_url || product.product_url || `${siteUrl}/products/${product.slug}`,
+          },
+        }
+      : {}),
+  };
+
   return (
     <article className="flex flex-col gap-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-white dark:bg-zinc-900">
           {product.image_url ? (
