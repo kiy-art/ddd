@@ -11,11 +11,19 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   if (status === "checking") {
-    return <p className="text-sm text-zinc-500">確認中...</p>;
+    return (
+      <div className="mx-auto max-w-7xl px-6 py-16">
+        <p className="text-sm text-foreground/50">確認中...</p>
+      </div>
+    );
   }
 
   if (status === "unauthenticated") {
-    return <AdminLoginForm />;
+    return (
+      <div className="mx-auto flex max-w-7xl items-center justify-center px-6 py-24">
+        <AdminLoginForm />
+      </div>
+    );
   }
 
   const links = [
@@ -25,24 +33,24 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800">
-        <nav className="flex gap-4 text-sm">
+    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
+        <nav className="flex gap-5 text-sm">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={
                 pathname === link.href
-                  ? "font-semibold text-zinc-900 dark:text-white"
-                  : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  ? "font-semibold text-foreground"
+                  : "text-foreground/50 hover:text-foreground"
               }
             >
               {link.label}
             </Link>
           ))}
         </nav>
-        <button onClick={logout} className="text-sm text-zinc-500 hover:text-red-600">
+        <button onClick={logout} className="text-sm text-foreground/50 hover:text-red-600">
           ログアウト
         </button>
       </div>

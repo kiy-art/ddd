@@ -76,7 +76,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-bold">ダッシュボード</h1>
+      <h1 className="font-display text-xl font-semibold text-foreground">ダッシュボード</h1>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <StatCard label="商品数" value={products.length} />
@@ -86,39 +86,39 @@ export default function AdminDashboard() {
         <StatCard label="判定不能" value={byScore.insufficient_data ?? 0} />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="font-semibold">価格CSVインポート</h2>
-        <p className="text-sm text-zinc-500">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">価格CSVインポート</h2>
+        <p className="text-sm text-foreground/50">
           product_name,brand,category,model_number,price,product_url,image_url の列を持つCSVを取り込みます。
         </p>
         <input type="file" accept=".csv" onChange={handleCsv} disabled={busy} className="text-sm" />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="font-semibold">分析・AI説明文の再生成</h2>
-        <p className="text-sm text-zinc-500">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">分析・AI説明文の再生成</h2>
+        <p className="text-sm text-foreground/50">
           全商品の買い時判定を再計算し、価格が変化した商品のみAI説明文を再生成します。
         </p>
         <button
           onClick={handleRunUpdate}
           disabled={busy}
-          className="w-fit rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-zinc-900"
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ実行
         </button>
       </div>
 
-      {message && <p className="text-sm text-zinc-700 dark:text-zinc-300">{message}</p>}
-      {loading && <p className="text-sm text-zinc-500">読み込み中...</p>}
+      {message && <p className="text-sm text-foreground/70">{message}</p>}
+      {loading && <p className="text-sm text-foreground/50">読み込み中...</p>}
     </div>
   );
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className="text-2xl font-bold">{value}</div>
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="text-xs text-foreground/50">{label}</div>
+      <div className="font-display text-2xl font-semibold text-foreground">{value}</div>
     </div>
   );
 }

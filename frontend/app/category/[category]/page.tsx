@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import FadeIn from "@/components/FadeIn";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, getCategoryProducts } from "@/lib/api";
 
@@ -21,7 +22,7 @@ export async function generateMetadata({
   const label = CATEGORY_LABELS[category];
   if (!label) return {};
   return {
-    title: `${label}の買い時商品一覧 | ゴルフ買い時ナビ`,
+    title: `${label}の買い時商品一覧`,
     description: `${label}の価格推移と買い時判定を一覧で確認できます。`,
   };
 }
@@ -40,23 +41,36 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-6 py-8 text-white">
-        <p className="text-xs font-semibold uppercase tracking-widest text-accent">Category</p>
-        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{CATEGORY_LABELS[category]}の買い時商品</h1>
-      </div>
+    <div>
+      <section className="bg-brand px-6 py-20 text-white sm:py-28">
+        <div className="mx-auto max-w-7xl">
+          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Category</span>
+          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">
+            {CATEGORY_LABELS[category]}
+          </h1>
+          <p className="mt-3 text-sm text-white/70">
+            {products.length}商品の価格を分析中
+          </p>
+        </div>
+      </section>
 
-      {products.length === 0 && (
-        <p className="rounded-xl border border-dashed border-border bg-card px-4 py-8 text-center text-sm text-foreground/50">
-          現在このカテゴリで表示できる商品がありません。
-        </p>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+      <section className="px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl">
+          {products.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-16 text-center text-sm text-foreground/50">
+              現在このカテゴリで表示できる商品がありません。
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map((product, i) => (
+                <FadeIn key={product.id} delay={(i % 6) * 60}>
+                  <ProductCard product={product} />
+                </FadeIn>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

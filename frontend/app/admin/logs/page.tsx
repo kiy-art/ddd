@@ -20,12 +20,12 @@ export default function AdminLogsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold">エラーログ</h1>
-      {loading && <p className="text-sm text-zinc-500">読み込み中...</p>}
-      {!loading && logs.length === 0 && <p className="text-sm text-zinc-500">ログはありません。</p>}
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <h1 className="font-display text-xl font-semibold text-foreground">エラーログ</h1>
+      {loading && <p className="text-sm text-foreground/50">読み込み中...</p>}
+      {!loading && logs.length === 0 && <p className="text-sm text-foreground/50">ログはありません。</p>}
+      <div className="overflow-x-auto rounded-2xl border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800">
+          <thead className="border-b border-border text-xs text-foreground/50">
             <tr>
               <th className="p-3">日時</th>
               <th className="p-3">種別</th>
@@ -36,15 +36,15 @@ export default function AdminLogsPage() {
           </thead>
           <tbody>
             {logs.map((log) => (
-              <tr key={log.id} className="border-b border-zinc-100 dark:border-zinc-800">
-                <td className="whitespace-nowrap p-3 text-xs text-zinc-500">
+              <tr key={log.id} className="border-b border-border">
+                <td className="whitespace-nowrap p-3 text-xs text-foreground/50">
                   {new Date(log.created_at).toLocaleString("ja-JP")}
                 </td>
                 <td className="p-3 text-xs">{log.source}</td>
                 <td className="p-3 text-xs">
                   <span
                     className={
-                      log.level === "error" ? "font-semibold text-red-600" : "text-zinc-500"
+                      log.level === "error" ? "font-semibold text-red-600" : "text-foreground/50"
                     }
                   >
                     {log.level}

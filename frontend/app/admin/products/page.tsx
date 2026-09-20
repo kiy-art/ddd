@@ -81,13 +81,13 @@ export default function AdminProductsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-bold">商品管理</h1>
+      <h1 className="font-display text-xl font-semibold text-foreground">商品管理</h1>
 
       <form
         onSubmit={handleCreate}
-        className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-200 bg-white p-4 sm:grid-cols-3 dark:border-zinc-800 dark:bg-zinc-900"
+        className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-card p-5 sm:grid-cols-3"
       >
-        <h2 className="col-span-full font-semibold">商品追加</h2>
+        <h2 className="col-span-full font-display font-medium text-foreground">商品追加</h2>
         <Field label="商品名" required value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
         <Field label="ブランド" required value={form.brand} onChange={(v) => setForm({ ...form, brand: v })} />
         <label className="flex flex-col gap-1 text-sm">
@@ -95,7 +95,7 @@ export default function AdminProductsPage() {
           <select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800"
+            className="rounded-lg border border-border bg-background px-3 py-2 text-foreground"
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -125,13 +125,13 @@ export default function AdminProductsPage() {
         {error && <p className="col-span-full text-sm text-red-600">{error}</p>}
         <button
           type="submit"
-          className="col-span-full w-fit rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-zinc-900"
+          className="col-span-full w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white"
         >
           追加
         </button>
       </form>
 
-      {loading && <p className="text-sm text-zinc-500">読み込み中...</p>}
+      {loading && <p className="text-sm text-foreground/50">読み込み中...</p>}
 
       <div className="flex flex-col gap-3">
         {products.map((product) => (
@@ -170,7 +170,7 @@ function Field({
         required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800"
+        className="rounded-lg border border-border bg-background px-3 py-2 text-foreground"
       />
     </label>
   );
@@ -236,14 +236,14 @@ function ProductRow({
   };
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-border bg-card">
       <button
         onClick={onToggle}
         className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left"
       >
         <div>
           <div className="font-semibold">{product.name}</div>
-          <div className="text-xs text-zinc-500">
+          <div className="text-xs text-foreground/50">
             {CATEGORY_LABELS[product.category]} ・ {product.brand} ・{" "}
             {product.current_price ? `¥${product.current_price.toLocaleString("ja-JP")}` : "価格未登録"}
           </div>
@@ -252,7 +252,7 @@ function ProductRow({
       </button>
 
       {expanded && (
-        <div className="flex flex-col gap-4 border-t border-zinc-200 p-4 dark:border-zinc-800">
+        <div className="flex flex-col gap-4 border-t border-border p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Field label="商品名" value={edit.name} onChange={(v) => setEdit({ ...edit, name: v })} />
             <Field label="ブランド" value={edit.brand} onChange={(v) => setEdit({ ...edit, brand: v })} />
@@ -261,7 +261,7 @@ function ProductRow({
               <select
                 value={edit.category}
                 onChange={(e) => setEdit({ ...edit, category: e.target.value })}
-                className="rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800"
+                className="rounded-lg border border-border bg-background px-3 py-2 text-foreground"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -290,7 +290,7 @@ function ProductRow({
           <div className="flex gap-2">
             <button
               onClick={handleSave}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-zinc-900"
+              className="rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white"
             >
               保存
             </button>
@@ -302,34 +302,34 @@ function ProductRow({
             </button>
           </div>
 
-          <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            <h3 className="mb-2 text-sm font-semibold">価格履歴</h3>
+          <div className="border-t border-border pt-4">
+            <h3 className="mb-2 text-sm font-display font-medium text-foreground">価格履歴</h3>
             <div className="mb-3 flex gap-2">
               <input
                 type="number"
                 placeholder="新しい価格"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
               />
               <button
                 onClick={handleAddPrice}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-zinc-900"
+                className="rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white"
               >
                 価格を追加
               </button>
             </div>
-            <ul className="max-h-48 overflow-y-auto text-sm text-zinc-600 dark:text-zinc-400">
+            <ul className="max-h-48 overflow-y-auto text-sm text-foreground/60">
               {prices
                 .slice()
                 .reverse()
                 .map((p) => (
-                  <li key={p.id} className="flex justify-between border-b border-zinc-100 py-1 dark:border-zinc-800">
+                  <li key={p.id} className="flex justify-between border-b border-border py-1">
                     <span>{new Date(p.recorded_at).toLocaleString("ja-JP")}</span>
                     <span>¥{p.price.toLocaleString("ja-JP")}</span>
                   </li>
                 ))}
-              {prices.length === 0 && <li className="py-1 text-zinc-400">価格履歴がありません</li>}
+              {prices.length === 0 && <li className="py-1 text-foreground/35">価格履歴がありません</li>}
             </ul>
           </div>
         </div>

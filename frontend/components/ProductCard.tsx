@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 
-import BuyStatusBadge from "@/components/BuyStatusBadge";
+import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
+import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
 
 function yen(value: number | null): string {
@@ -11,48 +11,66 @@ function yen(value: number | null): string {
 }
 
 export default function ProductCard({ product }: { product: Product }) {
-  const isDiscounted = (product.price_change_percent ?? 0) < 0;
+  const pct = product.price_change_percent;
 
   return (
     <Link
       href={`/products/${product.slug}`}
-      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:shadow-lg"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-24px_rgba(15,61,46,0.25)]"
     >
-      <div className="relative aspect-square w-full bg-background">
+      <div className="relative aspect-[4/3] w-full bg-background">
         {product.image_url ? (
-          <Image
+          <SafeProductImage
             src={product.image_url}
             alt={product.name}
-            fill
-            unoptimized
-            className="object-contain p-4 transition-transform duration-200 group-hover:scale-105"
+            category={product.category}
+            className="object-contain p-8 transition-transform duration-500 group-hover:scale-[1.04]"
           />
         ) : (
           <CategoryIcon category={product.category} />
         )}
-        {isDiscounted && (
-          <span className="absolute left-2 top-2 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-white shadow-sm">
-            {product.price_change_percent}%
-          </span>
-        )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <span className="text-xs font-medium text-foreground/50">
-          {CATEGORY_LABELS[product.category] ?? product.category} ・ {product.brand}
-        </span>
-        <h3 className="line-clamp-2 font-semibold text-foreground">{product.name}</h3>
-        <div className="mt-auto flex items-end justify-between gap-2">
+
+      <div className="flex flex-1 flex-col gap-4 p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">
+              {CATEGORY_LABELS[product.category] ?? product.category} · {product.brand}
+            </span>
+            <h3 className="mt-1 line-clamp-2 font-display text-lg font-medium leading-snug text-foreground">
+              {product.name}
+            </h3>
+          </div>
+          <AiBuySignal buyScore={product.buy_score} priceChangePercent={pct} size="sm" />
+        </div>
+
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-4">
           <div>
-            <div className="text-lg font-bold text-foreground">{yen(product.current_price)}</div>
+            <div className="font-display text-2xl font-semibold text-foreground">
+              {yen(product.current_price)}
+            </div>
             {product.average_price !== null && (
-              <div className="text-xs text-foreground/50">30日平均 {yen(product.average_price)}</div>
+              <div className="mt-0.5 text-xs text-foreground/45">
+                30日平均 {yen(product.average_price)}
+              </div>
             )}
           </div>
-          <BuyStatusBadge buyScore={product.buy_score} />
+          {pct !== null && (
+            <div className="text-right">
+              <div
+                className={`font-display text-lg font-semibold ${
+                  pct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/60"
+                }`}
+              >
+                {pct > 0 ? "+" : ""}
+                {pct}%
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-foreground/35">
+                vs 30d avg
+              </div>
+            </div>
+          )}
         </div>
-        {product.buy_reason && (
-          <p className="line-clamp-2 text-xs text-foreground/50">{product.buy_reason}</p>
-        )}
       </div>
     </Link>
   );
