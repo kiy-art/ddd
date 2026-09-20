@@ -41,7 +41,8 @@ def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchRes
         "sort": "+itemPrice",
     }
     response = httpx.get(SEARCH_URL, params=params, timeout=timeout)
-    response.raise_for_status()
+    if response.is_error:
+        raise RuntimeError(f"Rakuten API {response.status_code}: {response.text[:500]}")
     data = response.json()
 
     items = data.get("Items") or []
