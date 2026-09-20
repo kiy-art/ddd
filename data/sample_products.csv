@@ -1,0 +1,7 @@
+product_name,brand,category,model_number,price,product_url,image_url
+G440 ドライバー,PING,driver,G440,72800,https://example.com/products/ping-g440-driver,https://example.com/images/ping-g440-driver.jpg
+G430 アイアン,PING,iron,G430,98000,https://example.com/products/ping-g430-iron,https://example.com/images/ping-g430-iron.jpg
+ステルス2 ドライバー,TaylorMade,driver,STEALTH2,65000,https://example.com/products/taylormade-stealth2,https://example.com/images/taylormade-stealth2.jpg
+ボークス ウェッジ,Vokey,wedge,SM10,24800,https://example.com/products/vokey-sm10,https://example.com/images/vokey-sm10.jpg
+スコッティキャメロン パター,Scotty Cameron,putter,NEWPORT2,58000,https://example.com/products/scotty-newport2,https://example.com/images/scotty-newport2.jpg
+プロV1 ボール,Titleist,ball,PROV1,5980,https://example.com/products/titleist-prov1,https://example.com/images/titleist-prov1.jpg
