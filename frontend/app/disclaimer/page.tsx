@@ -29,6 +29,16 @@ export default function DisclaimerPage() {
       </section>
 
       <section className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">商品画像について</h2>
+        <p>
+          現在、商品ページの画像はメーカーの実物写真ではなく、カテゴリを表す簡易的なアイコンを表示しています。
+          これは、権利者の許諾を得ていない商品写真の無断掲載を避けるための措置です。
+          Amazonアソシエイト・楽天アフィリエイト等の審査に通過し、各社が公式に提供する画像APIを利用できる
+          状態になり次第、正式に許諾された商品画像に切り替える予定です。
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">価格・在庫情報について</h2>
         <ul className="list-disc space-y-1 pl-5">
           <li>掲載している価格・在庫状況は変動する可能性があります。</li>

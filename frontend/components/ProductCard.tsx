@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import BuyStatusBadge from "@/components/BuyStatusBadge";
+import CategoryIcon from "@/components/CategoryIcon";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
 
 function yen(value: number | null): string {
@@ -27,7 +28,7 @@ export default function ProductCard({ product }: { product: Product }) {
             className="object-contain p-4 transition-transform duration-200 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-foreground/30">No Image</div>
+          <CategoryIcon category={product.category} />
         )}
         {isDiscounted && (
           <span className="absolute left-2 top-2 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-white shadow-sm">

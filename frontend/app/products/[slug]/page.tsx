@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 
 import BuyStatusBadge from "@/components/BuyStatusBadge";
+import CategoryIcon from "@/components/CategoryIcon";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import { CATEGORY_LABELS, getProduct } from "@/lib/api";
 
@@ -78,7 +79,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               className="object-contain p-6"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-foreground/30">No Image</div>
+            <CategoryIcon category={product.category} />
           )}
         </div>
 
