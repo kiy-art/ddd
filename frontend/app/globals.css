@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f7f5;
+  --foreground: #1c1c1a;
+  --card: #ffffff;
+  --border: #e6e4de;
+
+  /* Golf-course green as the brand color, warm gold as the accent/CTA color */
+  --brand: #1e4d3a;
+  --brand-dark: #143327;
+  --brand-light: #2f6b50;
+  --accent: #c8912b;
+  --accent-dark: #a9761c;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-light: var(--brand-light);
+  --color-accent: var(--accent);
+  --color-accent-dark: var(--accent-dark);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #101210;
+    --foreground: #f2f1ec;
+    --card: #191b19;
+    --border: #2a2d2a;
+    --brand: #3a7a5c;
+    --brand-dark: #275940;
+    --brand-light: #4f9670;
+    --accent: #d9a53b;
+    --accent-dark: #b3831e;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }

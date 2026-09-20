@@ -68,7 +68,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-white dark:bg-zinc-900">
+        <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-border bg-card">
           {product.image_url ? (
             <Image
               src={product.image_url}
@@ -78,21 +78,21 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               className="object-contain p-6"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-zinc-400">No Image</div>
+            <div className="flex h-full items-center justify-center text-sm text-foreground/30">No Image</div>
           )}
         </div>
 
         <div className="flex flex-col gap-4">
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm font-medium text-foreground/50">
             {CATEGORY_LABELS[product.category] ?? product.category} ・ {product.brand}
           </span>
-          <h1 className="text-2xl font-bold">{product.ai_title || product.name}</h1>
-          <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold leading-snug">{product.ai_title || product.name}</h1>
+          <div className="flex flex-wrap items-center gap-3">
             <BuyStatusBadge buyScore={product.buy_score} />
             {product.price_change_percent !== null && (
               <span
                 className={`text-sm font-semibold ${
-                  product.price_change_percent < 0 ? "text-red-600" : "text-zinc-500"
+                  product.price_change_percent < 0 ? "text-red-600" : "text-foreground/50"
                 }`}
               >
                 {product.price_change_percent > 0 ? "+" : ""}
@@ -101,35 +101,37 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             )}
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="text-3xl font-bold">{yen(product.current_price)}</div>
-            <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-zinc-500">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-3xl font-bold text-brand dark:text-brand-light">
+              {yen(product.current_price)}
+            </div>
+            <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-xs text-foreground/50">
               <div>
                 <dt>過去30日平均</dt>
-                <dd className="font-medium text-zinc-700 dark:text-zinc-300">{yen(product.average_price)}</dd>
+                <dd className="font-semibold text-foreground/80">{yen(product.average_price)}</dd>
               </div>
               <div>
                 <dt>過去最安値</dt>
-                <dd className="font-medium text-zinc-700 dark:text-zinc-300">{yen(product.lowest_price)}</dd>
+                <dd className="font-semibold text-foreground/80">{yen(product.lowest_price)}</dd>
               </div>
               <div>
                 <dt>前回価格</dt>
-                <dd className="font-medium text-zinc-700 dark:text-zinc-300">{yen(product.previous_price)}</dd>
+                <dd className="font-semibold text-foreground/80">{yen(product.previous_price)}</dd>
               </div>
             </dl>
           </div>
 
           {product.buy_reason && (
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">買い時の理由</h2>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{product.buy_reason}</p>
+            <div className="rounded-xl border-l-4 border-accent bg-accent/10 p-3">
+              <h2 className="text-sm font-semibold text-foreground">買い時の理由</h2>
+              <p className="mt-1 text-sm text-foreground/70">{product.buy_reason}</p>
             </div>
           )}
 
           {product.ai_summary && (
             <div>
-              <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">概要</h2>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{product.ai_summary}</p>
+              <h2 className="text-sm font-semibold text-foreground/80">概要</h2>
+              <p className="mt-1 text-sm text-foreground/60">{product.ai_summary}</p>
             </div>
           )}
 
@@ -139,7 +141,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 href={product.affiliate_url}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
-                className="flex-1 rounded-lg bg-orange-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-orange-700"
+                className="flex-1 rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-dark"
               >
                 購入ページを見る（広告・PR）
               </a>
@@ -149,29 +151,27 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 href={product.product_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 text-center text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                className="flex-1 rounded-lg border border-border px-4 py-3 text-center text-sm font-semibold text-foreground/80 transition-colors hover:bg-background"
               >
                 商品ページを見る
               </a>
             )}
           </div>
           {product.affiliate_url && (
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-foreground/40">
               ※上記リンクにはアフィリエイトリンクが含まれます。リンク経由の購入により当サイトが紹介料を受け取る場合があります。
             </p>
           )}
         </div>
       </div>
 
-      <section>
+      <section className="rounded-xl border border-border bg-card p-5">
         <h2 className="mb-3 text-lg font-semibold">価格推移</h2>
         <PriceHistoryChart history={product.price_history} />
       </section>
 
       {product.ai_caution && (
-        <p className="rounded-lg bg-zinc-100 p-3 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-          ⚠ {product.ai_caution}
-        </p>
+        <p className="rounded-lg bg-background p-3 text-xs text-foreground/50">⚠ {product.ai_caution}</p>
       )}
     </article>
   );

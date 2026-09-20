@@ -29,23 +29,24 @@ export default async function Home({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">今日の買い時ゴルフ用品</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          過去30日の価格推移をもとに、値下がり幅が大きい商品から順に表示しています。
+    <div className="flex flex-col gap-8">
+      <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-6 py-10 text-white sm:px-10 sm:py-14">
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">Today&apos;s Deals</p>
+        <h1 className="mt-2 text-3xl font-bold sm:text-4xl">今日の買い時ゴルフ用品</h1>
+        <p className="mt-3 max-w-xl text-sm text-white/80 sm:text-base">
+          過去30日の価格推移をAIとルールベース分析で判定し、値下がり幅が大きい商品から順に紹介しています。
         </p>
-      </div>
+      </section>
 
       <div className="flex flex-wrap gap-2">
         {FILTER_TABS.map((tab) => (
           <Link
             key={tab}
             href={tab === "all" ? "/" : `/?buy_score=${tab}`}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
               activeTab === tab
-                ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900"
-                : "border-zinc-300 text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300"
+                ? "border-brand bg-brand text-white"
+                : "border-border bg-card text-foreground/60 hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
             }`}
           >
             {tab === "all" ? "すべて" : BUY_SCORE_LABELS[tab]}
@@ -56,7 +57,7 @@ export default async function Home({
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {!error && products.length === 0 && (
-        <p className="text-sm text-zinc-500">
+        <p className="rounded-xl border border-dashed border-border bg-card px-4 py-8 text-center text-sm text-foreground/50">
           現在表示できる商品がありません。価格データが蓄積され次第表示されます。
         </p>
       )}

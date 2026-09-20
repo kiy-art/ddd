@@ -10,52 +10,47 @@ function yen(value: number | null): string {
 }
 
 export default function ProductCard({ product }: { product: Product }) {
+  const isDiscounted = (product.price_change_percent ?? 0) < 0;
+
   return (
     <Link
       href={`/products/${product.slug}`}
-      className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
+      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:shadow-lg"
     >
-      <div className="relative aspect-square w-full bg-zinc-100 dark:bg-zinc-800">
+      <div className="relative aspect-square w-full bg-background">
         {product.image_url ? (
           <Image
             src={product.image_url}
             alt={product.name}
             fill
             unoptimized
-            className="object-contain p-4"
+            className="object-contain p-4 transition-transform duration-200 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-zinc-400">No Image</div>
+          <div className="flex h-full items-center justify-center text-sm text-foreground/30">No Image</div>
+        )}
+        {isDiscounted && (
+          <span className="absolute left-2 top-2 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-white shadow-sm">
+            {product.price_change_percent}%
+          </span>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs font-medium text-foreground/50">
           {CATEGORY_LABELS[product.category] ?? product.category} ・ {product.brand}
         </span>
-        <h3 className="line-clamp-2 font-semibold text-zinc-900 dark:text-zinc-50">{product.name}</h3>
+        <h3 className="line-clamp-2 font-semibold text-foreground">{product.name}</h3>
         <div className="mt-auto flex items-end justify-between gap-2">
           <div>
-            <div className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-              {yen(product.current_price)}
-            </div>
+            <div className="text-lg font-bold text-foreground">{yen(product.current_price)}</div>
             {product.average_price !== null && (
-              <div className="text-xs text-zinc-500">30日平均 {yen(product.average_price)}</div>
-            )}
-            {product.price_change_percent !== null && (
-              <div
-                className={`text-xs font-medium ${
-                  product.price_change_percent < 0 ? "text-red-600" : "text-zinc-500"
-                }`}
-              >
-                {product.price_change_percent > 0 ? "+" : ""}
-                {product.price_change_percent}%
-              </div>
+              <div className="text-xs text-foreground/50">30日平均 {yen(product.average_price)}</div>
             )}
           </div>
           <BuyStatusBadge buyScore={product.buy_score} />
         </div>
         {product.buy_reason && (
-          <p className="line-clamp-2 text-xs text-zinc-500">{product.buy_reason}</p>
+          <p className="line-clamp-2 text-xs text-foreground/50">{product.buy_reason}</p>
         )}
       </div>
     </Link>

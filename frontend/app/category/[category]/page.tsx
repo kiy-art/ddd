@@ -41,10 +41,15 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">{CATEGORY_LABELS[category]}の買い時商品</h1>
+      <div className="rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-6 py-8 text-white">
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">Category</p>
+        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{CATEGORY_LABELS[category]}の買い時商品</h1>
+      </div>
 
       {products.length === 0 && (
-        <p className="text-sm text-zinc-500">現在このカテゴリで表示できる商品がありません。</p>
+        <p className="rounded-xl border border-dashed border-border bg-card px-4 py-8 text-center text-sm text-foreground/50">
+          現在このカテゴリで表示できる商品がありません。
+        </p>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
