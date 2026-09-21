@@ -34,7 +34,8 @@ export default function Hero({
             ゴルフ用品をAIが発見。
           </h1>
           <p className="max-w-md text-base leading-relaxed text-white/70 sm:text-lg">
-            過去30日の価格データを毎日分析し、「今が買い時か」をAIがスコアでお伝えします。
+            「最安値」を探すサイトではありません。過去の価格データを毎日分析し、
+            「今が買い時か」をスコアでお伝えします。
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Link

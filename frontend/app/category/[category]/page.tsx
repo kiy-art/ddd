@@ -1,13 +1,40 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import CategoryGuide from "@/components/CategoryGuide";
 import FadeIn from "@/components/FadeIn";
 import ProductCard from "@/components/ProductCard";
-import { CATEGORIES, CATEGORY_LABELS, getCategoryProducts } from "@/lib/api";
+import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
 
 export const revalidate = 0;
 
 type Params = { category: string };
+
+const SORT_OPTIONS = ["discount", "signal", "price_asc"] as const;
+type SortOption = (typeof SORT_OPTIONS)[number];
+
+const SORT_LABELS: Record<SortOption, string> = {
+  discount: "値下がり幅順",
+  signal: "買い時順",
+  price_asc: "価格が安い順",
+};
+
+function isSortOption(value: string | undefined): value is SortOption {
+  return !!value && (SORT_OPTIONS as readonly string[]).includes(value);
+}
+
+function sortProducts(products: Product[], sort: SortOption): Product[] {
+  const list = [...products];
+  if (sort === "signal") {
+    return list.sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1));
+  }
+  if (sort === "price_asc") {
+    return list.sort((a, b) => (a.current_price ?? Infinity) - (b.current_price ?? Infinity));
+  }
+  // "discount": already the API's default order (price_change_percent ascending), kept as-is
+  return list;
+}
 
 export function generateStaticParams() {
   return CATEGORIES.map((category) => ({ category }));
@@ -27,18 +54,33 @@ export async function generateMetadata({
   };
 }
 
-export default async function CategoryPage({ params }: { params: Promise<Params> }) {
+export default async function CategoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<Params>;
+  searchParams: Promise<{ sort?: string }>;
+}) {
   const { category } = await params;
   if (!CATEGORIES.includes(category as (typeof CATEGORIES)[number])) {
     notFound();
   }
+  const { sort: sortParam } = await searchParams;
+  const sort: SortOption = isSortOption(sortParam) ? sortParam : "discount";
 
-  let products = [] as Awaited<ReturnType<typeof getCategoryProducts>>;
+  let products = [] as Product[];
   try {
     products = await getCategoryProducts(category);
   } catch {
     notFound();
   }
+
+  const sortedProducts = sortProducts(products, sort);
+
+  const droppedRecently = products.filter(
+    (p) => p.current_price !== null && p.previous_price !== null && p.current_price < p.previous_price
+  ).length;
+  const cheapestVsAverage = products.length > 0 ? products[0] : null; // API default order = biggest discount first
 
   return (
     <div>
@@ -48,9 +90,28 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
           <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">
             {CATEGORY_LABELS[category]}
           </h1>
-          <p className="mt-3 text-sm text-white/70">
-            {products.length}商品の価格を分析中
-          </p>
+
+          <dl className="mt-8 flex flex-wrap gap-x-12 gap-y-6 border-t border-white/15 pt-8">
+            <div>
+              <dt className="text-xs uppercase tracking-widest text-white/50">監視中のモデル</dt>
+              <dd className="font-display text-3xl font-semibold">{products.length}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-widest text-white/50">直近で値下がりしたモデル</dt>
+              <dd className="font-display text-3xl font-semibold">{droppedRecently}</dd>
+            </div>
+            {cheapestVsAverage?.price_change_percent !== undefined && cheapestVsAverage?.price_change_percent !== null && (
+              <div>
+                <dt className="text-xs uppercase tracking-widest text-white/50">30日平均から最も安いモデル</dt>
+                <dd className="font-display text-lg font-semibold leading-snug">
+                  {cheapestVsAverage.name}
+                  <span className="ml-2 text-sm font-medium text-white/70">
+                    {cheapestVsAverage.price_change_percent}%
+                  </span>
+                </dd>
+              </div>
+            )}
+          </dl>
         </div>
       </section>
 
@@ -61,14 +122,45 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
               現在このカテゴリで表示できる商品がありません。
             </p>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {products.map((product, i) => (
-                <FadeIn key={product.id} delay={(i % 6) * 60}>
-                  <ProductCard product={product} />
-                </FadeIn>
-              ))}
-            </div>
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-foreground/45">並び替え:</span>
+                {SORT_OPTIONS.map((opt) => (
+                  <Link
+                    key={opt}
+                    href={opt === "discount" ? `/category/${category}` : `/category/${category}?sort=${opt}`}
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                      sort === opt
+                        ? "border-brand bg-brand text-white"
+                        : "border-border bg-background text-foreground/60 hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
+                    }`}
+                  >
+                    {SORT_LABELS[opt]}
+                  </Link>
+                ))}
+              </div>
+
+              <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {sortedProducts.map((product, i) => (
+                  <FadeIn key={product.id} delay={(i % 6) * 60}>
+                    <ProductCard product={product} />
+                  </FadeIn>
+                ))}
+              </div>
+            </>
           )}
+        </div>
+      </section>
+
+      <section className="border-t border-border px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl">
+          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Buying Guide</span>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">
+            {CATEGORY_LABELS[category]}の選び方
+          </h2>
+          <div className="mt-8">
+            <CategoryGuide category={category} />
+          </div>
         </div>
       </section>
     </div>
