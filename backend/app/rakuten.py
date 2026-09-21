@@ -11,7 +11,7 @@ import httpx
 
 from app.config import get_settings
 
-SEARCH_URL = "https://openapi.rakuten.co.jp/services/api/IchibaItem/Search/20220601"
+SEARCH_URL = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701"
 
 
 class RakutenNotConfigured(Exception):
