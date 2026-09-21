@@ -68,8 +68,13 @@ BRAND_KEYWORDS = {
     "ゼクシオ": "XXIO",
     "Honma": "Honma",
     "ホンマ": "Honma",
-    "Vokey": "Vokey",
-    "ボーケイ": "Vokey",
+    # Vokey is Titleist's wedge line, not a separate manufacturer - matches
+    # the brand recorded for it elsewhere in the catalog (see
+    # data/real_products_batch3.csv), so a discovered Vokey wedge groups
+    # onto the same brand page as other Titleist products instead of
+    # fragmenting into its own.
+    "Vokey": "Titleist",
+    "ボーケイ": "Titleist",
     "Scotty Cameron": "Scotty Cameron",
     "スコッティキャメロン": "Scotty Cameron",
     "スコッティ・キャメロン": "Scotty Cameron",
@@ -77,6 +82,22 @@ BRAND_KEYWORDS = {
     "オデッセイ": "Odyssey",
     "Cleveland": "Cleveland",
     "クリーブランド": "Cleveland",
+    "PXG": "PXG",
+    "L.A.B Golf": "L.A.B Golf",
+    "L.A.B. Golf": "L.A.B Golf",
+    "ラブゴルフ": "L.A.B Golf",
+    "Yonex": "Yonex",
+    "ヨネックス": "Yonex",
+    "Fourteen": "Fourteen",
+    "フォーティーン": "Fourteen",
+    "Miura": "Miura",
+    "三浦技研": "Miura",
+    "Bettinardi": "Bettinardi",
+    "ベティナルディ": "Bettinardi",
+    "Wilson": "Wilson",
+    "ウイルソン": "Wilson",
+    "Epon": "Epon",
+    "エポン": "Epon",
 }
 
 
