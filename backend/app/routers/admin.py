@@ -71,6 +71,16 @@ def delete_price(price_history_id: int, db: Session = Depends(get_db)):
     return product
 
 
+@router.get("/price-anomalies", response_model=list[schemas.PriceAnomalyOut])
+def get_price_anomalies(db: Session = Depends(get_db)):
+    return pipeline.find_price_anomalies(db)
+
+
+@router.post("/price-anomalies/fix", response_model=list[schemas.PriceAnomalyOut])
+def fix_price_anomalies(db: Session = Depends(get_db)):
+    return pipeline.fix_price_anomalies(db)
+
+
 @router.post("/import/csv", response_model=schemas.CsvImportResult)
 async def import_csv(file: UploadFile, db: Session = Depends(get_db)):
     content = await file.read()

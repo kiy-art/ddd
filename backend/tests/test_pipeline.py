@@ -78,3 +78,37 @@ def test_fetch_rakuten_prices_accepts_any_price_with_no_history_reference(db_ses
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
     assert updated == 1
     assert skipped == 0
+
+
+def test_find_and_fix_price_anomalies_cleans_up_preexisting_bad_row(db_session):
+    """Simulates data corrupted before the sanity-check guard existed: a
+    product with legitimate prices plus one bad ¥1,100 row already written
+    to history. The scan must flag it and the fix must remove it and
+    recompute the product's stats."""
+    product = _make_product(db_session, initial_price=60000)
+    crud.add_price(db_session, product, 59000)
+    crud.add_price(db_session, product, 1100)
+
+    # A healthy, untouched product must never be flagged.
+    healthy = crud.create_product(
+        db_session,
+        schemas.ProductCreate(name="G440 Driver", brand="PING", category="driver", initial_price=70000),
+    )
+    crud.add_price(db_session, healthy, 68000)
+
+    anomalies = pipeline.find_price_anomalies(db_session)
+    assert len(anomalies) == 1
+    assert anomalies[0]["product_id"] == product.id
+    assert anomalies[0]["price"] == 1100
+
+    fixed = pipeline.fix_price_anomalies(db_session)
+    assert len(fixed) == 1
+
+    db_session.refresh(product)
+    assert product.current_price == 59000
+    assert product.lowest_price == 59000
+
+    remaining_prices = [h.price for h in crud.get_price_history(db_session, product.id)]
+    assert 1100 not in remaining_prices
+
+    assert pipeline.find_price_anomalies(db_session) == []

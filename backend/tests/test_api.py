@@ -142,3 +142,30 @@ def test_delete_price_removes_bad_entry_and_recomputes(client, admin_headers):
 
     resp = client.delete(f"/api/admin/prices/{bad_entry['id']}", headers=admin_headers)
     assert resp.status_code == 404
+
+
+def test_price_anomalies_scan_and_bulk_fix(client, admin_headers):
+    created = client.post(
+        "/api/admin/products",
+        headers=admin_headers,
+        json={"name": "G430 Iron", "brand": "PING", "category": "iron", "initial_price": 60000},
+    ).json()
+    product_id = created["id"]
+    client.post(f"/api/admin/products/{product_id}/prices", headers=admin_headers, json={"price": 59000})
+    client.post(f"/api/admin/products/{product_id}/prices", headers=admin_headers, json={"price": 1100})
+
+    resp = client.get("/api/admin/price-anomalies", headers=admin_headers)
+    assert resp.status_code == 200
+    anomalies = resp.json()
+    assert len(anomalies) == 1
+    assert anomalies[0]["price"] == 1100
+
+    resp = client.post("/api/admin/price-anomalies/fix", headers=admin_headers)
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+    product = client.get(f"/api/admin/products/{product_id}/prices", headers=admin_headers).json()
+    assert all(p["price"] != 1100 for p in product)
+
+    resp = client.get("/api/admin/price-anomalies", headers=admin_headers)
+    assert resp.json() == []

@@ -3,6 +3,7 @@
 two never drift apart."""
 
 import datetime
+import statistics
 import time
 
 from sqlalchemy import select
@@ -117,3 +118,56 @@ def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
             )
             skipped += 1
     return updated, skipped
+
+
+def find_price_anomalies(db: Session) -> list[dict]:
+    """Scans every product's existing price history for rows that look like
+    a bad Rakuten match recorded before the sanity-check guard existed (a
+    price wildly off from the product's other recorded prices), so they can
+    be reviewed and cleaned up. Each product needs >=2 history rows to have
+    a reference to compare against."""
+    products = list(db.execute(select(models.Product)).scalars().all())
+    anomalies: list[dict] = []
+    for product in products:
+        history = crud.get_price_history(db, product.id)
+        if len(history) < 2:
+            continue
+        for row in history:
+            others = [h.price for h in history if h.id != row.id]
+            reference = statistics.median(others)
+            if reference <= 0:
+                continue
+            ratio = row.price / reference
+            if PRICE_SANITY_MIN_RATIO <= ratio <= PRICE_SANITY_MAX_RATIO:
+                continue
+            anomalies.append(
+                {
+                    "price_history_id": row.id,
+                    "product_id": product.id,
+                    "product_name": product.name,
+                    "product_slug": product.slug,
+                    "price": row.price,
+                    "recorded_at": row.recorded_at,
+                    "reference_price": round(reference),
+                    "ratio": round(ratio, 3),
+                }
+            )
+    return anomalies
+
+
+def fix_price_anomalies(db: Session) -> list[dict]:
+    """Deletes every flagged anomaly row and recomputes the affected
+    products' current/average/lowest price and buy_score from what remains."""
+    anomalies = find_price_anomalies(db)
+    affected_product_ids: set[int] = set()
+    for anomaly in anomalies:
+        crud.delete_price(db, anomaly["price_history_id"])
+        affected_product_ids.add(anomaly["product_id"])
+    for product_id in affected_product_ids:
+        product = crud.get_product(db, product_id)
+        if product is None:
+            continue
+        crud.recompute_current_price(db, product)
+        if product.current_price is not None:
+            sync_product_analysis(db, product)
+    return anomalies

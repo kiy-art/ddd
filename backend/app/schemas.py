@@ -77,6 +77,17 @@ class ErrorLogOut(BaseModel):
     created_at: datetime.datetime
 
 
+class PriceAnomalyOut(BaseModel):
+    price_history_id: int
+    product_id: int
+    product_name: str
+    product_slug: str
+    price: int
+    recorded_at: datetime.datetime
+    reference_price: int
+    ratio: float
+
+
 class CsvImportResult(BaseModel):
     created_products: int
     updated_products: int

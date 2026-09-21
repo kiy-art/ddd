@@ -48,6 +48,17 @@ export interface CsvImportResult {
   errors: string[];
 }
 
+export interface PriceAnomaly {
+  price_history_id: number;
+  product_id: number;
+  product_name: string;
+  product_slug: string;
+  price: number;
+  recorded_at: string;
+  reference_price: number;
+  ratio: number;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const CATEGORIES = ["driver", "iron", "wedge", "putter", "ball"] as const;
@@ -173,6 +184,17 @@ export function adminAddPrice(token: string, id: number, price: number) {
 export function adminDeletePrice(token: string, priceHistoryId: number) {
   return apiFetch<Product>(`/api/admin/prices/${priceHistoryId}`, {
     method: "DELETE",
+    headers: adminHeaders(token),
+  });
+}
+
+export function adminGetPriceAnomalies(token: string) {
+  return apiFetch<PriceAnomaly[]>(`/api/admin/price-anomalies`, { headers: adminHeaders(token) });
+}
+
+export function adminFixPriceAnomalies(token: string) {
+  return apiFetch<PriceAnomaly[]>(`/api/admin/price-anomalies/fix`, {
+    method: "POST",
     headers: adminHeaders(token),
   });
 }
