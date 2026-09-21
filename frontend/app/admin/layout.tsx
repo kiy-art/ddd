@@ -31,6 +31,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
     { href: "/admin/products", label: "商品管理" },
     { href: "/admin/anomalies", label: "価格異常チェック" },
     { href: "/admin/alerts", label: "価格アラート" },
+    { href: "/admin/analytics", label: "アクセス解析" },
     { href: "/admin/logs", label: "エラーログ" },
   ];
 

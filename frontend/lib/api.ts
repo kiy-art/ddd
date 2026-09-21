@@ -241,6 +241,18 @@ export function adminGetPriceAlerts(token: string) {
   return apiFetch<PriceAlertAdmin[]>(`/api/admin/price-alerts`, { headers: adminHeaders(token) });
 }
 
+export interface PageStat {
+  path: string;
+  pageviews: number;
+  active_users: number;
+  bounce_rate: number;
+  avg_engagement_seconds: number;
+}
+
+export function adminGetTopPages(token: string, days = 28) {
+  return apiFetch<PageStat[]>(`/api/admin/analytics/top-pages?days=${days}`, { headers: adminHeaders(token) });
+}
+
 export function adminGetLogs(token: string) {
   return apiFetch<ErrorLog[]>(`/api/admin/logs`, { headers: adminHeaders(token) });
 }
