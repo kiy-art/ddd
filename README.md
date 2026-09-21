@@ -182,9 +182,11 @@ Base URL: `${API_URL}/api`
 | method | path                              | 説明                               |
 |--------|-----------------------------------|------------------------------------|
 | GET    | /health                           | ヘルスチェック                      |
-| GET    | /products                         | 商品一覧 (category, buy_score, limit, offset で絞込) |
+| GET    | /products                         | 商品一覧 (category, brand, buy_score, limit, offset で絞込) |
 | GET    | /products/{slug}                  | 商品詳細 + 価格履歴                 |
 | GET    | /categories/{category}            | カテゴリ別商品一覧                  |
+| GET    | /brands                           | ブランド一覧（商品数付き）           |
+| GET    | /brands/{brand}                   | ブランド別商品一覧                  |
 
 ### 管理API (`Authorization: Bearer {ADMIN_API_TOKEN}` 必須)
 

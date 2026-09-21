@@ -122,6 +122,19 @@ export function getCategoryProducts(category: string) {
   return apiFetch<Product[]>(`/api/categories/${category}`);
 }
 
+export interface BrandSummary {
+  brand: string;
+  product_count: number;
+}
+
+export function getBrands() {
+  return apiFetch<BrandSummary[]>(`/api/brands`);
+}
+
+export function getBrandProducts(brand: string) {
+  return apiFetch<Product[]>(`/api/brands/${encodeURIComponent(brand)}`);
+}
+
 // --- Admin API (client-side, Bearer token from localStorage) ------------
 
 function adminHeaders(token: string): HeadersInit {

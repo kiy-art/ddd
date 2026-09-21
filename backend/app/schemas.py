@@ -77,6 +77,11 @@ class ErrorLogOut(BaseModel):
     created_at: datetime.datetime
 
 
+class BrandSummary(BaseModel):
+    brand: str
+    product_count: int
+
+
 class PriceAnomalyOut(BaseModel):
     price_history_id: int
     product_id: int

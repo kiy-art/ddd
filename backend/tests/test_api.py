@@ -72,6 +72,37 @@ def test_unknown_category_404(client):
     assert resp.status_code == 404
 
 
+def test_list_brands_and_brand_filter(client, admin_headers):
+    for name, brand, prices in [
+        ("G430 Iron", "PING", [10000, 10000, 7900]),
+        ("G440 Driver", "PING", [50000, 50000, 40000]),
+        ("Pro V1", "Titleist", [5000, 5000, 4000]),
+    ]:
+        created = client.post(
+            "/api/admin/products",
+            headers=admin_headers,
+            json={"name": name, "brand": brand, "category": "iron"},
+        ).json()
+        for price in prices:
+            client.post(
+                f"/api/admin/products/{created['id']}/prices", headers=admin_headers, json={"price": price}
+            )
+
+    brands = client.get("/api/brands").json()
+    assert {"brand": "PING", "product_count": 2} in brands
+    assert {"brand": "Titleist", "product_count": 1} in brands
+
+    ping_products = client.get("/api/brands/PING").json()
+    assert len(ping_products) == 2
+    assert all(p["brand"] == "PING" for p in ping_products)
+
+    filtered = client.get("/api/products?brand=Titleist").json()
+    assert len(filtered) == 1
+    assert filtered[0]["brand"] == "Titleist"
+
+    assert client.get("/api/brands/Nonexistent").json() == []
+
+
 def test_csv_import_endpoint(client, admin_headers):
     csv_content = (
         b"product_name,brand,category,model_number,price,product_url,image_url\n"

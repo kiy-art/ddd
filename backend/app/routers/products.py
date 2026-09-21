@@ -16,14 +16,31 @@ def health():
 @router.get("/products", response_model=list[schemas.ProductOut])
 def list_products(
     category: str | None = None,
+    brand: str | None = None,
     buy_score: str | None = None,
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
 ):
     return crud.list_products(
-        db, category=category, buy_score=buy_score, published_only=True, limit=limit, offset=offset
+        db,
+        category=category,
+        brand=brand,
+        buy_score=buy_score,
+        published_only=True,
+        limit=limit,
+        offset=offset,
     )
+
+
+@router.get("/brands", response_model=list[schemas.BrandSummary])
+def list_brands(db: Session = Depends(get_db)):
+    return [schemas.BrandSummary(brand=brand, product_count=count) for brand, count in crud.list_brands(db)]
+
+
+@router.get("/brands/{brand}", response_model=list[schemas.ProductOut])
+def list_by_brand(brand: str, limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
+    return crud.list_products(db, brand=brand, published_only=True, limit=limit, offset=offset)
 
 
 @router.get("/products/{slug}", response_model=schemas.ProductDetailOut)

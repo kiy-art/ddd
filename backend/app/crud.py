@@ -1,7 +1,7 @@
 import datetime
 import re
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import analysis, models, schemas
@@ -50,6 +50,7 @@ def find_product_by_identity(
 def list_products(
     db: Session,
     category: str | None = None,
+    brand: str | None = None,
     buy_score: str | None = None,
     published_only: bool = True,
     limit: int = 50,
@@ -58,6 +59,8 @@ def list_products(
     query = select(models.Product)
     if category:
         query = query.where(models.Product.category == category)
+    if brand:
+        query = query.where(models.Product.brand == brand)
     if buy_score:
         query = query.where(models.Product.buy_score == buy_score)
     if published_only:
@@ -65,6 +68,15 @@ def list_products(
     query = query.order_by(models.Product.price_change_percent.asc().nulls_last())
     query = query.offset(offset).limit(limit)
     return list(db.execute(query).scalars().all())
+
+
+def list_brands(db: Session, published_only: bool = True) -> list[tuple[str, int]]:
+    """Distinct brands with a product count, sorted by count desc then name."""
+    query = select(models.Product.brand, func.count(models.Product.id)).group_by(models.Product.brand)
+    if published_only:
+        query = query.where(models.Product.buy_score != "insufficient_data")
+    query = query.order_by(func.count(models.Product.id).desc(), models.Product.brand.asc())
+    return [(row[0], row[1]) for row in db.execute(query).all()]
 
 
 def create_product(db: Session, data: schemas.ProductCreate) -> models.Product:

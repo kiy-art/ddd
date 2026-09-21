@@ -75,6 +75,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </Link>
               ))}
               <Link
+                href="/brands"
+                className="rounded-full px-3 py-1.5 transition-colors hover:bg-foreground/5 hover:text-foreground"
+              >
+                ブランド
+              </Link>
+              <Link
                 href="/admin"
                 className="ml-2 rounded-full border border-border px-3.5 py-1.5 text-foreground/70 transition-colors hover:border-foreground/30 hover:text-foreground"
               >
@@ -96,6 +102,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                     {CATEGORY_LABELS[c]}
                   </Link>
                 ))}
+                <Link href="/brands" className="hover:text-foreground">
+                  ブランド一覧
+                </Link>
                 <Link href="/disclaimer" className="hover:text-foreground">
                   運営者情報・免責事項
                 </Link>

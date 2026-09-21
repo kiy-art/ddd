@@ -100,9 +100,12 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
           <FadeIn delay={100} className="flex flex-col gap-6">
             <div>
-              <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">
+              <Link
+                href={`/brand/${encodeURIComponent(product.brand)}`}
+                className="text-xs font-medium uppercase tracking-widest text-foreground/40 hover:text-brand"
+              >
                 {product.brand}
-              </span>
+              </Link>
               <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
                 {product.name}
               </h1>
