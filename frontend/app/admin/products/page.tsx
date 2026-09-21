@@ -37,9 +37,54 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const pendingProducts = products.filter((p) => p.pending_review);
   const publishedProducts = products.filter((p) => !p.pending_review);
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllPending = () => {
+    setSelectedIds((prev) =>
+      prev.size === pendingProducts.length ? new Set() : new Set(pendingProducts.map((p) => p.id))
+    );
+  };
+
+  const handleBulkApprove = async () => {
+    if (!token || selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await Promise.all([...selectedIds].map((id) => adminApproveProduct(token, id)));
+      setSelectedIds(new Set());
+      await load();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!token || selectedIds.size === 0) return;
+    if (!confirm(`選択した${selectedIds.size}件を却下（削除）しますか？`)) return;
+    setBulkBusy(true);
+    try {
+      await Promise.all([...selectedIds].map((id) => adminDeleteProduct(token, id)));
+      setSelectedIds(new Set());
+      await load();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   const load = async () => {
     if (!token) return;
@@ -149,6 +194,32 @@ export default function AdminProductsPage() {
               承認するまでサイトには表示されません。
             </p>
           </div>
+
+          <div className="flex flex-wrap items-center gap-3 border-b border-amber-200 pb-3 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedIds.size > 0 && selectedIds.size === pendingProducts.length}
+                onChange={toggleSelectAllPending}
+              />
+              全て選択（{selectedIds.size}件選択中）
+            </label>
+            <button
+              onClick={handleBulkApprove}
+              disabled={selectedIds.size === 0 || bulkBusy}
+              className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              選択した{selectedIds.size}件を承認
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={selectedIds.size === 0 || bulkBusy}
+              className="rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+            >
+              選択した{selectedIds.size}件を却下（削除）
+            </button>
+          </div>
+
           <div className="flex flex-col gap-3">
             {pendingProducts.map((product) => (
               <ProductRow
@@ -159,6 +230,8 @@ export default function AdminProductsPage() {
                 onToggle={() => setExpandedId(expandedId === product.id ? null : product.id)}
                 onChanged={load}
                 pending
+                selected={selectedIds.has(product.id)}
+                onToggleSelect={() => toggleSelect(product.id)}
               />
             ))}
           </div>
@@ -215,6 +288,8 @@ function ProductRow({
   onToggle,
   onChanged,
   pending = false,
+  selected = false,
+  onToggleSelect,
 }: {
   product: Product;
   token: string;
@@ -222,6 +297,8 @@ function ProductRow({
   onToggle: () => void;
   onChanged: () => void;
   pending?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [prices, setPrices] = useState<PriceHistoryItem[]>([]);
   const [newPrice, setNewPrice] = useState("");
@@ -283,25 +360,35 @@ function ProductRow({
 
   return (
     <div className="rounded-2xl border border-border bg-card">
-      <button
-        onClick={onToggle}
-        className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left"
-      >
-        <div>
-          <div className="font-semibold">{product.name}</div>
-          <div className="text-xs text-foreground/50">
-            {CATEGORY_LABELS[product.category]} ・ {product.brand} ・{" "}
-            {product.current_price ? `¥${product.current_price.toLocaleString("ja-JP")}` : "価格未登録"}
-          </div>
+      <div className="flex w-full flex-wrap items-center justify-between gap-3 p-4">
+        <div className="flex flex-1 items-center gap-3">
+          {pending && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 shrink-0"
+            />
+          )}
+          <button onClick={onToggle} className="flex-1 text-left">
+            <div className="font-semibold">{product.name}</div>
+            <div className="text-xs text-foreground/50">
+              {CATEGORY_LABELS[product.category]} ・ {product.brand} ・{" "}
+              {product.current_price ? `¥${product.current_price.toLocaleString("ja-JP")}` : "価格未登録"}
+            </div>
+          </button>
         </div>
-        {pending ? (
-          <span className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-amber-900">
-            承認待ち
-          </span>
-        ) : (
-          <BuyStatusBadge buyScore={product.buy_score} />
-        )}
-      </button>
+        <button onClick={onToggle}>
+          {pending ? (
+            <span className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-amber-900">
+              承認待ち
+            </span>
+          ) : (
+            <BuyStatusBadge buyScore={product.buy_score} />
+          )}
+        </button>
+      </div>
 
       {expanded && (
         <div className="flex flex-col gap-4 border-t border-border p-5">
