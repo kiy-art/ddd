@@ -248,3 +248,8 @@ def test_price_alert_rejects_invalid_email(client, admin_headers):
 def test_price_alert_unknown_product_404(client):
     resp = client.post("/api/products/no-such-slug/alerts", json={"email": "a@b.com", "target_price": 100})
     assert resp.status_code == 404
+
+
+def test_analytics_top_pages_requires_ga4_configuration(client, admin_headers):
+    resp = client.get("/api/admin/analytics/top-pages", headers=admin_headers)
+    assert resp.status_code == 400

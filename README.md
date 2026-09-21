@@ -202,6 +202,7 @@ Base URL: `${API_URL}/api`
 | GET    | /admin/logs                           | エラーログ確認           |
 | POST   | /admin/run-update                     | 分析+AI生成パイプライン手動実行 |
 | POST   | /admin/fetch-rakuten                  | 楽天市場から全商品の価格を取得（`RAKUTEN_APP_ID`/`RAKUTEN_ACCESS_KEY`必須） |
+| GET    | /admin/analytics/top-pages            | GA4の実アクセスデータ（人気ページ・直帰率）を取得（`GA4_PROPERTY_ID`/`GA4_SERVICE_ACCOUNT_JSON`必須） |
 
 ## 6. 環境変数
 
@@ -215,6 +216,8 @@ ADMIN_API_TOKEN=change-me-to-a-random-secret
 CORS_ORIGINS=http://localhost:3000
 RAKUTEN_APP_ID=
 RAKUTEN_ACCESS_KEY=
+GA4_PROPERTY_ID=
+GA4_SERVICE_ACCOUNT_JSON=
 ```
 
 `RAKUTEN_APP_ID` / `RAKUTEN_ACCESS_KEY` は楽天ウェブサービス（https://webservice.rakuten.co.jp/ ）
@@ -223,6 +226,14 @@ RAKUTEN_ACCESS_KEY=
 できない環境（Renderの無料プランなど）では API/Backend Service は使えない）。
 両方設定すると、`scripts/update_prices.py`（CSVを指定しない場合）と管理画面の
 「今すぐ価格を取得」ボタンが、楽天市場商品検索APIから各商品の最安値を自動取得するようになる。
+
+`GA4_PROPERTY_ID` / `GA4_SERVICE_ACCOUNT_JSON` は Google Analytics 4 の実アクセスデータを
+`GET /admin/analytics/top-pages` から読み取るための設定。`GA4_SERVICE_ACCOUNT_JSON` には
+GCPで作成したサービスアカウント（GA4プロパティに閲覧者権限を付与したもの）のJSON鍵ファイルの
+中身をそのまま1行の文字列として設定する。**この値は絶対にリポジトリやチャットに貼り付けず、
+Renderの環境変数としてのみ設定すること。**
+このデータを使ってサイトを改善する自動デイリージョブは意図的に用意していない（コストと
+安全性を考慮し、管理者がチャットで明示的に依頼した時だけ分析・改修を行う運用にしている）。
 
 ### frontend/.env
 
@@ -298,3 +309,7 @@ npm run dev                        # http://localhost:3000
 - AI生成は「新商品」「価格変動」「判定変化」の場合のみ実行し、それ以外は`ai_content_hash`を
   比較して再生成をスキップすることでAPI呼び出しコストを抑制する。
 - エラーはスキップして`ErrorLog`に記録し、バッチ全体を止めない。
+- GA4データを使った「サイト改善」は自動デイリージョブ化していない。理由は
+  (1) 永続的な自動実行には別途Anthropic APIキー（従量課金）が必要になりコストが発生する、
+  (2) AIによるコード変更を無人・無レビューで本番に反映するリスクを避けるため。
+  代わりに、管理者がチャット上で明示的に依頼した時だけ、実データに基づいて分析・改修を行う。

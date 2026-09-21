@@ -129,3 +129,11 @@ class PriceAlertAdminOut(PriceAlertOut):
     product_slug: str
     current_price: int | None
     triggered: bool
+
+
+class PageStatOut(BaseModel):
+    path: str
+    pageviews: int
+    active_users: int
+    bounce_rate: float
+    avg_engagement_seconds: float

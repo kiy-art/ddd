@@ -1,3 +1,5 @@
+import dataclasses
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -167,3 +169,17 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         "products_checked": analyzed,
         "ai_regenerated": regenerated,
     }
+
+
+@router.get("/analytics/top-pages", response_model=list[schemas.PageStatOut])
+def get_top_pages(days: int = 28, limit: int = 25):
+    """Real GA4 pageview/bounce-rate data, for on-demand analysis sessions
+    (no automated daily job - see README). Requires GA4_PROPERTY_ID and
+    GA4_SERVICE_ACCOUNT_JSON to be set on the backend."""
+    from app import analytics_ga4
+
+    try:
+        stats = analytics_ga4.get_top_pages(days=days, limit=limit)
+    except analytics_ga4.GA4NotConfigured as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return [schemas.PageStatOut(**dataclasses.asdict(s)) for s in stats]
