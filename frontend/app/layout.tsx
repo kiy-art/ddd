@@ -75,6 +75,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </Link>
               ))}
               <Link
+                href="/deals"
+                className="rounded-full px-3 py-1.5 transition-colors hover:bg-foreground/5 hover:text-foreground"
+              >
+                値下がり中
+              </Link>
+              <Link
+                href="/ranking"
+                className="rounded-full px-3 py-1.5 transition-colors hover:bg-foreground/5 hover:text-foreground"
+              >
+                ランキング
+              </Link>
+              <Link
                 href="/brands"
                 className="rounded-full px-3 py-1.5 transition-colors hover:bg-foreground/5 hover:text-foreground"
               >
@@ -102,6 +114,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                     {CATEGORY_LABELS[c]}
                   </Link>
                 ))}
+                <Link href="/deals" className="hover:text-foreground">
+                  値下がり中
+                </Link>
+                <Link href="/ranking" className="hover:text-foreground">
+                  買い時ランキング
+                </Link>
                 <Link href="/brands" className="hover:text-foreground">
                   ブランド一覧
                 </Link>
