@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
 import { Product } from "@/lib/api";
+import { trackEvent } from "@/lib/analytics";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -24,6 +27,13 @@ export default function CompareStrip({ products, currentId }: { products: Produc
       <Link
         key={p.id}
         href={`/products/${p.slug}`}
+        onClick={() =>
+          trackEvent("compare_click", {
+            product_id: p.id,
+            product_slug: p.slug,
+            is_current_product: p.id === currentId,
+          })
+        }
         className={`flex flex-1 flex-col gap-2 rounded-2xl border p-5 transition-colors hover:border-brand/40 ${
           p.id === currentId ? "border-brand bg-card" : "border-border bg-background"
         }`}

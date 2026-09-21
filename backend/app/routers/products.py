@@ -58,3 +58,13 @@ def list_by_category(category: str, limit: int = 50, offset: int = 0, db: Sessio
     return crud.list_products(
         db, category=category, published_only=True, limit=limit, offset=offset
     )
+
+
+@router.post("/products/{slug}/alerts", response_model=schemas.PriceAlertOut, status_code=201)
+def create_price_alert(slug: str, data: schemas.PriceAlertCreate, db: Session = Depends(get_db)):
+    """Records a "notify me below ¥X" request. No email is sent yet - see
+    models.PriceAlert for why - so this only confirms the request was saved."""
+    product = crud.get_product_by_slug(db, slug)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return crud.create_price_alert(db, product, data)

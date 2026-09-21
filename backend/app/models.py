@@ -61,6 +61,25 @@ class PriceHistory(Base):
     product: Mapped["Product"] = relationship(back_populates="price_history")
 
 
+class PriceAlert(Base):
+    """A "notify me when this drops below ¥X" subscription (spec: price-drop
+    alerts). No email is actually sent yet - no email provider is configured
+    - so this only records the request and lets an admin see which alerts
+    have already crossed their target, ready to wire up real delivery
+    (email/LINE/push) later without changing this schema."""
+
+    __tablename__ = "price_alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    target_price: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    notified_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+    product: Mapped["Product"] = relationship()
+
+
 class ErrorLog(Base):
     __tablename__ = "error_logs"
 

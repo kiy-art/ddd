@@ -81,7 +81,7 @@ export default async function Home({
             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {bestBuy.map((product, i) => (
                 <FadeIn key={product.id} delay={i * 90}>
-                  <ProductCard product={product} />
+                  <ProductCard product={product} listSource="homepage_best_buy" />
                 </FadeIn>
               ))}
             </div>
@@ -115,7 +115,7 @@ export default async function Home({
                   <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">
                     前回価格より {dropPercent}% 値下がり
                   </span>
-                  <ProductCard product={product} />
+                  <ProductCard product={product} listSource="homepage_price_drops" />
                 </FadeIn>
               ))}
             </div>
@@ -213,7 +213,7 @@ export default async function Home({
               <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {listProducts.map((product, i) => (
                   <FadeIn key={product.id} delay={(i % 6) * 60}>
-                    <ProductCard product={product} />
+                    <ProductCard product={product} listSource="homepage_browse_all" />
                   </FadeIn>
                 ))}
               </div>

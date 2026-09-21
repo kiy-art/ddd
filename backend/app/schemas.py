@@ -2,6 +2,8 @@ import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
 from app.models import BUY_SCORES, CATEGORIES
 
 
@@ -104,3 +106,26 @@ class CsvImportResult(BaseModel):
 
 class BuyScoreLiteral(BaseModel):
     value: str = Field(pattern="^(" + "|".join(BUY_SCORES) + ")$")
+
+
+class PriceAlertCreate(BaseModel):
+    email: str = Field(pattern=EMAIL_PATTERN, max_length=255)
+    target_price: int = Field(gt=0)
+
+
+class PriceAlertOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    product_id: int
+    email: str
+    target_price: int
+    created_at: datetime.datetime
+    notified_at: datetime.datetime | None
+
+
+class PriceAlertAdminOut(PriceAlertOut):
+    product_name: str
+    product_slug: str
+    current_price: int | None
+    triggered: bool

@@ -45,7 +45,7 @@ export default async function DealsPage() {
                   <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">
                     前回価格より {dropPercent}% 値下がり
                   </span>
-                  <ProductCard product={product} />
+                  <ProductCard product={product} listSource="deals" />
                 </FadeIn>
               ))}
             </div>

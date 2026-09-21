@@ -192,6 +192,29 @@ def recompute_current_price(db: Session, product: models.Product) -> None:
     db.refresh(product)
 
 
+# --- Price alerts ----------------------------------------------------------------
+
+
+def create_price_alert(db: Session, product: models.Product, data: schemas.PriceAlertCreate) -> models.PriceAlert:
+    alert = models.PriceAlert(product_id=product.id, email=data.email, target_price=data.target_price)
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+    return alert
+
+
+def list_price_alerts(db: Session, only_untriggered: bool = False) -> list[models.PriceAlert]:
+    query = select(models.PriceAlert).order_by(models.PriceAlert.created_at.desc())
+    if only_untriggered:
+        query = query.where(models.PriceAlert.notified_at.is_(None))
+    return list(db.execute(query).scalars().all())
+
+
+def mark_price_alert_notified(db: Session, alert: models.PriceAlert) -> None:
+    alert.notified_at = datetime.datetime.utcnow()
+    db.commit()
+
+
 # --- Error logs ----------------------------------------------------------------
 
 

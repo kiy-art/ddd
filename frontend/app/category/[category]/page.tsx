@@ -143,7 +143,7 @@ export default async function CategoryPage({
               <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {sortedProducts.map((product, i) => (
                   <FadeIn key={product.id} delay={(i % 6) * 60}>
-                    <ProductCard product={product} />
+                    <ProductCard product={product} listSource="category" />
                   </FadeIn>
                 ))}
               </div>

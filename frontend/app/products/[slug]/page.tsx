@@ -10,6 +10,7 @@ import MonthlyTrendChart from "@/components/MonthlyTrendChart";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SafeProductImage from "@/components/SafeProductImage";
 import SeasonalTrend from "@/components/SeasonalTrend";
+import TrackedCta from "@/components/TrackedCta";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
 
 export const revalidate = 0;
@@ -272,24 +273,40 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               <span className="font-display text-2xl font-semibold text-foreground">{yen(product.current_price)}</span>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                 {product.affiliate_url && (
-                  <a
+                  <TrackedCta
                     href={product.affiliate_url}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
                     className="flex-1 rounded-full bg-brand px-6 py-4 text-center text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+                    event="cta_click"
+                    params={{
+                      product_id: product.id,
+                      product_slug: product.slug,
+                      product_name: product.name,
+                      cta_type: "affiliate",
+                      buy_score: product.buy_score,
+                    }}
                   >
                     {ctaLabel(product.affiliate_url)}
-                  </a>
+                  </TrackedCta>
                 )}
                 {product.product_url && (
-                  <a
+                  <TrackedCta
                     href={product.product_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 rounded-full border border-border px-6 py-4 text-center text-sm font-semibold text-foreground/80 transition-colors hover:bg-background"
+                    event="cta_click"
+                    params={{
+                      product_id: product.id,
+                      product_slug: product.slug,
+                      product_name: product.name,
+                      cta_type: "official",
+                      buy_score: product.buy_score,
+                    }}
                   >
                     メーカー商品ページを見る
-                  </a>
+                  </TrackedCta>
                 )}
               </div>
               {product.affiliate_url && (

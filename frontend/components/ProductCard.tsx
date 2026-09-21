@@ -1,9 +1,12 @@
+"use client";
+
 import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
+import { trackEvent } from "@/lib/analytics";
 
 // See app/products/[slug]/page.tsx for why this threshold exists: a
 // "30-day average" claim needs more than a day or two of real data behind it.
@@ -18,13 +21,20 @@ function yen(value: number | null): string {
   return `¥${value.toLocaleString("ja-JP")}`;
 }
 
-export default function ProductCard({ product }: { product: Product }) {
+export default function ProductCard({ product, listSource }: { product: Product; listSource?: string }) {
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
   const pct = hasReliableTrend ? product.price_change_percent : null;
 
   return (
     <Link
       href={`/products/${product.slug}`}
+      onClick={() =>
+        trackEvent("product_card_click", {
+          product_id: product.id,
+          product_slug: product.slug,
+          list_source: listSource ?? "unknown",
+        })
+      }
       className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-24px_rgba(15,61,46,0.25)]"
     >
       <div className="relative aspect-[4/3] w-full bg-background">

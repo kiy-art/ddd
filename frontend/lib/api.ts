@@ -137,6 +137,29 @@ export function getBrandProducts(brand: string) {
   return apiFetch<Product[]>(`/api/brands/${encodeURIComponent(brand)}`);
 }
 
+export interface PriceAlert {
+  id: number;
+  product_id: number;
+  email: string;
+  target_price: number;
+  created_at: string;
+  notified_at: string | null;
+}
+
+export interface PriceAlertAdmin extends PriceAlert {
+  product_name: string;
+  product_slug: string;
+  current_price: number | null;
+  triggered: boolean;
+}
+
+export function createPriceAlert(slug: string, email: string, targetPrice: number) {
+  return apiFetch<PriceAlert>(`/api/products/${slug}/alerts`, {
+    method: "POST",
+    body: JSON.stringify({ email, target_price: targetPrice }),
+  });
+}
+
 // --- Admin API (client-side, Bearer token from localStorage) ------------
 
 function adminHeaders(token: string): HeadersInit {
@@ -212,6 +235,10 @@ export function adminFixPriceAnomalies(token: string) {
     method: "POST",
     headers: adminHeaders(token),
   });
+}
+
+export function adminGetPriceAlerts(token: string) {
+  return apiFetch<PriceAlertAdmin[]>(`/api/admin/price-alerts`, { headers: adminHeaders(token) });
 }
 
 export function adminGetLogs(token: string) {

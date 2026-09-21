@@ -203,3 +203,48 @@ def test_price_anomalies_scan_and_bulk_fix(client, admin_headers):
 
     resp = client.get("/api/admin/price-anomalies", headers=admin_headers)
     assert resp.json() == []
+
+
+def test_price_alert_subscribe_and_admin_visibility(client, admin_headers):
+    created = client.post(
+        "/api/admin/products",
+        headers=admin_headers,
+        json={"name": "G430 Iron", "brand": "PING", "category": "iron", "initial_price": 60000},
+    ).json()
+    slug = created["slug"]
+
+    resp = client.post(f"/api/products/{slug}/alerts", json={"email": "buyer@example.com", "target_price": 50000})
+    assert resp.status_code == 201
+    alert = resp.json()
+    assert alert["email"] == "buyer@example.com"
+    assert alert["target_price"] == 50000
+    assert alert["notified_at"] is None
+
+    admin_alerts = client.get("/api/admin/price-alerts", headers=admin_headers).json()
+    assert len(admin_alerts) == 1
+    assert admin_alerts[0]["product_slug"] == slug
+    assert admin_alerts[0]["current_price"] == 60000
+    assert admin_alerts[0]["triggered"] is False  # 60000 > target 50000
+
+    # Price drops below the target -> the admin view should flag it as triggered
+    client.post(f"/api/admin/products/{created['id']}/prices", headers=admin_headers, json={"price": 45000})
+    admin_alerts = client.get("/api/admin/price-alerts", headers=admin_headers).json()
+    assert admin_alerts[0]["current_price"] == 45000
+    assert admin_alerts[0]["triggered"] is True
+
+
+def test_price_alert_rejects_invalid_email(client, admin_headers):
+    created = client.post(
+        "/api/admin/products",
+        headers=admin_headers,
+        json={"name": "G430 Iron", "brand": "PING", "category": "iron", "initial_price": 60000},
+    ).json()
+    resp = client.post(
+        f"/api/products/{created['slug']}/alerts", json={"email": "not-an-email", "target_price": 50000}
+    )
+    assert resp.status_code == 422
+
+
+def test_price_alert_unknown_product_404(client):
+    resp = client.post("/api/products/no-such-slug/alerts", json={"email": "a@b.com", "target_price": 100})
+    assert resp.status_code == 404

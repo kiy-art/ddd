@@ -81,6 +81,35 @@ def fix_price_anomalies(db: Session = Depends(get_db)):
     return pipeline.fix_price_anomalies(db)
 
 
+@router.get("/price-alerts", response_model=list[schemas.PriceAlertAdminOut])
+def list_price_alerts(db: Session = Depends(get_db)):
+    """No email delivery is wired up yet (see models.PriceAlert), so this
+    is how an admin can currently see who asked to be notified and whether
+    their target price has already been reached, until real delivery
+    (email/LINE/push) is configured."""
+    result = []
+    for alert in crud.list_price_alerts(db):
+        product = crud.get_product(db, alert.product_id)
+        if product is None:
+            continue
+        triggered = product.current_price is not None and product.current_price <= alert.target_price
+        result.append(
+            schemas.PriceAlertAdminOut(
+                id=alert.id,
+                product_id=alert.product_id,
+                email=alert.email,
+                target_price=alert.target_price,
+                created_at=alert.created_at,
+                notified_at=alert.notified_at,
+                product_name=product.name,
+                product_slug=product.slug,
+                current_price=product.current_price,
+                triggered=triggered,
+            )
+        )
+    return result
+
+
 @router.post("/import/csv", response_model=schemas.CsvImportResult)
 async def import_csv(file: UploadFile, db: Session = Depends(get_db)):
     content = await file.read()
