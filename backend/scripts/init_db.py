@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlalchemy import inspect, text  # noqa: E402
+from sqlalchemy import Engine, inspect, text  # noqa: E402
 
 from app.database import Base, engine  # noqa: E402
 from app import models  # noqa: E402,F401  (import registers the models on Base)
@@ -30,16 +30,29 @@ ADDED_COLUMNS = [
 ]
 
 
-def main():
-    Base.metadata.create_all(bind=engine)
+def migrate(target_engine: Engine) -> None:
+    """Creates any missing tables/columns and backfills any that a bare
+    ADD COLUMN would otherwise leave NULL on pre-existing rows. Idempotent -
+    safe to call on every deploy."""
+    Base.metadata.create_all(bind=target_engine)
 
-    inspector = inspect(engine)
-    with engine.begin() as conn:
+    inspector = inspect(target_engine)
+    with target_engine.begin() as conn:
         for table, column, coltype in ADDED_COLUMNS:
             existing = {c["name"] for c in inspector.get_columns(table)}
             if column not in existing:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}"))
 
+        # `history_span_days` is non-nullable in the API schema (ProductOut),
+        # but a bare ADD COLUMN leaves it NULL on every row that already
+        # existed - which made every /api/products response fail Pydantic
+        # validation with a 500 ("商品情報の取得に失敗しました") until this
+        # backfill ran.
+        conn.execute(text("UPDATE products SET history_span_days = 0 WHERE history_span_days IS NULL"))
+
+
+def main():
+    migrate(engine)
     print("Tables created.")
 
 
