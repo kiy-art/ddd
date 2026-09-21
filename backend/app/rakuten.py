@@ -43,10 +43,15 @@ def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchRes
         "availability": 1,
         "sort": "+itemPrice",
     }
-    # The "Web Application" app type validates requests by HTTP Referer against
-    # the registered "Allowed websites" list, which server-to-server calls
-    # don't send by default — so we set one explicitly.
-    headers = {"Referer": settings.rakuten_referer} if settings.rakuten_referer else {}
+    # The "Web Application" app type validates requests by HTTP Referer/Origin
+    # against the registered "Allowed websites" list, which server-to-server
+    # calls don't send by default — so we set both explicitly. (Referer alone
+    # isn't enough; Rakuten's gateway checks Origin too.)
+    headers = (
+        {"Referer": settings.rakuten_referer, "Origin": settings.rakuten_referer}
+        if settings.rakuten_referer
+        else {}
+    )
 
     response = httpx.get(SEARCH_URL, params=params, headers=headers, timeout=timeout)
     if response.is_error:
