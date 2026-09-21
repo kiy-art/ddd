@@ -76,6 +76,27 @@ def test_discover_new_products_respects_the_per_category_cap(db_session, monkeyp
     assert considered == discovery.MAX_NEW_PER_CATEGORY  # loop breaks once the cap is hit
 
 
+def test_discover_new_products_wraps_affiliate_url_when_affiliate_id_configured(db_session, monkeypatch):
+    monkeypatch.setenv("RAKUTEN_AFFILIATE_ID", "38e4bda3.3d4c8086.38e4bda4.cefadc6a")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        items = [_FakeItem("PING G440 ドライバー", 68000, "https://item.rakuten.co.jp/example/g440/")]
+        monkeypatch.setattr(
+            rakuten, "search_items", _fixed_results({discovery.CATEGORY_SEARCH_KEYWORDS["driver"]: items})
+        )
+
+        discovery.discover_new_products(db_session)
+
+        product = crud.find_product_by_identity(db_session, "PING G440 ドライバー", "PING", None)
+        assert product.affiliate_url.startswith(
+            "https://hb.afl.rakuten.co.jp/ichiba/38e4bda3.3d4c8086.38e4bda4.cefadc6a/?pc="
+        )
+    finally:
+        get_settings.cache_clear()
+
+
 def test_discovered_products_are_hidden_from_public_listing(db_session, monkeypatch):
     items = [_FakeItem("PING G440 ドライバー", 68000, "https://item.rakuten.co.jp/example/g440/")]
     monkeypatch.setattr(

@@ -9,7 +9,7 @@ import time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ai, analysis, crud, models
+from app import ai, analysis, crud, models, rakuten
 from app.rakuten import search_lowest_price
 
 RAKUTEN_REQUEST_INTERVAL_SECONDS = 1.1  # stay under the API's ~1 req/sec free-tier limit
@@ -159,7 +159,7 @@ def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
                 product.image_url = result.image_url
                 changed = True
             if result.item_url and not product.affiliate_url:
-                product.affiliate_url = result.item_url
+                product.affiliate_url = rakuten.to_affiliate_url(result.item_url) or result.item_url
                 changed = True
             if changed:
                 db.commit()

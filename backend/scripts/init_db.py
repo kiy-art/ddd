@@ -21,8 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import Engine, inspect, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+from sqlalchemy import select  # noqa: E402
+
 from app.database import Base, SessionLocal, engine  # noqa: E402
-from app import crud, models  # noqa: E402,F401  (import registers the models on Base)
+from app import crud, models, rakuten  # noqa: E402,F401  (import registers the models on Base)
 
 # Columns added after the initial schema. Keep this list append-only.
 ADDED_COLUMNS = [
@@ -96,10 +98,36 @@ def fix_known_bad_products(db: Session) -> None:
         crud.add_price(db, product, fix["correct_price"])
 
 
+# Every affiliate_url filled in before RAKUTEN_AFFILIATE_ID was configured
+# is a plain (non-tracked) Rakuten item link, so those products' purchases
+# never earned a commission. Once the ID is set, rewrite every plain
+# Rakuten link into a tracked one - a no-op (and safe to keep re-running)
+# once nothing plain is left, and it does nothing at all until the ID is
+# configured, matching rakuten.to_affiliate_url's own behavior.
+def wrap_existing_affiliate_links(db: Session) -> int:
+    from app.config import get_settings
+
+    if not get_settings().rakuten_affiliate_id:
+        return 0
+
+    rewrapped = 0
+    products = list(db.execute(select(models.Product)).scalars().all())
+    for product in products:
+        url = product.affiliate_url
+        if not url or not url.startswith("https://item.rakuten.co.jp/"):
+            continue
+        product.affiliate_url = rakuten.to_affiliate_url(url)
+        rewrapped += 1
+    if rewrapped:
+        db.commit()
+    return rewrapped
+
+
 def main():
     migrate(engine)
     with SessionLocal() as db:
         fix_known_bad_products(db)
+        wrap_existing_affiliate_links(db)
     print("Tables created.")
 
 

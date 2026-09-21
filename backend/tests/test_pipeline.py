@@ -112,6 +112,30 @@ def test_fetch_rakuten_prices_never_overwrites_existing_image_or_affiliate_url(d
     assert product.affiliate_url == "https://example.com/manually-curated-link"
 
 
+def test_fetch_rakuten_prices_wraps_affiliate_url_when_affiliate_id_configured(db_session, monkeypatch):
+    monkeypatch.setenv("RAKUTEN_AFFILIATE_ID", "38e4bda3.3d4c8086.38e4bda4.cefadc6a")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=60000)
+
+        monkeypatch.setattr(
+            pipeline,
+            "search_lowest_price",
+            lambda keyword: _FakeResult(55000, item_url="https://item.rakuten.co.jp/example/g430/"),
+        )
+
+        pipeline.fetch_rakuten_prices(db_session)
+
+        db_session.refresh(product)
+        assert product.affiliate_url.startswith(
+            "https://hb.afl.rakuten.co.jp/ichiba/38e4bda3.3d4c8086.38e4bda4.cefadc6a/?pc="
+        )
+    finally:
+        get_settings.cache_clear()
+
+
 def test_fetch_rakuten_prices_accepts_any_price_with_no_history_reference(db_session, monkeypatch):
     """A brand-new product with only an initial price still has an average
     set from that single point, so this really exercises the case where a

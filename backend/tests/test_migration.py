@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import crud, schemas  # noqa: E402
 from app.database import Base  # noqa: E402
-from scripts.init_db import fix_known_bad_products, migrate  # noqa: E402
+from scripts.init_db import fix_known_bad_products, migrate, wrap_existing_affiliate_links  # noqa: E402
 
 
 @pytest.fixture
@@ -169,3 +169,60 @@ def test_fix_known_bad_products_ignores_products_that_were_never_broken(orm_sess
 
     orm_session.refresh(healthy)
     assert healthy.current_price == 95000
+
+
+def test_wrap_existing_affiliate_links_does_nothing_when_not_configured(orm_session, monkeypatch):
+    monkeypatch.setenv("RAKUTEN_AFFILIATE_ID", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = crud.create_product(
+            orm_session,
+            schemas.ProductCreate(name="G440 Driver", brand="PING", category="driver", initial_price=68000),
+        )
+        product.affiliate_url = "https://item.rakuten.co.jp/example/g440/"
+        orm_session.commit()
+
+        rewrapped = wrap_existing_affiliate_links(orm_session)
+        assert rewrapped == 0
+
+        orm_session.refresh(product)
+        assert product.affiliate_url == "https://item.rakuten.co.jp/example/g440/"
+    finally:
+        get_settings.cache_clear()
+
+
+def test_wrap_existing_affiliate_links_rewrites_plain_rakuten_links(orm_session, monkeypatch):
+    monkeypatch.setenv("RAKUTEN_AFFILIATE_ID", "38e4bda3.3d4c8086.38e4bda4.cefadc6a")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        tracked = crud.create_product(
+            orm_session,
+            schemas.ProductCreate(name="G440 Driver", brand="PING", category="driver", initial_price=68000),
+        )
+        tracked.affiliate_url = "https://item.rakuten.co.jp/example/g440/"
+
+        manual = crud.create_product(
+            orm_session,
+            schemas.ProductCreate(name="G430 Iron", brand="PING", category="iron", initial_price=60000),
+        )
+        manual.affiliate_url = "https://example.com/manually-curated-link"
+        orm_session.commit()
+
+        rewrapped = wrap_existing_affiliate_links(orm_session)
+        assert rewrapped == 1
+
+        orm_session.refresh(tracked)
+        orm_session.refresh(manual)
+        assert tracked.affiliate_url.startswith(
+            "https://hb.afl.rakuten.co.jp/ichiba/38e4bda3.3d4c8086.38e4bda4.cefadc6a/?pc="
+        )
+        assert manual.affiliate_url == "https://example.com/manually-curated-link"
+
+        # Idempotent: already-wrapped links are left alone on a second run.
+        assert wrap_existing_affiliate_links(orm_session) == 0
+    finally:
+        get_settings.cache_clear()

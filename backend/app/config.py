@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     rakuten_app_id: str = ""
     rakuten_access_key: str = ""
     rakuten_referer: str = "https://golf-deals-backend.onrender.com"
+    rakuten_affiliate_id: str = ""
     ga4_property_id: str = ""
     ga4_service_account_json: str = ""
 

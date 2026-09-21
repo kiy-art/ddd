@@ -138,7 +138,7 @@ def discover_new_products(db: Session) -> tuple[int, int]:
                     category=category,
                     image_url=item.image_url,
                     product_url=item.item_url,
-                    affiliate_url=item.item_url,
+                    affiliate_url=rakuten.to_affiliate_url(item.item_url) or item.item_url,
                     initial_price=item.price,
                 ),
                 pending_review=True,

@@ -119,3 +119,30 @@ def test_search_lowest_price_returns_none_when_no_items(monkeypatch):
 
     assert rakuten.search_lowest_price("nonexistent item xyz") is None
     get_settings.cache_clear()
+
+
+def test_to_affiliate_url_returns_none_when_not_configured(monkeypatch):
+    monkeypatch.setenv("RAKUTEN_AFFILIATE_ID", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    assert rakuten.to_affiliate_url("https://item.rakuten.co.jp/example/g440/") is None
+    get_settings.cache_clear()
+
+
+def test_to_affiliate_url_wraps_the_item_url_with_the_configured_id(monkeypatch):
+    monkeypatch.setenv("RAKUTEN_AFFILIATE_ID", "38e4bda3.3d4c8086.38e4bda4.cefadc6a")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    result = rakuten.to_affiliate_url("https://item.rakuten.co.jp/example/g440/")
+    assert result is not None
+    assert result.startswith(
+        "https://hb.afl.rakuten.co.jp/ichiba/38e4bda3.3d4c8086.38e4bda4.cefadc6a/?pc="
+    )
+    assert "item.rakuten.co.jp%2Fexample%2Fg440%2F" in result
+    assert rakuten.is_affiliate_link(result)
+    assert not rakuten.is_affiliate_link("https://item.rakuten.co.jp/example/g440/")
+
+    get_settings.cache_clear()

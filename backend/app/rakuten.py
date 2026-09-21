@@ -7,11 +7,14 @@ don't rely on scraping (see README section 10 on data acquisition policy).
 https://webservice.rakuten.co.jp/documentation/ichiba-item-search
 """
 
+import urllib.parse
+
 import httpx
 
 from app.config import get_settings
 
 SEARCH_URL = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701"
+AFFILIATE_LINK_BASE = "https://hb.afl.rakuten.co.jp/ichiba"
 
 
 class RakutenNotConfigured(Exception):
@@ -24,6 +27,23 @@ class RakutenSearchResult:
         self.item_url = item_url
         self.image_url = image_url
         self.item_name = item_name
+
+
+def to_affiliate_url(item_url: str) -> str | None:
+    """Wraps a plain Rakuten Ichiba item URL in this site's affiliate
+    tracking link, so a purchase through it earns a commission. Returns
+    None (caller keeps the plain URL) when RAKUTEN_AFFILIATE_ID isn't set -
+    registering for Rakuten Affiliate is a manual, one-time step (see
+    README), not something this app can do for itself."""
+    settings = get_settings()
+    if not settings.rakuten_affiliate_id:
+        return None
+    encoded = urllib.parse.quote(item_url, safe="")
+    return f"{AFFILIATE_LINK_BASE}/{settings.rakuten_affiliate_id}/?pc={encoded}&link_type=hybrid_url"
+
+
+def is_affiliate_link(url: str) -> bool:
+    return url.startswith(AFFILIATE_LINK_BASE)
 
 
 def _item_to_result(item: dict) -> RakutenSearchResult:
