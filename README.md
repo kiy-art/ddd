@@ -11,16 +11,16 @@ MVPの目的は **売上ではなく「商品→価格→価格履歴→価格�
 ```
                      ┌────────────────────┐
                      │  GitHub Actions     │  毎日1回 cron 起動
-                     │ (update-prices.yml) │
-                     └──────────┬───────────┘
-                                │ 実行
+                     │ (update-prices.yml) │  POST /api/admin/fetch-rakuten を叩くだけ
+                     └──────────┬───────────┘  (DBやRakuten鍵はRender側に既にあるので
+                                │ HTTPS         GitHub Secretsは ADMIN_API_TOKEN のみで済む)
                                 ▼
 ┌──────────────────────────────────────────────────────────┐
-│ backend/ (Python / FastAPI)                                │
+│ backend/ (Python / FastAPI, Render上で常時稼働)              │
 │                                                              │
-│  scripts/update_prices.py  … 日次バッチ                     │
+│  scripts/update_prices.py / app/pipeline.py … 日次バッチ本体 │
 │    1. 商品一覧取得                                           │
-│    2. 価格取得 (CSVインポート / 将来はAPI・許可された取得方法) │
+│    2. 価格取得 (楽天市場商品検索API / 手動CSVインポートも可)  │
 │    3. PriceHistory へ保存                                    │
 │    4. 価格統計 (平均・最安値・変化率) を更新                   │
 │    5. 買い時判定 (ルールベース, app/analysis.py)              │
@@ -227,6 +227,18 @@ RAKUTEN_ACCESS_KEY=
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
+
+### GitHub Actions Secrets（毎日の自動更新用）
+
+`.github/workflows/update-prices.yml` は本番バックエンド（Render）の
+`POST /api/admin/fetch-rakuten` を叩くだけなので、リポジトリの
+Settings → Secrets and variables → Actions に登録が必要なのは以下の1つだけ。
+
+```
+ADMIN_API_TOKEN=（backend/.envと同じ値）
+```
+
+DBや楽天の鍵はRender側に既に設定済みのため、GitHub側に重複登録する必要はない。
 
 ## 7. CSVインポート形式
 

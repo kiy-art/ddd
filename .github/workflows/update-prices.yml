@@ -3,42 +3,14 @@ name: Daily price update
 on:
   schedule:
     - cron: "0 21 * * *" # 06:00 JST
-  workflow_dispatch:
-    inputs:
-      csv_path:
-        description: "Optional path to a CSV to import (relative to repo root)"
-        required: false
-        default: ""
+  workflow_dispatch: {}
 
 jobs:
   update-prices:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: backend/requirements.txt
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run daily update
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL }}
-          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
-          RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
-          RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
+      - name: Trigger price update on the live backend
         run: |
-          if [ -n "${{ github.event.inputs.csv_path }}" ]; then
-            python scripts/update_prices.py --csv "../${{ github.event.inputs.csv_path }}"
-          else
-            python scripts/update_prices.py
-          fi
+          curl -sS --fail-with-body --max-time 180 -X POST \
+            "https://golf-deals-backend.onrender.com/api/admin/fetch-rakuten" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_API_TOKEN }}"
