@@ -52,7 +52,7 @@ def main():
             )
             for err in result.errors:
                 print(f"  - {err}")
-        elif settings.rakuten_app_id:
+        elif settings.rakuten_app_id and settings.rakuten_access_key:
             updated, skipped = pipeline.fetch_rakuten_prices(db)
             print(f"Rakuten fetch: updated={updated} skipped={skipped}")
         else:

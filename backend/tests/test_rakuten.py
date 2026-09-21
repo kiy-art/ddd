@@ -4,8 +4,20 @@ import pytest
 from app import rakuten
 
 
-def test_raises_when_not_configured(monkeypatch):
+def test_raises_when_app_id_missing(monkeypatch):
     monkeypatch.setenv("RAKUTEN_APP_ID", "")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    with pytest.raises(rakuten.RakutenNotConfigured):
+        rakuten.search_lowest_price("PING G440")
+    get_settings.cache_clear()
+
+
+def test_raises_when_access_key_missing(monkeypatch):
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "")
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -16,6 +28,7 @@ def test_raises_when_not_configured(monkeypatch):
 
 def test_search_lowest_price_returns_first_result(monkeypatch):
     monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -35,6 +48,7 @@ def test_search_lowest_price_returns_first_result(monkeypatch):
 
     def fake_get(url, params=None, timeout=None):
         assert params["applicationId"] == "test-app-id"
+        assert params["accessKey"] == "test-access-key"
         assert params["keyword"] == "PING G440"
         return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
 
@@ -51,6 +65,7 @@ def test_search_lowest_price_returns_first_result(monkeypatch):
 
 def test_search_lowest_price_returns_none_when_no_items(monkeypatch):
     monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
     from app.config import get_settings
 
     get_settings.cache_clear()

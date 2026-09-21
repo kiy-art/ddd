@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     admin_api_token: str = "change-me-to-a-random-secret"
     cors_origins: str = "http://localhost:3000"
     rakuten_app_id: str = ""
+    rakuten_access_key: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

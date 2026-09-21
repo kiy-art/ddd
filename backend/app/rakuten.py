@@ -31,9 +31,12 @@ def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchRes
     settings = get_settings()
     if not settings.rakuten_app_id:
         raise RakutenNotConfigured("RAKUTEN_APP_ID is not configured")
+    if not settings.rakuten_access_key:
+        raise RakutenNotConfigured("RAKUTEN_ACCESS_KEY is not configured")
 
     params = {
         "applicationId": settings.rakuten_app_id,
+        "accessKey": settings.rakuten_access_key,
         "keyword": keyword,
         "format": "json",
         "hits": 5,

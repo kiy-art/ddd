@@ -90,8 +90,11 @@ def run_update(db: Session = Depends(get_db)):
 def fetch_rakuten(db: Session = Depends(get_db)):
     from app.config import get_settings
 
-    if not get_settings().rakuten_app_id:
-        raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID is not configured")
+    settings = get_settings()
+    if not settings.rakuten_app_id or not settings.rakuten_access_key:
+        raise HTTPException(
+            status_code=400, detail="RAKUTEN_APP_ID / RAKUTEN_ACCESS_KEY is not configured"
+        )
 
     price_updated, price_skipped = pipeline.fetch_rakuten_prices(db)
     analyzed = 0
