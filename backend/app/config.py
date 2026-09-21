@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     rakuten_app_id: str = ""
     rakuten_access_key: str = ""
+    rakuten_referer: str = "https://golf-deals-backend.onrender.com"
 
     @property
     def cors_origin_list(self) -> list[str]:

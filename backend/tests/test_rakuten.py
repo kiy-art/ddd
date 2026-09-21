@@ -46,10 +46,11 @@ def test_search_lowest_price_returns_first_result(monkeypatch):
         ]
     }
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, headers=None, timeout=None):
         assert params["applicationId"] == "test-app-id"
         assert params["accessKey"] == "test-access-key"
         assert params["keyword"] == "PING G440"
+        assert headers.get("Referer")
         return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
 
     monkeypatch.setattr(httpx, "get", fake_get)
@@ -70,7 +71,7 @@ def test_search_lowest_price_returns_none_when_no_items(monkeypatch):
 
     get_settings.cache_clear()
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, headers=None, timeout=None):
         return httpx.Response(200, json={"Items": []}, request=httpx.Request("GET", url))
 
     monkeypatch.setattr(httpx, "get", fake_get)
