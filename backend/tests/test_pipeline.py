@@ -28,9 +28,7 @@ def test_fetch_rakuten_prices_rejects_implausible_drop(db_session, monkeypatch):
     price — this is the guard added after the PING G430 ¥1,100 incident."""
     product = _make_product(db_session, initial_price=60000)
 
-    monkeypatch.setattr(
-        pipeline, "search_lowest_price", lambda keyword: _FakeResult(1100, item_name="PING G430 用 交換パーツ")
-    )
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: _FakeResult(1100))
 
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
     assert updated == 0
@@ -129,6 +127,36 @@ def test_fetch_rakuten_prices_accepts_any_price_with_no_history_reference(db_ses
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
     assert updated == 1
     assert skipped == 0
+
+
+def test_fetch_rakuten_prices_rejects_accessory_match_even_with_no_reference(db_session, monkeypatch):
+    """The gap behind the real incident: a brand-new product has no
+    reference price yet, so _is_plausible_price alone would accept anything
+    — including a cheap accessory/part listing matched instead of the real
+    product (an ELYTE MAX FAST driver's first fetch briefly became a
+    ¥2,180 sole-weight-port cap). The accessory-keyword check must catch
+    this independently of price plausibility."""
+    product = crud.create_product(
+        db_session, schemas.ProductCreate(name="ELYTE MAX FAST ドライバー", brand="Callaway", category="driver")
+    )
+    assert product.current_price is None
+
+    monkeypatch.setattr(
+        pipeline,
+        "search_lowest_price",
+        lambda keyword: _FakeResult(2180, item_name="キャロウェイ ELYTE MAX FAST用 ソールウェイト"),
+    )
+
+    updated, skipped = pipeline.fetch_rakuten_prices(db_session)
+    assert updated == 0
+    assert skipped == 1
+
+    db_session.refresh(product)
+    assert product.current_price is None
+    assert product.image_url is None
+
+    logs = crud.list_error_logs(db_session)
+    assert any("アクセサリ" in log.message and log.level == "warning" for log in logs)
 
 
 def test_find_and_fix_price_anomalies_cleans_up_preexisting_bad_row(db_session):

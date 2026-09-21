@@ -19,9 +19,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import Engine, inspect, text  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
-from app.database import Base, engine  # noqa: E402
-from app import models  # noqa: E402,F401  (import registers the models on Base)
+from app.database import Base, SessionLocal, engine  # noqa: E402
+from app import crud, models  # noqa: E402,F401  (import registers the models on Base)
 
 # Columns added after the initial schema. Keep this list append-only.
 ADDED_COLUMNS = [
@@ -51,8 +52,47 @@ def migrate(target_engine: Engine) -> None:
         conn.execute(text("UPDATE products SET history_span_days = 0 WHERE history_span_days IS NULL"))
 
 
+# One-off correction for a specific known-bad production row: "ELYTE MAX
+# FAST ドライバー" had no price history yet (freshly imported from CSV, no
+# initial_price recorded) when the daily Rakuten fetch ran, so
+# _is_plausible_price had no reference price to check against and accepted
+# whatever it matched — in this case a ¥2,180 sole-weight-port accessory
+# listing, complete with its photo. Re-running fetch_rakuten_prices alone
+# won't fix it (the bad price is now its own reference), so this restores
+# the real, manually-researched price from data/real_products_batch1.csv
+# and clears the accessory photo/link so a correct one can be filled in on
+# the next fetch. Idempotent: no-ops once the price is back above the
+# no-real-driver-costs-this-little threshold below.
+KNOWN_BAD_PRODUCT_FIXES = [
+    {
+        "name": "ELYTE MAX FAST ドライバー",
+        "brand": "Callaway",
+        "model_number": "ELYTE MAX FAST",
+        "bad_price_ceiling": 10000,
+        "correct_price": 107800,
+    },
+]
+
+
+def fix_known_bad_products(db: Session) -> None:
+    for fix in KNOWN_BAD_PRODUCT_FIXES:
+        product = crud.find_product_by_identity(db, fix["name"], fix["brand"], fix["model_number"])
+        if product is None:
+            continue
+        if product.current_price is None or product.current_price >= fix["bad_price_ceiling"]:
+            continue
+        for row in crud.get_price_history(db, product.id):
+            crud.delete_price(db, row.id)
+        product.image_url = None
+        product.affiliate_url = None
+        db.commit()
+        crud.add_price(db, product, fix["correct_price"])
+
+
 def main():
     migrate(engine)
+    with SessionLocal() as db:
+        fix_known_bad_products(db)
     print("Tables created.")
 
 

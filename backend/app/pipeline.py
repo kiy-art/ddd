@@ -22,6 +22,29 @@ RAKUTEN_REQUEST_INTERVAL_SECONDS = 1.1  # stay under the API's ~1 req/sec free-t
 PRICE_SANITY_MIN_RATIO = 0.5
 PRICE_SANITY_MAX_RATIO = 2.0
 
+# Item names that mark a Rakuten result as an accessory/part for the product
+# rather than the product itself (a weight, a headcover, a bare shaft, ...).
+# _is_plausible_price can't catch this on a product's very first price fetch
+# (no reference price exists yet, so it accepts anything) — the actual gap
+# that let an ELYTE MAX FAST driver's first-ever price briefly become a
+# ¥2,180 sole-weight cap. Checked unconditionally, not just when there's no
+# reference, since a plausible-looking price on an accessory is still wrong.
+ACCESSORY_KEYWORDS = [
+    "ヘッドカバー",
+    "ヘッドカバ",
+    "ウエイト",
+    "ウェイト",
+    "スリーブ",
+    "シャフトのみ",
+    "パーツ",
+    "部品",
+    "レンチ",
+]
+
+
+def _looks_like_accessory(item_name: str) -> bool:
+    return any(keyword in item_name for keyword in ACCESSORY_KEYWORDS)
+
 
 def _is_plausible_price(product: models.Product, price: int) -> bool:
     reference = product.average_price or product.current_price
@@ -92,6 +115,20 @@ def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
                     source="price_fetch",
                     level="info",
                     message=f"{product.name}: 楽天市場で該当商品が見つかりませんでした（キーワード: {keyword}）",
+                    product_id=product.id,
+                )
+                skipped += 1
+                continue
+            if _looks_like_accessory(result.item_name):
+                crud.create_error_log(
+                    db,
+                    source="price_fetch",
+                    level="warning",
+                    message=(
+                        f"{product.name}: 楽天の検索結果「{result.item_name}」はアクセサリ/パーツの"
+                        "可能性が高いため自動反映をスキップしました"
+                        f"（URL: {result.item_url}）"
+                    ),
                     product_id=product.id,
                 )
                 skipped += 1
