@@ -4,6 +4,7 @@ import Link from "next/link";
 import Script from "next/script";
 
 import Logo from "@/components/Logo";
+import SiteNav from "@/components/SiteNav";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/api";
 import { GA_MEASUREMENT_ID } from "@/lib/analytics";
 
@@ -74,82 +75,41 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </Script>
           </>
         )}
-        <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur-md">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-            <Link href="/" className="text-foreground transition-opacity hover:opacity-70">
-              <Logo />
-            </Link>
-            <nav className="flex flex-wrap items-center gap-1 text-sm text-foreground/60">
-              {CATEGORIES.map((c) => (
-                <Link
-                  key={c}
-                  href={`/category/${c}`}
-                  className="rounded-full px-3 py-1.5 transition-colors hover:bg-foreground/5 hover:text-foreground"
-                >
-                  {CATEGORY_LABELS[c]}
-                </Link>
-              ))}
-              <Link
-                href="/deals"
-                className="rounded-full px-3 py-1.5 transition-colors hover:bg-foreground/5 hover:text-foreground"
-              >
-                値下がり中
-              </Link>
-              <Link
-                href="/ranking"
-                className="rounded-full px-3 py-1.5 transition-colors hover:bg-foreground/5 hover:text-foreground"
-              >
-                ランキング
-              </Link>
-              <Link
-                href="/brands"
-                className="rounded-full px-3 py-1.5 transition-colors hover:bg-foreground/5 hover:text-foreground"
-              >
-                ブランド
-              </Link>
-              <Link
-                href="/admin"
-                className="ml-2 rounded-full border border-border px-3.5 py-1.5 text-foreground/70 transition-colors hover:border-foreground/30 hover:text-foreground"
-              >
-                管理画面
-              </Link>
-            </nav>
-          </div>
-        </header>
+        <SiteNav>
+          <main className="flex-1">{children}</main>
 
-        <main className="flex-1">{children}</main>
-
-        <footer className="border-t border-border bg-background px-6 py-14 text-sm text-foreground/50">
-          <div className="mx-auto flex max-w-7xl flex-col gap-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <Logo className="text-foreground" />
-              <nav className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
-                {CATEGORIES.map((c) => (
-                  <Link key={c} href={`/category/${c}`} className="hover:text-foreground">
-                    {CATEGORY_LABELS[c]}
+          <footer className="border-t border-border bg-background px-6 py-14 text-sm text-foreground/50">
+            <div className="mx-auto flex max-w-5xl flex-col gap-8">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <Logo className="text-foreground" />
+                <nav className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+                  {CATEGORIES.map((c) => (
+                    <Link key={c} href={`/category/${c}`} className="hover:text-foreground">
+                      {CATEGORY_LABELS[c]}
+                    </Link>
+                  ))}
+                  <Link href="/deals" className="hover:text-foreground">
+                    値下がり中
                   </Link>
-                ))}
-                <Link href="/deals" className="hover:text-foreground">
-                  値下がり中
-                </Link>
-                <Link href="/ranking" className="hover:text-foreground">
-                  買い時ランキング
-                </Link>
-                <Link href="/brands" className="hover:text-foreground">
-                  ブランド一覧
-                </Link>
-                <Link href="/disclaimer" className="hover:text-foreground">
-                  運営者情報・免責事項
-                </Link>
-              </nav>
+                  <Link href="/ranking" className="hover:text-foreground">
+                    買い時ランキング
+                  </Link>
+                  <Link href="/brands" className="hover:text-foreground">
+                    ブランド一覧
+                  </Link>
+                  <Link href="/disclaimer" className="hover:text-foreground">
+                    運営者情報・免責事項
+                  </Link>
+                </nav>
+              </div>
+              <p className="max-w-2xl text-xs leading-relaxed text-foreground/40">
+                本サイトはアフィリエイトプログラムを利用して収益を得ています。価格・在庫は変動する可能性が
+                あるため、購入前に販売元サイトで最新情報をご確認ください。
+              </p>
+              <p className="text-xs text-foreground/30">© {new Date().getFullYear()} {SITE_NAME}</p>
             </div>
-            <p className="max-w-2xl text-xs leading-relaxed text-foreground/40">
-              本サイトはアフィリエイトプログラムを利用して収益を得ています。価格・在庫は変動する可能性が
-              あるため、購入前に販売元サイトで最新情報をご確認ください。
-            </p>
-            <p className="text-xs text-foreground/30">© {new Date().getFullYear()} {SITE_NAME}</p>
-          </div>
-        </footer>
+          </footer>
+        </SiteNav>
       </body>
     </html>
   );
