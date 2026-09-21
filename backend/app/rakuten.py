@@ -39,9 +39,13 @@ def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchRes
         "accessKey": settings.rakuten_access_key,
         "keyword": keyword,
         "format": "json",
-        "hits": 5,
+        "hits": 10,
         "availability": 1,
-        "sort": "+itemPrice",
+        # No explicit sort: Rakuten's default "standard" relevance ranking.
+        # We used to sort by cheapest price first, but that preferentially
+        # matched irrelevant/junk listings (a loose part, an accessory, a
+        # mis-tagged item) far below the real product's price — see the
+        # incident where a PING G430 iron briefly showed a fake ¥1,100.
     }
     # The "Web Application" app type validates requests by HTTP Referer/Origin
     # against the registered "Allowed websites" list, which server-to-server
@@ -62,7 +66,15 @@ def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchRes
     if not items:
         return None
 
-    item = items[0]["Item"]
+    # Pick the candidate closest to the median price among the results,
+    # instead of blindly trusting whichever the API ranks first. This
+    # guards against a single outlier listing (an unrelated cheap
+    # accessory, or an overpriced bundle) being mistaken for the product.
+    candidates = [it["Item"] for it in items]
+    prices = sorted(c["itemPrice"] for c in candidates)
+    median_price = prices[len(prices) // 2]
+    item = min(candidates, key=lambda c: abs(c["itemPrice"] - median_price))
+
     images = item.get("mediumImageUrls") or []
     image_url = images[0].get("imageUrl") if images else None
     # Rakuten returns tracking-wrapped thumbnail URLs; strip the query string

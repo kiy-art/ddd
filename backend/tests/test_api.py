@@ -114,3 +114,31 @@ def test_run_update_endpoint(client, admin_headers):
 def test_fetch_rakuten_requires_app_id(client, admin_headers):
     resp = client.post("/api/admin/fetch-rakuten", headers=admin_headers)
     assert resp.status_code == 400
+
+
+def test_delete_price_removes_bad_entry_and_recomputes(client, admin_headers):
+    created = client.post(
+        "/api/admin/products",
+        headers=admin_headers,
+        json={"name": "G430 Iron", "brand": "PING", "category": "iron", "initial_price": 60000},
+    ).json()
+    product_id = created["id"]
+
+    bad = client.post(
+        f"/api/admin/products/{product_id}/prices",
+        headers=admin_headers,
+        json={"price": 1100},
+    ).json()
+    assert bad["current_price"] == 1100
+
+    prices = client.get(f"/api/admin/products/{product_id}/prices", headers=admin_headers).json()
+    bad_entry = next(p for p in prices if p["price"] == 1100)
+
+    resp = client.delete(f"/api/admin/prices/{bad_entry['id']}", headers=admin_headers)
+    assert resp.status_code == 200
+    fixed = resp.json()
+    assert fixed["current_price"] == 60000
+    assert fixed["lowest_price"] == 60000
+
+    resp = client.delete(f"/api/admin/prices/{bad_entry['id']}", headers=admin_headers)
+    assert resp.status_code == 404

@@ -146,6 +146,36 @@ def get_price_history(db: Session, product_id: int) -> list[models.PriceHistory]
     return list(db.execute(query).scalars().all())
 
 
+def delete_price(db: Session, price_history_id: int) -> int | None:
+    """Deletes a single (erroneous) price-history row. Returns the owning
+    product's id, or None if the row didn't exist."""
+    row = db.get(models.PriceHistory, price_history_id)
+    if row is None:
+        return None
+    product_id = row.product_id
+    db.delete(row)
+    db.commit()
+    return product_id
+
+
+def recompute_current_price(db: Session, product: models.Product) -> None:
+    """Resets current/previous price from remaining history after a row is
+    deleted, since add_price() is the only other place these fields are set."""
+    history = get_price_history(db, product.id)
+    if not history:
+        product.current_price = None
+        product.previous_price = None
+        product.average_price = None
+        product.lowest_price = None
+        product.price_change_percent = None
+        product.buy_score = "insufficient_data"
+    else:
+        product.current_price = history[-1].price
+        product.previous_price = history[-2].price if len(history) >= 2 else None
+    db.commit()
+    db.refresh(product)
+
+
 # --- Error logs ----------------------------------------------------------------
 
 

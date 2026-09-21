@@ -13,6 +13,22 @@ from app.rakuten import search_lowest_price
 
 RAKUTEN_REQUEST_INTERVAL_SECONDS = 1.1  # stay under the API's ~1 req/sec free-tier limit
 
+# A freshly-fetched price outside this ratio of the product's known average
+# is treated as a probable mismatch (wrong item matched, accessory/part
+# picked up instead of the product, etc.) rather than a real price move, and
+# is logged without being applied. See: PING G430 iron briefly showing a
+# fake -98% ("¥1,100") price after a bad Rakuten search match.
+PRICE_SANITY_MIN_RATIO = 0.5
+PRICE_SANITY_MAX_RATIO = 2.0
+
+
+def _is_plausible_price(product: models.Product, price: int) -> bool:
+    reference = product.average_price or product.current_price
+    if not reference:
+        return True
+    ratio = price / reference
+    return PRICE_SANITY_MIN_RATIO <= ratio <= PRICE_SANITY_MAX_RATIO
+
 
 def sync_product_analysis(db: Session, product: models.Product) -> bool:
     """Recompute stats/buy_score from price history, refresh buy_reason, and
@@ -73,6 +89,21 @@ def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
                     source="price_fetch",
                     level="info",
                     message=f"{product.name}: 楽天市場で該当商品が見つかりませんでした（キーワード: {keyword}）",
+                    product_id=product.id,
+                )
+                skipped += 1
+                continue
+            if not _is_plausible_price(product, result.price):
+                reference = product.average_price or product.current_price
+                crud.create_error_log(
+                    db,
+                    source="price_fetch",
+                    level="warning",
+                    message=(
+                        f"{product.name}: 楽天の検索結果 ¥{result.price:,} が既存価格（参考値 ¥{reference:,}）"
+                        "と大きく乖離しているため、誤検出の可能性が高いと判断し自動反映をスキップしました"
+                        f"（マッチした商品名: {result.item_name} / URL: {result.item_url}）"
+                    ),
                     product_id=product.id,
                 )
                 skipped += 1

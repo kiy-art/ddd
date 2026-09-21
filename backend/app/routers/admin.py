@@ -57,6 +57,20 @@ def add_price(product_id: int, data: schemas.PriceCreate, db: Session = Depends(
     return product
 
 
+@router.delete("/prices/{price_history_id}", response_model=schemas.ProductOut)
+def delete_price(price_history_id: int, db: Session = Depends(get_db)):
+    product_id = crud.delete_price(db, price_history_id)
+    if product_id is None:
+        raise HTTPException(status_code=404, detail="Price history entry not found")
+    product = crud.get_product(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    crud.recompute_current_price(db, product)
+    if product.current_price is not None:
+        pipeline.sync_product_analysis(db, product)
+    return product
+
+
 @router.post("/import/csv", response_model=schemas.CsvImportResult)
 async def import_csv(file: UploadFile, db: Session = Depends(get_db)):
     content = await file.read()

@@ -7,6 +7,7 @@ import { useAdminAuth } from "@/lib/adminAuth";
 import {
   adminCreateProduct,
   adminDeleteProduct,
+  adminDeletePrice,
   adminUpdateProduct,
   adminListProducts,
   adminAddPrice,
@@ -235,6 +236,13 @@ function ProductRow({
     onChanged();
   };
 
+  const handleDeletePrice = async (priceId: number, price: number) => {
+    if (!confirm(`¥${price.toLocaleString("ja-JP")} の価格履歴を削除しますか？（誤った価格データの削除用）`)) return;
+    await adminDeletePrice(token, priceId);
+    setPrices(await adminGetPrices(token, product.id));
+    onChanged();
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card">
       <button
@@ -324,9 +332,18 @@ function ProductRow({
                 .slice()
                 .reverse()
                 .map((p) => (
-                  <li key={p.id} className="flex justify-between border-b border-border py-1">
+                  <li key={p.id} className="flex items-center justify-between gap-2 border-b border-border py-1">
                     <span>{new Date(p.recorded_at).toLocaleString("ja-JP")}</span>
-                    <span>¥{p.price.toLocaleString("ja-JP")}</span>
+                    <span className="flex items-center gap-2">
+                      ¥{p.price.toLocaleString("ja-JP")}
+                      <button
+                        onClick={() => handleDeletePrice(p.id, p.price)}
+                        title="この価格データを削除（誤検出の修正用）"
+                        className="rounded px-1.5 py-0.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        削除
+                      </button>
+                    </span>
                   </li>
                 ))}
               {prices.length === 0 && <li className="py-1 text-foreground/35">価格履歴がありません</li>}

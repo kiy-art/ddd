@@ -170,6 +170,13 @@ export function adminAddPrice(token: string, id: number, price: number) {
   });
 }
 
+export function adminDeletePrice(token: string, priceHistoryId: number) {
+  return apiFetch<Product>(`/api/admin/prices/${priceHistoryId}`, {
+    method: "DELETE",
+    headers: adminHeaders(token),
+  });
+}
+
 export function adminGetLogs(token: string) {
   return apiFetch<ErrorLog[]>(`/api/admin/logs`, { headers: adminHeaders(token) });
 }

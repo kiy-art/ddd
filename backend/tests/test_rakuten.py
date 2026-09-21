@@ -64,6 +64,47 @@ def test_search_lowest_price_returns_first_result(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_search_lowest_price_picks_median_over_outlier(monkeypatch):
+    """A junk/irrelevant listing (e.g. a loose part) far below the real
+    product's price must not be picked just because it's cheapest — this is
+    the exact bug that caused a PING G430 iron to show a fake ¥1,100 price."""
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    def make_item(name, price, path):
+        return {
+            "Item": {
+                "itemName": name,
+                "itemPrice": price,
+                "itemUrl": f"https://item.rakuten.co.jp/example/{path}/",
+                "mediumImageUrls": [],
+            }
+        }
+
+    payload = {
+        "Items": [
+            make_item("PING G430 用 交換パーツ", 1100, "junk"),
+            make_item("PING G430 アイアン セット", 58000, "a"),
+            make_item("PING G430 アイアン", 60000, "b"),
+            make_item("PING G430 アイアン 中古美品", 62000, "c"),
+        ]
+    }
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        assert "sort" not in params  # no cheapest-first sort
+        return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    result = rakuten.search_lowest_price("PING G430")
+    assert result is not None
+    assert result.price == 60000  # closest to the median, not the ¥1,100 outlier
+    get_settings.cache_clear()
+
+
 def test_search_lowest_price_returns_none_when_no_items(monkeypatch):
     monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
     monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
