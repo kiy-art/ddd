@@ -9,6 +9,10 @@ import { CATEGORY_LABELS, Product } from "@/lib/api";
 // "30-day average" claim needs more than a day or two of real data behind it.
 const THIN_DATA_DAYS = 7;
 
+// Even a legitimate discount this large is unusual enough to flag for a
+// second look, rather than presenting it as an uncomplicated great deal.
+const CAUTION_DISCOUNT_PERCENT = -40;
+
 function yen(value: number | null): string {
   if (value === null) return "-";
   return `¥${value.toLocaleString("ja-JP")}`;
@@ -76,7 +80,7 @@ export default function ProductCard({ product }: { product: Product }) {
                 {pct}%
               </div>
               <div className="text-[10px] uppercase tracking-widest text-foreground/35">
-                vs 30d avg
+                {pct <= CAUTION_DISCOUNT_PERCENT ? "要確認" : "vs 30d avg"}
               </div>
             </div>
           )}

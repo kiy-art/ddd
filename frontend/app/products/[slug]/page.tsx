@@ -30,6 +30,14 @@ const VERDICT_HEADLINE: Record<string, string> = {
   insufficient_data: "価格データ蓄積中です",
 };
 
+// The backend already rejects a fetched price outside 0.5x-2.0x of the
+// known average before it's ever saved (see pipeline.py), so nothing in
+// the DB should be a flat-out mismatch. This is a second, tighter
+// threshold purely for display: even a *legitimate* drop this large is
+// unusual enough that a user should double-check before trusting it,
+// rather than the page presenting it as an uncomplicated "great deal".
+const CAUTION_DISCOUNT_PERCENT = -40;
+
 function yen(value: number | null): string {
   if (value === null) return "-";
   return `¥${value.toLocaleString("ja-JP")}`;
@@ -71,6 +79,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   if (!product) notFound();
 
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
+  const needsPriceCaution =
+    hasReliableTrend &&
+    product.price_change_percent !== null &&
+    product.price_change_percent <= CAUTION_DISCOUNT_PERCENT;
 
   let categoryProducts: Product[] = [];
   try {
@@ -193,6 +205,12 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   ? product.buy_reason
                   : `現在${product.history_span_days}日分の価格データを蓄積しています。判定の精度を高めるため、もう少しデータが必要です。`}
               </p>
+              {needsPriceCaution && (
+                <p className="mt-3 rounded-xl border border-border bg-card px-3 py-2 text-xs leading-relaxed text-foreground/50">
+                  ⚠ 価格要確認：通常価格帯から大きく外れた値下がりです。掲載元での価格反映のタイムラグや、
+                  商品の取り違えなどの可能性もゼロではありません。購入前に実際の販売ページで価格をご確認ください。
+                </p>
+              )}
             </div>
 
             <dl className="grid grid-cols-3 gap-4 text-xs text-foreground/45">
