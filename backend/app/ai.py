@@ -22,6 +22,10 @@ SYSTEM_PROMPT = """あなたはゴルフ用品の価格情報サイトのライ�
 - 数値は与えられた値をそのまま使い、言い換えで誤解を招く表現をしない。
 - 誇大広告・断定的な将来予測（「必ず値上がりする」等）をしない。
 - 出力は必ず次のJSON形式のみ: {"title": "...", "summary": "...", "caution": "..."}
+- titleはページタイトル・SNS共有見出しとして使う短い体言止めの見出し（20〜40文字程度、
+  商品名を含む）にする。「〜です。」「〜ます。」のような文章にしない。
+  例: 「PING G440 ドライバー 価格推移・買い時情報」
+- summaryには、titleに入れなかった判定理由の詳細を1〜2文で書く。
 - captionには「価格は変動する可能性があります」という主旨の注意書きを必ず含める。
 """
 
@@ -46,10 +50,7 @@ def should_regenerate(product, new_hash: str) -> bool:
 
 def _rule_based_content(product_name: str, result: analysis.AnalysisResult) -> AiContent:
     reason = analysis.rule_based_reason(result)
-    if result.buy_score == "insufficient_data":
-        title = f"{product_name} の価格データを収集中"
-    else:
-        title = f"{product_name} {reason}".strip()
+    title = f"{product_name}の価格推移・買い時情報"
     return AiContent(
         title=title[:120],
         summary=reason,

@@ -66,10 +66,27 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { slug } = await params;
   const product = await loadProduct(slug);
   if (!product) return {};
-  const title = product.ai_title || `${product.name} の価格推移と買い時判定`;
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const url = `${siteUrl}/products/${product.slug}`;
+  const title = product.ai_title || `${product.name}の価格推移・買い時｜PAR.`;
+  const description = product.ai_summary || product.buy_reason || product.name;
+
   return {
     title,
-    description: product.ai_summary || product.buy_reason || product.name,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      url,
+      title,
+      description,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 
@@ -120,9 +137,25 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
       : {}),
   };
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "PAR.", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: CATEGORY_LABELS[product.category] ?? product.category,
+        item: `${siteUrl}/category/${product.category}`,
+      },
+      { "@type": "ListItem", position: 3, name: product.name, item: `${siteUrl}/products/${product.slug}` },
+    ],
+  };
+
   return (
     <article>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 
       <div className="border-b border-border bg-card">
         <div className="mx-auto max-w-7xl px-6 py-8">
