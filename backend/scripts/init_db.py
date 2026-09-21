@@ -28,6 +28,7 @@ from app import crud, models  # noqa: E402,F401  (import registers the models on
 ADDED_COLUMNS = [
     ("products", "buy_signal_score", "INTEGER"),
     ("products", "history_span_days", "INTEGER"),
+    ("products", "pending_review", "BOOLEAN"),
 ]
 
 
@@ -50,6 +51,12 @@ def migrate(target_engine: Engine) -> None:
         # validation with a 500 ("商品情報の取得に失敗しました") until this
         # backfill ran.
         conn.execute(text("UPDATE products SET history_span_days = 0 WHERE history_span_days IS NULL"))
+
+        # Same NULL-on-preexisting-rows problem as above: pending_review is
+        # non-nullable (bool) in ProductOut. Every row that existed before
+        # this column was added must default to already-published (False),
+        # not pending — only the auto-discovery pipeline ever sets True.
+        conn.execute(text("UPDATE products SET pending_review = FALSE WHERE pending_review IS NULL"))
 
 
 # One-off correction for a specific known-bad production row: "ELYTE MAX

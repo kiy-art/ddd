@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-import { adminFetchRakuten, adminImportCsv, adminListProducts, adminRunUpdate, Product } from "@/lib/api";
+import {
+  adminDiscoverProducts,
+  adminFetchRakuten,
+  adminImportCsv,
+  adminListProducts,
+  adminRunUpdate,
+  Product,
+} from "@/lib/api";
 import { useAdminAuth } from "@/lib/adminAuth";
 
 export default function AdminDashboard() {
@@ -76,12 +83,33 @@ export default function AdminDashboard() {
     try {
       const result = await adminFetchRakuten(token);
       setMessage(
-        `楽天価格取得完了: 更新${result.prices_updated}件 / 見つからず${result.prices_skipped}件 / AI再生成${result.ai_regenerated}件`
+        `楽天価格取得完了: 更新${result.prices_updated}件 / 見つからず${result.prices_skipped}件 / ` +
+          `新規候補${result.products_discovered}件（承認待ちに追加） / AI再生成${result.ai_regenerated}件`
       );
       await load();
     } catch (err) {
       setMessage(
         `取得失敗: ${err instanceof Error ? err.message : String(err)}（RAKUTEN_APP_IDが設定されているか確認してください）`
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDiscover = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await adminDiscoverProducts(token);
+      setMessage(
+        `商品自動検出完了: 候補${result.candidates_considered}件を確認 / 新規${result.products_discovered}件を承認待ちに追加` +
+          "（商品管理ページで内容を確認して承認してください）"
+      );
+      await load();
+    } catch (err) {
+      setMessage(
+        `検出失敗: ${err instanceof Error ? err.message : String(err)}（RAKUTEN_APP_IDが設定されているか確認してください）`
       );
     } finally {
       setBusy(false);
@@ -125,6 +153,22 @@ export default function AdminDashboard() {
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ価格を取得
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">商品の自動検出</h2>
+        <p className="text-sm text-foreground/50">
+          楽天市場をカテゴリ別に検索し、まだ登録されていない商品の候補を「承認待ち」として追加します。
+          自動検出された商品は承認するまでサイトには公開されません。誤った商品が混ざることがあるため、
+          商品管理ページで内容を確認してから承認してください。毎日の自動更新でも実行されます。
+        </p>
+        <button
+          onClick={handleDiscover}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          今すぐ検出
         </button>
       </div>
 

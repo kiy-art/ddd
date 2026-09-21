@@ -34,8 +34,11 @@ def get_product(db: Session, product_id: int) -> models.Product | None:
     return db.get(models.Product, product_id)
 
 
-def get_product_by_slug(db: Session, slug: str) -> models.Product | None:
-    return db.execute(select(models.Product).where(models.Product.slug == slug)).scalar_one_or_none()
+def get_product_by_slug(db: Session, slug: str, exclude_pending: bool = False) -> models.Product | None:
+    query = select(models.Product).where(models.Product.slug == slug)
+    if exclude_pending:
+        query = query.where(models.Product.pending_review.is_(False))
+    return db.execute(query).scalar_one_or_none()
 
 
 def find_product_by_identity(
@@ -65,6 +68,7 @@ def list_products(
         query = query.where(models.Product.buy_score == buy_score)
     if published_only:
         query = query.where(models.Product.buy_score != "insufficient_data")
+        query = query.where(models.Product.pending_review.is_(False))
     query = query.order_by(models.Product.price_change_percent.asc().nulls_last())
     query = query.offset(offset).limit(limit)
     return list(db.execute(query).scalars().all())
@@ -75,11 +79,12 @@ def list_brands(db: Session, published_only: bool = True) -> list[tuple[str, int
     query = select(models.Product.brand, func.count(models.Product.id)).group_by(models.Product.brand)
     if published_only:
         query = query.where(models.Product.buy_score != "insufficient_data")
+        query = query.where(models.Product.pending_review.is_(False))
     query = query.order_by(func.count(models.Product.id).desc(), models.Product.brand.asc())
     return [(row[0], row[1]) for row in db.execute(query).all()]
 
 
-def create_product(db: Session, data: schemas.ProductCreate) -> models.Product:
+def create_product(db: Session, data: schemas.ProductCreate, pending_review: bool = False) -> models.Product:
     slug_parts = [data.brand, data.name]
     if data.model_number and data.model_number.lower() not in data.name.lower():
         slug_parts.append(data.model_number)
@@ -95,6 +100,7 @@ def create_product(db: Session, data: schemas.ProductCreate) -> models.Product:
         product_url=data.product_url,
         affiliate_url=data.affiliate_url,
         buy_score="insufficient_data",
+        pending_review=pending_review,
     )
     db.add(product)
     db.commit()
@@ -102,6 +108,20 @@ def create_product(db: Session, data: schemas.ProductCreate) -> models.Product:
     if data.initial_price is not None:
         add_price(db, product, data.initial_price)
     return product
+
+
+def approve_product(db: Session, product: models.Product) -> models.Product:
+    product.pending_review = False
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+def list_pending_products(db: Session) -> list[models.Product]:
+    query = select(models.Product).where(models.Product.pending_review.is_(True)).order_by(
+        models.Product.created_at.desc()
+    )
+    return list(db.execute(query).scalars().all())
 
 
 def update_product(db: Session, product: models.Product, data: schemas.ProductUpdate) -> models.Product:

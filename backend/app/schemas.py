@@ -54,6 +54,7 @@ class ProductOut(ProductBase):
     buy_signal_score: int | None
     history_span_days: int
     buy_reason: str | None
+    pending_review: bool
     ai_title: str | None
     ai_summary: str | None
     ai_caution: str | None

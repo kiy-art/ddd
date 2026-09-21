@@ -45,7 +45,7 @@ def list_by_brand(brand: str, limit: int = 50, offset: int = 0, db: Session = De
 
 @router.get("/products/{slug}", response_model=schemas.ProductDetailOut)
 def get_product(slug: str, db: Session = Depends(get_db)):
-    product = crud.get_product_by_slug(db, slug)
+    product = crud.get_product_by_slug(db, slug, exclude_pending=True)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
@@ -64,7 +64,7 @@ def list_by_category(category: str, limit: int = 50, offset: int = 0, db: Sessio
 def create_price_alert(slug: str, data: schemas.PriceAlertCreate, db: Session = Depends(get_db)):
     """Records a "notify me below ¥X" request. No email is sent yet - see
     models.PriceAlert for why - so this only confirms the request was saved."""
-    product = crud.get_product_by_slug(db, slug)
+    product = crud.get_product_by_slug(db, slug, exclude_pending=True)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return crud.create_price_alert(db, product, data)

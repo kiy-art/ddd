@@ -23,6 +23,7 @@ export interface Product {
   buy_signal_score: number | null;
   history_span_days: number;
   buy_reason: string | null;
+  pending_review: boolean;
   ai_title: string | null;
   ai_summary: string | null;
   ai_caution: string | null;
@@ -226,6 +227,24 @@ export function adminDeletePrice(token: string, priceHistoryId: number) {
   });
 }
 
+export function adminGetPendingProducts(token: string) {
+  return apiFetch<Product[]>(`/api/admin/pending-products`, { headers: adminHeaders(token) });
+}
+
+export function adminApproveProduct(token: string, id: number) {
+  return apiFetch<Product>(`/api/admin/products/${id}/approve`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
+export function adminDiscoverProducts(token: string) {
+  return apiFetch<{ products_discovered: number; candidates_considered: number }>(
+    `/api/admin/discover-products`,
+    { method: "POST", headers: adminHeaders(token) }
+  );
+}
+
 export function adminGetPriceAnomalies(token: string) {
   return apiFetch<PriceAnomaly[]>(`/api/admin/price-anomalies`, { headers: adminHeaders(token) });
 }
@@ -282,6 +301,8 @@ export function adminFetchRakuten(token: string) {
   return apiFetch<{
     prices_updated: number;
     prices_skipped: number;
+    products_discovered: number;
+    candidates_considered: number;
     products_checked: number;
     ai_regenerated: number;
   }>(`/api/admin/fetch-rakuten`, {

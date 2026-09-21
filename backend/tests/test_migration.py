@@ -26,8 +26,8 @@ from scripts.init_db import fix_known_bad_products, migrate  # noqa: E402
 @pytest.fixture
 def pre_migration_engine(tmp_path):
     """A fresh SQLite DB with the products table as it looked *before*
-    buy_signal_score/history_span_days existed, containing one row created
-    under that old schema."""
+    buy_signal_score/history_span_days/pending_review existed, containing
+    one row created under that old schema."""
     db_path = tmp_path / "pre_migration.db"
     engine = create_engine(f"sqlite:///{db_path}")
 
@@ -35,7 +35,7 @@ def pre_migration_engine(tmp_path):
     dialect = engine.dialect
     columns_sql = []
     for col in table.columns:
-        if col.name in ("buy_signal_score", "history_span_days"):
+        if col.name in ("buy_signal_score", "history_span_days", "pending_review"):
             continue
         coltype = col.type.compile(dialect=dialect)
         pk = " PRIMARY KEY" if col.primary_key else ""

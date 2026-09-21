@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, models, pipeline, schemas
+from app import crud, discovery, models, pipeline, schemas
 from app.auth import require_admin
 from app.database import get_db
 
@@ -14,6 +14,19 @@ router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(requir
 @router.get("/products", response_model=list[schemas.ProductOut])
 def list_all_products(db: Session = Depends(get_db)):
     return list(db.execute(select(models.Product).order_by(models.Product.updated_at.desc())).scalars().all())
+
+
+@router.get("/pending-products", response_model=list[schemas.ProductOut])
+def list_pending_products(db: Session = Depends(get_db)):
+    return crud.list_pending_products(db)
+
+
+@router.post("/products/{product_id}/approve", response_model=schemas.ProductOut)
+def approve_product(product_id: int, db: Session = Depends(get_db)):
+    product = crud.get_product(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return crud.approve_product(db, product)
 
 
 @router.post("/products", response_model=schemas.ProductOut, status_code=201)
@@ -157,6 +170,7 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         )
 
     price_updated, price_skipped = pipeline.fetch_rakuten_prices(db)
+    products_discovered, candidates_considered = discovery.discover_new_products(db)
     analyzed = 0
     regenerated = 0
     for product in db.execute(select(models.Product)).scalars().all():
@@ -166,9 +180,26 @@ def fetch_rakuten(db: Session = Depends(get_db)):
     return {
         "prices_updated": price_updated,
         "prices_skipped": price_skipped,
+        "products_discovered": products_discovered,
+        "candidates_considered": candidates_considered,
         "products_checked": analyzed,
         "ai_regenerated": regenerated,
     }
+
+
+@router.post("/discover-products")
+def discover_products(db: Session = Depends(get_db)):
+    """Manual trigger for the same auto-discovery that also runs as part of
+    the daily /fetch-rakuten job, useful for testing without waiting for
+    the next scheduled run."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.rakuten_app_id or not settings.rakuten_access_key:
+        raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID / RAKUTEN_ACCESS_KEY is not configured")
+
+    discovered, considered = discovery.discover_new_products(db)
+    return {"products_discovered": discovered, "candidates_considered": considered}
 
 
 @router.get("/analytics/top-pages", response_model=list[schemas.PageStatOut])

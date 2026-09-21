@@ -26,8 +26,22 @@ class RakutenSearchResult:
         self.item_name = item_name
 
 
-def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchResult | None:
-    """Returns the cheapest in-stock listing for `keyword`, or None if nothing matched."""
+def _item_to_result(item: dict) -> RakutenSearchResult:
+    images = item.get("mediumImageUrls") or []
+    image_url = images[0].get("imageUrl") if images else None
+    # Rakuten returns tracking-wrapped thumbnail URLs; strip the query string
+    if image_url and "?" in image_url:
+        image_url = image_url.split("?", 1)[0]
+
+    return RakutenSearchResult(
+        price=int(item["itemPrice"]),
+        item_url=item["itemUrl"],
+        image_url=image_url,
+        item_name=item["itemName"],
+    )
+
+
+def _fetch_candidates(keyword: str, hits: int, timeout: float) -> list[dict]:
     settings = get_settings()
     if not settings.rakuten_app_id:
         raise RakutenNotConfigured("RAKUTEN_APP_ID is not configured")
@@ -39,7 +53,7 @@ def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchRes
         "accessKey": settings.rakuten_access_key,
         "keyword": keyword,
         "format": "json",
-        "hits": 10,
+        "hits": hits,
         "availability": 1,
         # No explicit sort: Rakuten's default "standard" relevance ranking.
         # We used to sort by cheapest price first, but that preferentially
@@ -63,27 +77,30 @@ def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchRes
     data = response.json()
 
     items = data.get("Items") or []
-    if not items:
+    return [it["Item"] for it in items]
+
+
+def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchResult | None:
+    """Returns the single listing closest to the median price among the top
+    matches for `keyword` (a mismatch-resistant pick for tracking one known
+    product's price), or None if nothing matched."""
+    candidates = _fetch_candidates(keyword, hits=10, timeout=timeout)
+    if not candidates:
         return None
 
     # Pick the candidate closest to the median price among the results,
     # instead of blindly trusting whichever the API ranks first. This
     # guards against a single outlier listing (an unrelated cheap
     # accessory, or an overpriced bundle) being mistaken for the product.
-    candidates = [it["Item"] for it in items]
     prices = sorted(c["itemPrice"] for c in candidates)
     median_price = prices[len(prices) // 2]
     item = min(candidates, key=lambda c: abs(c["itemPrice"] - median_price))
+    return _item_to_result(item)
 
-    images = item.get("mediumImageUrls") or []
-    image_url = images[0].get("imageUrl") if images else None
-    # Rakuten returns tracking-wrapped thumbnail URLs; strip the query string
-    if image_url and "?" in image_url:
-        image_url = image_url.split("?", 1)[0]
 
-    return RakutenSearchResult(
-        price=int(item["itemPrice"]),
-        item_url=item["itemUrl"],
-        image_url=image_url,
-        item_name=item["itemName"],
-    )
+def search_items(keyword: str, hits: int = 10, timeout: float = 10.0) -> list[RakutenSearchResult]:
+    """Returns every matched listing for `keyword` (up to `hits`), unreduced
+    — for discovering new candidate products rather than pricing one known
+    product."""
+    candidates = _fetch_candidates(keyword, hits=hits, timeout=timeout)
+    return [_item_to_result(item) for item in candidates]

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import BuyStatusBadge from "@/components/BuyStatusBadge";
 import { useAdminAuth } from "@/lib/adminAuth";
 import {
+  adminApproveProduct,
   adminCreateProduct,
   adminDeleteProduct,
   adminDeletePrice,
@@ -36,6 +37,9 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const pendingProducts = products.filter((p) => p.pending_review);
+  const publishedProducts = products.filter((p) => !p.pending_review);
 
   const load = async () => {
     if (!token) return;
@@ -134,8 +138,35 @@ export default function AdminProductsPage() {
 
       {loading && <p className="text-sm text-foreground/50">読み込み中...</p>}
 
+      {pendingProducts.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-5">
+          <div>
+            <h2 className="font-display font-medium text-foreground">
+              承認待ち（{pendingProducts.length}件）
+            </h2>
+            <p className="mt-1 text-sm text-foreground/60">
+              自動検出された商品です。ブランド・カテゴリ・価格・画像が正しいか確認してから承認してください。
+              承認するまでサイトには表示されません。
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {pendingProducts.map((product) => (
+              <ProductRow
+                key={product.id}
+                product={product}
+                token={token!}
+                expanded={expandedId === product.id}
+                onToggle={() => setExpandedId(expandedId === product.id ? null : product.id)}
+                onChanged={load}
+                pending
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
-        {products.map((product) => (
+        {publishedProducts.map((product) => (
           <ProductRow
             key={product.id}
             product={product}
@@ -183,12 +214,14 @@ function ProductRow({
   expanded,
   onToggle,
   onChanged,
+  pending = false,
 }: {
   product: Product;
   token: string;
   expanded: boolean;
   onToggle: () => void;
   onChanged: () => void;
+  pending?: boolean;
 }) {
   const [prices, setPrices] = useState<PriceHistoryItem[]>([]);
   const [newPrice, setNewPrice] = useState("");
@@ -228,6 +261,11 @@ function ProductRow({
     onChanged();
   };
 
+  const handleApprove = async () => {
+    await adminApproveProduct(token, product.id);
+    onChanged();
+  };
+
   const handleAddPrice = async () => {
     if (!newPrice) return;
     await adminAddPrice(token, product.id, Number(newPrice));
@@ -256,7 +294,13 @@ function ProductRow({
             {product.current_price ? `¥${product.current_price.toLocaleString("ja-JP")}` : "価格未登録"}
           </div>
         </div>
-        <BuyStatusBadge buyScore={product.buy_score} />
+        {pending ? (
+          <span className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-amber-900">
+            承認待ち
+          </span>
+        ) : (
+          <BuyStatusBadge buyScore={product.buy_score} />
+        )}
       </button>
 
       {expanded && (
@@ -296,6 +340,14 @@ function ProductRow({
             />
           </div>
           <div className="flex gap-2">
+            {pending && (
+              <button
+                onClick={handleApprove}
+                className="rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white"
+              >
+                承認して公開
+              </button>
+            )}
             <button
               onClick={handleSave}
               className="rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white"
@@ -306,7 +358,7 @@ function ProductRow({
               onClick={handleDelete}
               className="rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
             >
-              削除
+              {pending ? "却下（削除）" : "削除"}
             </button>
           </div>
 

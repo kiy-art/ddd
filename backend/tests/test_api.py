@@ -253,3 +253,55 @@ def test_price_alert_unknown_product_404(client):
 def test_analytics_top_pages_requires_ga4_configuration(client, admin_headers):
     resp = client.get("/api/admin/analytics/top-pages", headers=admin_headers)
     assert resp.status_code == 400
+
+
+def test_discover_products_requires_rakuten_credentials(client, admin_headers):
+    resp = client.post("/api/admin/discover-products", headers=admin_headers)
+    assert resp.status_code == 400
+
+
+def test_pending_product_hidden_from_public_but_visible_to_admin(client, admin_headers, db_session):
+    """A pending (unreviewed) product must never appear on any public
+    endpoint, but must be visible/manageable from the admin API so it can
+    be approved."""
+    created = client.post(
+        "/api/admin/products",
+        headers=admin_headers,
+        json={"name": "Candidate Driver", "brand": "PING", "category": "driver", "initial_price": 68000},
+    ).json()
+    product_id = created["id"]
+    slug = created["slug"]
+    assert created["pending_review"] is False  # admin-created products publish normally
+
+    # A single price point alone leaves buy_score "insufficient_data" (see
+    # test_create_product_then_public_list_hides_insufficient_data) which
+    # would hide it from public listing for an unrelated reason - add a
+    # couple more so this test isolates the pending_review behavior itself.
+    client.post(f"/api/admin/products/{product_id}/prices", headers=admin_headers, json={"price": 67000})
+    client.post(f"/api/admin/products/{product_id}/prices", headers=admin_headers, json={"price": 66000})
+
+    # Directly flip it to pending, as the auto-discovery pipeline would.
+    from app import crud
+
+    product = crud.get_product(db_session, product_id)
+    product.pending_review = True
+    db_session.commit()
+
+    assert client.get("/api/products").json() == []
+    assert client.get(f"/api/products/{slug}").status_code == 404
+    assert client.get("/api/categories/driver").json() == []
+    assert client.get("/api/brands").json() == []
+    assert client.get("/api/brands/PING").json() == []
+
+    pending = client.get("/api/admin/pending-products", headers=admin_headers).json()
+    assert len(pending) == 1
+    assert pending[0]["id"] == product_id
+
+    approved = client.post(f"/api/admin/products/{product_id}/approve", headers=admin_headers).json()
+    assert approved["pending_review"] is False
+
+    public = client.get("/api/products").json()
+    assert len(public) == 1
+    assert public[0]["slug"] == slug
+
+    assert client.get("/api/admin/pending-products", headers=admin_headers).json() == []

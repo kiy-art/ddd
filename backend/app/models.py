@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -33,6 +33,14 @@ class Product(Base):
 
     buy_score: Mapped[str] = mapped_column(String(30), default="insufficient_data")
     buy_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # True for a product auto-discovered via the Rakuten catalog-search
+    # pipeline (see app/discovery.py) that an admin hasn't reviewed yet.
+    # Hidden from every public endpoint regardless of buy_score until an
+    # admin approves it — auto-discovery has no human curation checking
+    # brand/model/category are actually correct, unlike a manually-entered
+    # or CSV-imported product.
+    pending_review: Mapped[bool] = mapped_column(Boolean, default=False)
 
     ai_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
