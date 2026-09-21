@@ -6,6 +6,7 @@ import CategoryGuide from "@/components/CategoryGuide";
 import FadeIn from "@/components/FadeIn";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
+import { GUIDES } from "@/lib/guides";
 
 export const revalidate = 0;
 
@@ -81,6 +82,7 @@ export default async function CategoryPage({
     (p) => p.current_price !== null && p.previous_price !== null && p.current_price < p.previous_price
   ).length;
   const cheapestVsAverage = products.length > 0 ? products[0] : null; // API default order = biggest discount first
+  const relatedGuides = GUIDES.filter((g) => g.relatedCategories?.includes(category));
 
   return (
     <div>
@@ -161,6 +163,20 @@ export default async function CategoryPage({
           <div className="mt-8">
             <CategoryGuide category={category} />
           </div>
+
+          {relatedGuides.length > 0 && (
+            <div className="mt-10 flex flex-wrap gap-3">
+              {relatedGuides.map((guide) => (
+                <Link
+                  key={guide.slug}
+                  href={`/guides/${guide.slug}`}
+                  className="rounded-full border border-border px-4 py-2 text-sm text-foreground/70 transition-colors hover:border-foreground/30 hover:text-foreground"
+                >
+                  {guide.title} →
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </div>

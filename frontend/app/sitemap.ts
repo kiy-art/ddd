@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { CATEGORIES, getBrands, getProducts } from "@/lib/api";
+import { GUIDES } from "@/lib/guides";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -10,11 +11,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/deals`, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE_URL}/ranking`, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE_URL}/brands`, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${SITE_URL}/guides`, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${SITE_URL}/faq`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/disclaimer`, changeFrequency: "yearly", priority: 0.2 },
     ...CATEGORIES.map((category) => ({
       url: `${SITE_URL}/category/${category}`,
       changeFrequency: "daily" as const,
       priority: 0.7,
+    })),
+    ...GUIDES.map((guide) => ({
+      url: `${SITE_URL}/guides/${guide.slug}`,
+      lastModified: guide.publishedAt,
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
     })),
   ];
 

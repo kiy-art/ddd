@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/deals", label: "値下がり中" },
   { href: "/ranking", label: "買い時ランキング" },
   { href: "/brands", label: "ブランド一覧" },
+  { href: "/guides", label: "購入ガイド" },
 ];
 
 function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
@@ -53,6 +54,9 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
           <NavLinks pathname={pathname} />
         </div>
         <div className="flex flex-col gap-2 border-t border-border/70 px-4 py-4 text-xs text-foreground/45">
+          <Link href="/faq" className="hover:text-foreground">
+            よくある質問
+          </Link>
           <Link href="/disclaimer" className="hover:text-foreground">
             運営者情報・免責事項
           </Link>
@@ -113,6 +117,9 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
             </div>
             <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
             <div className="mt-auto flex flex-col gap-2 border-t border-border/70 pt-4 text-xs text-foreground/45">
+              <Link href="/faq" onClick={() => setMobileOpen(false)} className="hover:text-foreground">
+                よくある質問
+              </Link>
               <Link href="/disclaimer" onClick={() => setMobileOpen(false)} className="hover:text-foreground">
                 運営者情報・免責事項
               </Link>
