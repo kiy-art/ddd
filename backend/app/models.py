@@ -28,6 +28,8 @@ class Product(Base):
     lowest_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     average_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_change_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
+    buy_signal_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    history_span_days: Mapped[int] = mapped_column(Integer, default=0)
 
     buy_score: Mapped[str] = mapped_column(String(30), default="insufficient_data")
     buy_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

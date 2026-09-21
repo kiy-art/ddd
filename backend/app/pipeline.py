@@ -48,6 +48,8 @@ def sync_product_analysis(db: Session, product: models.Product) -> bool:
     product.lowest_price = result.lowest_price
     product.price_change_percent = result.price_change_percent
     product.buy_score = result.buy_score
+    product.buy_signal_score = result.buy_signal_score
+    product.history_span_days = result.history_span_days
     product.buy_reason = analysis.rule_based_reason(result)
 
     new_hash = ai.content_hash(product.name, product.current_price, product.buy_score, product.average_price)

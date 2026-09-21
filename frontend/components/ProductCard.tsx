@@ -5,13 +5,18 @@ import CategoryIcon from "@/components/CategoryIcon";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
 
+// See app/products/[slug]/page.tsx for why this threshold exists: a
+// "30-day average" claim needs more than a day or two of real data behind it.
+const THIN_DATA_DAYS = 7;
+
 function yen(value: number | null): string {
   if (value === null) return "-";
   return `¥${value.toLocaleString("ja-JP")}`;
 }
 
 export default function ProductCard({ product }: { product: Product }) {
-  const pct = product.price_change_percent;
+  const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
+  const pct = hasReliableTrend ? product.price_change_percent : null;
 
   return (
     <Link
@@ -41,7 +46,12 @@ export default function ProductCard({ product }: { product: Product }) {
               {product.name}
             </h3>
           </div>
-          <AiBuySignal buyScore={product.buy_score} priceChangePercent={pct} size="sm" />
+          <AiBuySignal
+            buyScore={product.buy_score}
+            buySignalScore={product.buy_signal_score}
+            historySpanDays={product.history_span_days}
+            size="sm"
+          />
         </div>
 
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-4">
@@ -49,10 +59,10 @@ export default function ProductCard({ product }: { product: Product }) {
             <div className="font-display text-2xl font-semibold text-foreground">
               {yen(product.current_price)}
             </div>
-            {product.average_price !== null && (
-              <div className="mt-0.5 text-xs text-foreground/45">
-                30日平均 {yen(product.average_price)}
-              </div>
+            {hasReliableTrend && product.average_price !== null ? (
+              <div className="mt-0.5 text-xs text-foreground/45">30日平均 {yen(product.average_price)}</div>
+            ) : (
+              <div className="mt-0.5 text-xs text-foreground/35">データ蓄積中（{product.history_span_days}日分）</div>
             )}
           </div>
           {pct !== null && (

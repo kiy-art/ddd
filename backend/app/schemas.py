@@ -49,6 +49,8 @@ class ProductOut(ProductBase):
     average_price: int | None
     price_change_percent: float | None
     buy_score: str
+    buy_signal_score: int | None
+    history_span_days: int
     buy_reason: str | None
     ai_title: str | None
     ai_summary: str | None

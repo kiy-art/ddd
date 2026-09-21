@@ -8,11 +8,11 @@ const SIGNAL_LABELS: Record<string, string> = {
   insufficient_data: "ANALYZING",
 };
 
-function computeScore(buyScore: string, pct: number | null): number | null {
-  if (buyScore === "insufficient_data" || pct === null) return null;
-  const raw = 50 - pct * 2;
-  return Math.max(1, Math.min(99, Math.round(raw)));
-}
+// Below this many days of accumulated price history, a confident score
+// would overstate how much is actually known - shown as "still analyzing"
+// instead, everywhere this badge appears (matches the product page's and
+// ProductCard's own thin-data handling).
+const THIN_DATA_DAYS = 7;
 
 function signalColorVar(buyScore: string): string {
   if (buyScore === "strong_buy" || buyScore === "buy") return "var(--signal-high)";
@@ -27,16 +27,19 @@ const SIZES = {
 
 export default function AiBuySignal({
   buyScore,
-  priceChangePercent,
+  buySignalScore,
+  historySpanDays,
   size = "sm",
 }: {
   buyScore: string;
-  priceChangePercent: number | null;
+  buySignalScore: number | null;
+  historySpanDays: number;
   size?: keyof typeof SIZES;
 }) {
-  const score = computeScore(buyScore, priceChangePercent);
-  const color = signalColorVar(buyScore);
-  const label = SIGNAL_LABELS[buyScore] ?? SIGNAL_LABELS.neutral;
+  const reliable = buyScore !== "insufficient_data" && historySpanDays >= THIN_DATA_DAYS;
+  const score = reliable ? buySignalScore : null;
+  const color = reliable ? signalColorVar(buyScore) : signalColorVar("insufficient_data");
+  const label = reliable ? SIGNAL_LABELS[buyScore] ?? SIGNAL_LABELS.neutral : SIGNAL_LABELS.insufficient_data;
   const dims = SIZES[size];
   const pct = score ?? 0;
 

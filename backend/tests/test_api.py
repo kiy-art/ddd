@@ -59,6 +59,9 @@ def test_adding_prices_updates_buy_score_and_publishes(client, admin_headers):
     assert updated["buy_score"] == "strong_buy"
     assert updated["buy_reason"]
     assert updated["ai_title"]  # rule-based fallback since no API key in tests
+    assert updated["buy_signal_score"] is not None
+    assert 1 <= updated["buy_signal_score"] <= 99
+    assert updated["history_span_days"] >= 0
 
     detail = client.get(f"/api/products/{updated['slug']}").json()
     assert len(detail["price_history"]) == 3

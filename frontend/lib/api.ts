@@ -20,6 +20,8 @@ export interface Product {
   average_price: number | null;
   price_change_percent: number | null;
   buy_score: string;
+  buy_signal_score: number | null;
+  history_span_days: number;
   buy_reason: string | null;
   ai_title: string | null;
   ai_summary: string | null;

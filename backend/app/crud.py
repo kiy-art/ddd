@@ -144,6 +144,8 @@ def add_price(
     product.lowest_price = result.lowest_price
     product.price_change_percent = result.price_change_percent
     product.buy_score = result.buy_score
+    product.buy_signal_score = result.buy_signal_score
+    product.history_span_days = result.history_span_days
     db.commit()
     db.refresh(product)
     return history_row
@@ -181,6 +183,8 @@ def recompute_current_price(db: Session, product: models.Product) -> None:
         product.lowest_price = None
         product.price_change_percent = None
         product.buy_score = "insufficient_data"
+        product.buy_signal_score = None
+        product.history_span_days = 0
     else:
         product.current_price = history[-1].price
         product.previous_price = history[-2].price if len(history) >= 2 else None
