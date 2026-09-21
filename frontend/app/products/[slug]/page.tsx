@@ -80,16 +80,21 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
       <div className="mx-auto max-w-7xl px-6 py-12 sm:py-16">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
-          <FadeIn className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-card">
-            {product.image_url ? (
-              <SafeProductImage
-                src={product.image_url}
-                alt={product.name}
-                category={product.category}
-                className="object-contain p-10"
-              />
-            ) : (
-              <CategoryIcon category={product.category} />
+          <FadeIn className="flex flex-col gap-2">
+            <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-card">
+              {product.image_url ? (
+                <SafeProductImage
+                  src={product.image_url}
+                  alt={product.name}
+                  category={product.category}
+                  className="object-contain p-10"
+                />
+              ) : (
+                <CategoryIcon category={product.category} />
+              )}
+            </div>
+            {product.image_url?.includes("rakuten.co.jp") && (
+              <p className="text-right text-[11px] text-foreground/35">画像提供: 楽天市場</p>
             )}
           </FadeIn>
 

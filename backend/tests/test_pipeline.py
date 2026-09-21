@@ -9,11 +9,17 @@ def _make_product(db, initial_price=60000):
 
 
 class _FakeResult:
-    def __init__(self, price, item_name="PING G430 アイアン", item_url="https://item.rakuten.co.jp/example/g430/"):
+    def __init__(
+        self,
+        price,
+        item_name="PING G430 アイアン",
+        item_url="https://item.rakuten.co.jp/example/g430/",
+        image_url=None,
+    ):
         self.price = price
         self.item_name = item_name
         self.item_url = item_url
-        self.image_url = None
+        self.image_url = image_url
 
 
 def test_fetch_rakuten_prices_rejects_implausible_drop(db_session, monkeypatch):
@@ -61,6 +67,51 @@ def test_fetch_rakuten_prices_accepts_plausible_price(db_session, monkeypatch):
 
     db_session.refresh(product)
     assert product.current_price == 55000
+
+
+def test_fetch_rakuten_prices_fills_in_blank_image_and_affiliate_url(db_session, monkeypatch):
+    product = _make_product(db_session, initial_price=60000)
+    assert product.image_url is None
+    assert product.affiliate_url is None
+
+    monkeypatch.setattr(
+        pipeline,
+        "search_lowest_price",
+        lambda keyword: _FakeResult(
+            55000,
+            item_url="https://item.rakuten.co.jp/example/g430/",
+            image_url="https://thumbnail.image.rakuten.co.jp/example/g430.jpg",
+        ),
+    )
+
+    pipeline.fetch_rakuten_prices(db_session)
+
+    db_session.refresh(product)
+    assert product.image_url == "https://thumbnail.image.rakuten.co.jp/example/g430.jpg"
+    assert product.affiliate_url == "https://item.rakuten.co.jp/example/g430/"
+
+
+def test_fetch_rakuten_prices_never_overwrites_existing_image_or_affiliate_url(db_session, monkeypatch):
+    product = _make_product(db_session, initial_price=60000)
+    product.image_url = "https://example.com/manually-curated.jpg"
+    product.affiliate_url = "https://example.com/manually-curated-link"
+    db_session.commit()
+
+    monkeypatch.setattr(
+        pipeline,
+        "search_lowest_price",
+        lambda keyword: _FakeResult(
+            55000,
+            item_url="https://item.rakuten.co.jp/example/g430/",
+            image_url="https://thumbnail.image.rakuten.co.jp/example/g430.jpg",
+        ),
+    )
+
+    pipeline.fetch_rakuten_prices(db_session)
+
+    db_session.refresh(product)
+    assert product.image_url == "https://example.com/manually-curated.jpg"
+    assert product.affiliate_url == "https://example.com/manually-curated-link"
 
 
 def test_fetch_rakuten_prices_accepts_any_price_with_no_history_reference(db_session, monkeypatch):

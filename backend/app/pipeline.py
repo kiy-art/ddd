@@ -110,6 +110,20 @@ def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
                 skipped += 1
                 continue
             crud.add_price(db, product, result.price)
+            # Rakuten's API returns the item's own listing photo, provided
+            # for exactly this kind of use (unlike hotlinking e.g. Amazon
+            # images). Only fill in blanks — never overwrite an image or
+            # link an admin has manually curated. The link points at the
+            # same Rakuten listing the photo/price came from.
+            changed = False
+            if result.image_url and not product.image_url:
+                product.image_url = result.image_url
+                changed = True
+            if result.item_url and not product.affiliate_url:
+                product.affiliate_url = result.item_url
+                changed = True
+            if changed:
+                db.commit()
             updated += 1
         except Exception as exc:  # noqa: BLE001 - keep the batch alive
             db.rollback()
