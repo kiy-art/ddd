@@ -63,5 +63,18 @@ export default function CompareStrip({ products, currentId }: { products: Produc
     );
   });
 
-  return <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">{nodes}</div>;
+  const compareUrl = `/compare?slugs=${products.map((p) => encodeURIComponent(p.slug)).join(",")}`;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">{nodes}</div>
+      <Link
+        href={compareUrl}
+        onClick={() => trackEvent("compare_table_click", { product_ids: products.map((p) => p.id).join(",") })}
+        className="self-start text-sm font-semibold text-brand hover:underline"
+      >
+        詳しく比較する（表で見る） →
+      </Link>
+    </div>
+  );
 }

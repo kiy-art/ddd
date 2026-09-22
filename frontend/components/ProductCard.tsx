@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
+import CompareButton from "@/components/CompareButton";
 import FavoriteButton from "@/components/FavoriteButton";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
@@ -126,6 +127,8 @@ export default function ProductCard({ product, listSource }: { product: Product;
             </div>
           )}
         </div>
+
+        <CompareButton slug={product.slug} />
       </div>
     </Link>
   );

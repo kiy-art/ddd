@@ -3,6 +3,7 @@ import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import Script from "next/script";
 
+import CompareBar from "@/components/CompareBar";
 import Logo from "@/components/Logo";
 import SiteNav from "@/components/SiteNav";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/api";
@@ -122,6 +123,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </footer>
         </SiteNav>
+        <CompareBar />
       </body>
     </html>
   );

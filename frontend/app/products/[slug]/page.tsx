@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
+import CompareButton from "@/components/CompareButton";
 import CompareStrip from "@/components/CompareStrip";
 import FadeIn from "@/components/FadeIn";
 import FavoriteButton from "@/components/FavoriteButton";
@@ -216,10 +217,13 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   {product.name}
                 </h1>
               </div>
-              <FavoriteButton
-                slug={product.slug}
-                className="shrink-0 rounded-full border border-border p-3 text-foreground/50 transition-colors hover:text-brand"
-              />
+              <div className="flex shrink-0 items-center gap-2">
+                <CompareButton slug={product.slug} />
+                <FavoriteButton
+                  slug={product.slug}
+                  className="rounded-full border border-border p-3 text-foreground/50 transition-colors hover:text-brand"
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-6 rounded-2xl border border-border bg-card p-6">
