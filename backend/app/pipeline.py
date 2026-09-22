@@ -49,6 +49,28 @@ def _looks_like_accessory(item_name: str) -> bool:
     return any(keyword in item_name for keyword in ACCESSORY_KEYWORDS)
 
 
+# A separate reject reason from ACCESSORY_KEYWORDS above: not "this is a
+# part, not the product" but "this listing isn't a normal new-condition
+# retail sale of the product at all" - a furusato nozei (ふるさと納税)
+# donation-reward listing, or a damaged/defective clearance ("訳あり") item.
+# Neither belongs in a price-comparison catalog even though the product
+# name itself may be genuine. Deliberately NOT the same list as the title
+# cleaner's promotional-phrase strip list (app/title_cleaner.py) - "送料
+# 無料"/"ポイント"/"得" appear on nearly every real listing (including
+# genuine golf clubs), so rejecting candidates on those would break normal
+# discovery/price-matching; only these two mark the whole listing itself
+# as not a real retail purchase.
+NON_RETAIL_LISTING_KEYWORDS = [
+    "ふるさと納税",
+    "ふるさと",
+    "訳あり",
+]
+
+
+def _looks_like_non_retail_listing(item_name: str) -> bool:
+    return any(keyword in item_name for keyword in NON_RETAIL_LISTING_KEYWORDS)
+
+
 def _is_plausible_price(product: models.Product, price: int) -> bool:
     reference = product.average_price or product.current_price
     if not reference:
@@ -148,14 +170,14 @@ def fetch_rakuten_prices(
                 )
                 skipped += 1
                 continue
-            if _looks_like_accessory(result.item_name):
+            if _looks_like_accessory(result.item_name) or _looks_like_non_retail_listing(result.item_name):
                 crud.create_error_log(
                     db,
                     source="price_fetch",
                     level="warning",
                     message=(
-                        f"{product.name}: 楽天の検索結果「{result.item_name}」はアクセサリ/パーツの"
-                        "可能性が高いため自動反映をスキップしました"
+                        f"{product.name}: 楽天の検索結果「{result.item_name}」はアクセサリ/パーツまたは"
+                        "通常の新品販売ではない可能性が高いため自動反映をスキップしました"
                         f"（URL: {result.item_url}）"
                     ),
                     product_id=product.id,
@@ -226,8 +248,11 @@ def fetch_yahoo_prices(
         try:
             keyword = f"{product.brand} {product.name}".strip()
             result = yahoo.search_lowest_price(keyword)
-            if result is None or _looks_like_accessory(result.item_name) or not _is_plausible_price(
-                product, result.price
+            if (
+                result is None
+                or _looks_like_accessory(result.item_name)
+                or _looks_like_non_retail_listing(result.item_name)
+                or not _is_plausible_price(product, result.price)
             ):
                 if product.yahoo_price is not None:
                     product.yahoo_price = None

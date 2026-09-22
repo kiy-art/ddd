@@ -1,6 +1,7 @@
 import pytest
+from sqlalchemy import select
 
-from app import crud, discovery, rakuten, schemas
+from app import crud, discovery, models, rakuten, schemas
 
 
 @pytest.fixture(autouse=True)
@@ -171,3 +172,61 @@ def test_auto_publish_ng_keywords_stay_pending_even_when_priced_high(db_session,
     product = crud.find_product_by_identity(db_session, item_name, "PING", None)
     assert product is not None
     assert product.pending_review is True
+
+
+@pytest.mark.parametrize("item_name", ["PING G440 ふるさと納税 ドライバー", "PING G440 ドライバー 訳あり"])
+def test_discover_new_products_rejects_non_retail_listings_entirely(db_session, monkeypatch, item_name):
+    """Unlike the auto-publish NG list above (still added, just pending),
+    a furusato-nozei donation-reward listing or a damaged/defective
+    clearance listing isn't a normal retail sale at all and must never
+    become a product - pending or otherwise (STEP15)."""
+    items = [_FakeItem(item_name, 68000, "https://item.rakuten.co.jp/example/g440/")]
+    monkeypatch.setattr(
+        rakuten, "search_items", _fixed_results({discovery.CATEGORY_SEARCH_KEYWORDS["driver"][0]: items})
+    )
+    discovered, considered = discovery.discover_new_products(db_session)
+
+    assert considered == 1
+    assert discovered == 0
+    assert crud.list_pending_products(db_session) == []
+
+
+def test_discover_new_products_stores_a_cleaned_title_not_the_raw_listing_title(db_session, monkeypatch):
+    raw_title = "【送料無料】PING G440 ドライバー ポイント10倍!!"
+    items = [_FakeItem(raw_title, 68000, "https://item.rakuten.co.jp/example/g440/")]
+    monkeypatch.setattr(
+        rakuten, "search_items", _fixed_results({discovery.CATEGORY_SEARCH_KEYWORDS["driver"][0]: items})
+    )
+    discovery.discover_new_products(db_session)
+
+    product = crud.find_product_by_identity(db_session, "PING G440 ドライバー", "PING", None)
+    assert product is not None
+    assert product.name == "PING G440 ドライバー"
+    assert "送料無料" not in product.name
+    assert "ポイント" not in product.name
+
+
+def test_discover_new_products_dedups_by_cleaned_title_across_differently_noisy_raw_titles(db_session, monkeypatch):
+    """Two listings of the same real ball, found under two different ball
+    keywords (see CATEGORY_SEARCH_KEYWORDS["ball"], STEP12), whose raw shop
+    titles differ only in promotional noise - must collapse into one
+    product, not register as two (STEP15)."""
+    ball_keywords = discovery.CATEGORY_SEARCH_KEYWORDS["ball"]
+    item_a = _FakeItem(
+        "【送料無料】Titleist Pro V1 ゴルフボール 1ダース", 5500, "https://item.rakuten.co.jp/example/provx-a/"
+    )
+    item_b = _FakeItem(
+        "Titleist Pro V1 ゴルフボール 1ダース ポイント10倍!!", 5400, "https://item.rakuten.co.jp/example/provx-b/"
+    )
+    monkeypatch.setattr(
+        rakuten,
+        "search_items",
+        _fixed_results({ball_keywords[0]: [item_a], ball_keywords[1]: [item_b]}),
+    )
+
+    discovered, _ = discovery.discover_new_products(db_session)
+
+    assert discovered == 1
+    all_products = list(db_session.execute(select(models.Product)).scalars().all())
+    matching = [p for p in all_products if p.name == "Titleist Pro V1 ゴルフボール 1ダース"]
+    assert len(matching) == 1

@@ -16,7 +16,17 @@ scale toward the volume a consumables-led strategy (dozens of golf balls,
 not one driver) needs without every single item waiting on a human. This
 only ever loosens which pending items skip the review queue; it never
 loosens which candidates get discarded entirely (that's still
-_looks_like_accessory/MIN_DISCOVERY_PRICE/_match_brand, unchanged below).
+_looks_like_accessory/_looks_like_non_retail_listing/MIN_DISCOVERY_PRICE/
+_match_brand, unchanged below).
+
+Every candidate that does get created is stored under a cleaned "ブランド
+＋型番" name (see app/title_cleaner.py), not the shop's own noisy listing
+title - both so the catalog reads like a price-comparison site rather
+than a scrape of ad copy, and because dedup against already-registered
+products (existing_names below) is keyed on that cleaned name: two
+listings of the same real product whose raw titles differ only in
+promotional noise now collapse into the same product instead of each
+registering as a separate row.
 """
 
 import time
@@ -25,8 +35,13 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, models, rakuten, schemas
-from app.pipeline import RAKUTEN_REQUEST_INTERVAL_SECONDS, _looks_like_accessory, sync_product_analysis
+from app import crud, models, rakuten, schemas, title_cleaner
+from app.pipeline import (
+    RAKUTEN_REQUEST_INTERVAL_SECONDS,
+    _looks_like_accessory,
+    _looks_like_non_retail_listing,
+    sync_product_analysis,
+)
 
 # One or more searches per category. Deliberately generic ("新品" = new,
 # not used) rather than per-model for driver/iron/wedge/putter, since the
@@ -189,7 +204,14 @@ def discover_new_products(
     existing_products = list(db.execute(select(models.Product)).scalars().all())
     existing_urls = {p.affiliate_url for p in existing_products if p.affiliate_url}
     existing_urls |= {p.product_url for p in existing_products if p.product_url}
-    existing_names = {p.name.strip().lower() for p in existing_products}
+    # Keyed by the product's own (already-clean) stored name, since every
+    # candidate below is compared against this by its OWN cleaned name too
+    # (see title_cleaner.clean_product_title) - this is what actually makes
+    # "同じ型番の商品は1つに統合" work: two listings whose raw shop titles
+    # differ only in promotional noise clean down to the same name and so
+    # collapse to a single dedup hit here, instead of both slipping through
+    # as "different" products the way comparing raw titles would.
+    existing_names = {(p.brand.strip().lower(), p.name.strip().lower()) for p in existing_products}
 
     total_keywords = sum(len(keywords) for keywords in CATEGORY_SEARCH_KEYWORDS.values())
     discovered = 0
@@ -218,22 +240,37 @@ def discover_new_products(
 
                     if _looks_like_accessory(item.item_name):
                         continue
+                    if _looks_like_non_retail_listing(item.item_name):
+                        continue
                     if item.price < MIN_DISCOVERY_PRICE:
                         continue
                     if item.item_url in existing_urls:
-                        continue
-                    name_key = item.item_name.strip().lower()
-                    if name_key in existing_names:
                         continue
                     brand = _match_brand(item.item_name)
                     if brand is None:
                         continue
 
+                    # Cleaned (not the raw shop title) both for what gets
+                    # stored and for the dedup check right below - see
+                    # existing_names above for why this is what makes
+                    # "same model, noisier title" collapse into one product
+                    # instead of registering as a second one.
+                    clean_name = title_cleaner.clean_product_title(item.item_name, brand, category)
+                    name_key = (brand.strip().lower(), clean_name.strip().lower())
+                    if name_key in existing_names:
+                        continue
+
+                    # Checked against the raw title, not clean_name: title
+                    # cleaning can legitimately shorten "PING G440 中古
+                    # ドライバー" down toward just "PING G440 ドライバー"
+                    # (the same way it drops "送料無料"), which must never
+                    # cause the NG-word check below to miss "中古" and
+                    # auto-publish a used item.
                     pending_review = not _is_safe_to_auto_publish(item.item_name, category, item.price)
                     product = crud.create_product(
                         db,
                         schemas.ProductCreate(
-                            name=item.item_name,
+                            name=clean_name,
                             brand=brand,
                             category=category,
                             image_url=item.image_url,

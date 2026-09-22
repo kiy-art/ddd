@@ -183,6 +183,27 @@ def test_fetch_rakuten_prices_rejects_accessory_match_even_with_no_reference(db_
     assert any("アクセサリ" in log.message and log.level == "warning" for log in logs)
 
 
+def test_fetch_rakuten_prices_rejects_non_retail_listing_match(db_session, monkeypatch):
+    """A furusato-nozei donation-reward listing (or a damaged/defective
+    clearance listing) matched by keyword search isn't a real retail price
+    for the product and must be rejected the same way an accessory match
+    is (STEP15)."""
+    product = _make_product(db_session, initial_price=60000)
+
+    monkeypatch.setattr(
+        pipeline,
+        "search_lowest_price",
+        lambda keyword: _FakeResult(55000, item_name="PING G430 ドライバー ふるさと納税"),
+    )
+
+    updated, skipped = pipeline.fetch_rakuten_prices(db_session)
+    assert updated == 0
+    assert skipped == 1
+
+    db_session.refresh(product)
+    assert product.current_price == 60000  # unchanged
+
+
 def test_fetch_yahoo_prices_accepts_plausible_price(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
 
@@ -218,6 +239,21 @@ def test_fetch_yahoo_prices_rejects_accessory_match(db_session, monkeypatch):
 
     monkeypatch.setattr(
         yahoo, "search_lowest_price", lambda keyword: _FakeResult(58000, item_name="PING G430用 ヘッドカバー")
+    )
+
+    updated, skipped = pipeline.fetch_yahoo_prices(db_session)
+    assert updated == 0
+    assert skipped == 1
+
+    db_session.refresh(product)
+    assert product.yahoo_price is None
+
+
+def test_fetch_yahoo_prices_rejects_non_retail_listing_match(db_session, monkeypatch):
+    product = _make_product(db_session, initial_price=60000)
+
+    monkeypatch.setattr(
+        yahoo, "search_lowest_price", lambda keyword: _FakeResult(58000, item_name="PING G430 ドライバー 訳あり")
     )
 
     updated, skipped = pipeline.fetch_yahoo_prices(db_session)
