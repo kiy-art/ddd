@@ -153,3 +153,127 @@ def test_clean_product_title_ai_tightened_examples(monkeypatch):
         assert title_cleaner.clean_product_title(raw2, "Titleist", "ball") == "タイトリスト Pro V1"
     finally:
         get_settings.cache_clear()
+
+
+# --- STEP19: empty-bracket residue / spec phrases / spelling-variant dupes ---
+
+
+def test_strip_promotional_noise_removes_empty_bracket_residue():
+    # A shop template placeholder left blank ("［ ］", full-width brackets)
+    # rather than a bracket wrapping real content.
+    result = title_cleaner.strip_promotional_noise("タイトリスト Pro V1 ［ ］ ボール")
+    assert "［" not in result and "］" not in result
+    assert result == "タイトリスト Pro V1"
+
+
+def test_strip_promotional_noise_removes_year_model_label_but_keeps_bare_year():
+    # "2026年モデル" is marketing filler ("this year's model"); a bare year
+    # with no "年モデル" suffix is left alone - see module docstring's
+    # known limitation for why folding it into the name (e.g. "Pro V1
+    # (2025)") is left to the AI-assisted layer only.
+    result = title_cleaner.strip_promotional_noise("フォーティーン FR-3 ウェッジ 2026年モデル")
+    assert "年モデル" not in result
+    assert result == "フォーティーン FR-3 ウェッジ"
+
+    result_with_bare_year = title_cleaner.strip_promotional_noise("タイトリスト Pro V1 2025")
+    assert "2025" in result_with_bare_year
+
+
+def test_strip_promotional_noise_removes_shaft_spec_and_finish_names():
+    result = title_cleaner.strip_promotional_noise(
+        "フォーティーン FR-3 ウェッジ パールサテン N.S.PRO TS-114w Ver2"
+    )
+    assert "パールサテン" not in result
+    assert "N.S.PRO" not in result
+    assert "TS-114w" not in result
+    assert "Ver2" not in result
+    assert result == "フォーティーン FR-3 ウェッジ"
+
+
+def test_strip_promotional_noise_removes_handedness_and_coupon_copy():
+    result = title_cleaner.strip_promotional_noise(
+        "最大10%OFFクーポン発行中 フォーティーン FR-3 ウェッジ 右利き用"
+    )
+    for noise in ["クーポン", "OFF", "右利き用"]:
+        assert noise not in result
+    assert result == "フォーティーン FR-3 ウェッジ"
+
+
+def test_strip_promotional_noise_handles_wedge_spec_and_duplicate_model_example():
+    """STEP19 example 1: coupon copy, a named shaft model, a finish name,
+    a handedness attribute, and a "◯◯年モデル" marketing-year label all
+    stripped. The brand's own long-vowel-mark variant ("フォーティン" - no
+    "ー" - vs. "フォーティーン") is now in app/brands.py's
+    BRAND_NAME_SYNONYMS, so that repeat collapses too; the trailing bare
+    "FR3" (missing the hyphen "FR-3" carries) is a MODEL-number spelling
+    variant, not a brand name, so - like STEP18's phonetic model dupes -
+    it's left for the AI-tightened path (see
+    test_clean_product_title_ai_tightened_step19_examples below)."""
+    raw = (
+        "最大10%OFFクーポン発行中 フォーティーン FR-3 ウェッジ パールサテン "
+        "N.S.PRO TS-114w Ver2 右利き用 2026年モデル フォーティン FR3 ウェッジ"
+    )
+    result = title_cleaner.strip_promotional_noise(raw, brand="Fourteen")
+    assert result == "フォーティーン FR-3 ウェッジ FR3 ウェッジ"
+    for noise in ["クーポン", "OFF", "パールサテン", "N.S.PRO", "TS-114w", "Ver2", "右利き用", "年モデル", "フォーティン"]:
+        assert noise not in result
+
+
+def test_strip_promotional_noise_handles_empty_bracket_and_duplicate_year_example():
+    """STEP19 example 2: coupon copy and an empty full-width-bracket
+    placeholder stripped. "プロ V1" (katakana+space) / "PRO V1" (English)
+    is again a model-number spelling variant, not a brand repeat - left
+    for the AI-tightened path, which also folds the bare "2025" into
+    "(2025)" (see test_clean_product_title_ai_tightened_step19_examples)."""
+    raw = "最大10%OFFクーポン発行中 タイトリスト 2025 プロ V1 ［ ］ PRO V1 ボール"
+    result = title_cleaner.strip_promotional_noise(raw, brand="Titleist")
+    assert result == "タイトリスト 2025 プロ V1 PRO V1"
+    for noise in ["クーポン", "OFF", "［", "］", "ボール"]:
+        assert noise not in result
+
+
+def test_clean_product_title_ai_tightened_step19_examples(monkeypatch):
+    """Final catalog-quality result for both STEP19 examples once Claude
+    (mocked - see test_clean_product_title_ai_tightened_examples above for
+    why a fake anthropic.Anthropic client rather than a live call) tightens
+    the regex-cleaned text per the strengthened system prompt."""
+    import anthropic
+
+    class _FakeTextBlock:
+        type = "text"
+
+        def __init__(self, text):
+            self.text = text
+
+    class _FakeMessage:
+        def __init__(self, text):
+            self.content = [_FakeTextBlock(text)]
+
+    class _FakeMessages:
+        def __init__(self, clean_name):
+            self._clean_name = clean_name
+
+        def create(self, **kwargs):
+            return _FakeMessage(json.dumps({"clean_name": self._clean_name}))
+
+    class _FakeClient:
+        def __init__(self, clean_name, **kwargs):
+            self.messages = _FakeMessages(clean_name)
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        monkeypatch.setattr(anthropic, "Anthropic", lambda api_key: _FakeClient("フォーティーン FR-3 ウェッジ"))
+        raw1 = (
+            "最大10%OFFクーポン発行中 フォーティーン FR-3 ウェッジ パールサテン "
+            "N.S.PRO TS-114w Ver2 右利き用 2026年モデル フォーティン FR3 ウェッジ"
+        )
+        assert title_cleaner.clean_product_title(raw1, "Fourteen", "wedge") == "フォーティーン FR-3 ウェッジ"
+
+        monkeypatch.setattr(anthropic, "Anthropic", lambda api_key: _FakeClient("タイトリスト Pro V1 (2025)"))
+        raw2 = "最大10%OFFクーポン発行中 タイトリスト 2025 プロ V1 ［ ］ PRO V1 ボール"
+        assert title_cleaner.clean_product_title(raw2, "Titleist", "ball") == "タイトリスト Pro V1 (2025)"
+    finally:
+        get_settings.cache_clear()

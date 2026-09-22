@@ -96,7 +96,9 @@ BRAND_NAME_SYNONYMS: dict[str, list[str]] = {
     "Odyssey": ["オデッセイ"],
     "Cleveland": ["クリーブランド"],
     "Yonex": ["ヨネックス"],
-    "Fourteen": ["フォーティーン"],
+    # "フォーティン" (no long-vowel mark) is the same shop's own alternate
+    # spelling of "フォーティーン", not a different brand (STEP19).
+    "Fourteen": ["フォーティーン", "フォーティン"],
     "Miura": ["三浦技研"],
     "Bettinardi": ["ベティナルディ"],
     "Wilson": ["ウイルソン"],

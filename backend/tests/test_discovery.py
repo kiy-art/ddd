@@ -169,8 +169,13 @@ def test_auto_publish_ng_keywords_stay_pending_even_when_priced_high(db_session,
     )
     discovery.discover_new_products(db_session)
 
-    product = crud.find_product_by_identity(db_session, item_name, "PING", None)
-    assert product is not None
+    # Looked up by brand alone rather than item_name/find_product_by_identity:
+    # title cleaning may rewrite item_name itself (e.g. STEP19 strips
+    # "レディース" as a gender attribute), so the product's stored name is
+    # no longer guaranteed to equal the raw listing title.
+    all_products = list(db_session.execute(select(models.Product)).scalars().all())
+    assert len(all_products) == 1
+    product = all_products[0]
     assert product.pending_review is True
 
 

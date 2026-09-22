@@ -7,31 +7,39 @@ Two layers, same "rule-based baseline + optional AI enhancement" shape as
 app/ai.py and app/x_post.py:
 
 - strip_promotional_noise() is a deterministic regex pass - always runs,
-  free, instant - that removes bracket-tag noise (【...】/（...）/[...]),
-  date/period-limited sale phrases, quantity/packaging/color notes,
-  municipality names (furusato-nozei reward listings), a curated list of
-  common Japanese EC promotional phrases, and redundant repeats of the
-  brand's own name in another script. This alone is usually enough, and
-  is always the safety-net result.
+  free, instant - that removes bracket-tag noise (【...】/（...）/[...],
+  plus now-empty bracket residue like "［ ］" left over once their contents
+  are stripped), date/period-limited sale phrases (including "◯◯年モデル"
+  marketing-year labels), coupon copy, quantity/packaging/color notes,
+  finish-name and named-shaft-model spec text, handedness/gender
+  attributes, municipality names (furusato-nozei reward listings), a
+  curated list of common Japanese EC promotional phrases, and redundant
+  repeats of the brand's own name in another script. This alone is
+  usually enough, and is always the safety-net result.
 - clean_product_title() additionally asks Claude to tighten the
   regex-cleaned text down to just "ブランド＋型番" when ANTHROPIC_API_KEY
   is configured. Claude is only ever shown the already-regex-cleaned text
   plus the already-known brand/category (both real, already-matched
-  facts - see app/brands.py's match_brand) and is instructed to remove
-  text only, never invent or add anything. Its output is sanity-checked
-  (non-empty, not longer than the input, still names the known brand in
-  some known spelling) before being trusted; any failure - not
-  configured, API error, output that doesn't pass the sanity check -
-  falls back to the regex result.
+  facts - see app/brands.py's match_brand) and is instructed to only
+  remove or reformat text that's actually present - e.g. it may fold an
+  existing bare year like "2025" into "Pro V1 (2025)", but may never
+  invent a fact that isn't already in the text. Its output is
+  sanity-checked (non-empty, not much longer than the input, still names
+  the known brand in some known spelling) before being trusted; any
+  failure - not configured, API error, output that doesn't pass the
+  sanity check - falls back to the regex result.
 
 Known limitation (regex layer only): a shop repeating the MODEL number
-itself in another script - e.g. "OPUS SP" ... "オーパス エスピー", or
-"PRO V1" ... "プロV1" - isn't something strip_promotional_noise() can
-recognize (unlike a brand name, there's no fixed dictionary of every
-model's phonetic transliteration to check against). Only the Claude-
-assisted path collapses that; see tests/test_title_cleaner.py's
-AI-configured tests for confirmation this works when ANTHROPIC_API_KEY is
-set (as it is in production - see docs/ai_company_guidelines.md).
+itself in another script or spelling - e.g. "OPUS SP" ... "オーパス
+エスピー", "PRO V1" ... "プロV1", "FR-3" ... "FR3", or a brand name's own
+long-vowel-mark variant slipping through without being in
+app/brands.py's BRAND_NAME_SYNONYMS - isn't something
+strip_promotional_noise() can recognize (unlike a fixed brand-name
+dictionary, there's no bounded list of every model's alternate spelling
+to check against). Only the Claude-assisted path collapses that; see
+tests/test_title_cleaner.py's AI-configured tests for confirmation this
+works when ANTHROPIC_API_KEY is set (as it is in production - see
+docs/ai_company_guidelines.md).
 """
 
 import json
@@ -52,6 +60,25 @@ _BRACKET_TAG_PATTERN = re.compile(r"[【\[（][^】\]）]*[】\]）]")
 # "9/23まで" / "9月23日まで" / "本日限定" - date- or period-limited sale
 # copy. A fixed calendar cutoff has no place in a product's own name.
 _DATE_LIMIT_PATTERN = re.compile(r"\d{1,2}/\d{1,2}まで|\d{1,2}月\d{1,2}日まで|本日限定|今だけ")
+
+# "2026年モデル" - a "this year's model" marketing label, not a real
+# distinguishing spec (unlike, say, a ball's own release-year edition -
+# see the module docstring's known limitation for how a bare year like
+# "2025" with no "年モデル" suffix is deliberately left alone here and
+# left to the AI-assisted layer to fold into the name when meaningful).
+_YEAR_MODEL_PATTERN = re.compile(r"\d{4}年モデル")
+
+# Named shaft models ("N.S.PRO TS-114w Ver2", "NSプロ", "DS-91w") - real
+# spec info a shop lists, but a bundled shaft's own model number, not
+# part of what the CLUB itself is. Hand-picked shaft-brand prefixes
+# (rather than a generic "alphanumeric code" pattern) so this can't
+# accidentally eat a club's own model number, like "FR-3" or "G440".
+_SHAFT_SPEC_PATTERN = re.compile(
+    r"N\.?S\.?\s*PRO(?:\s*[A-Za-z0-9\-]+)*(?:\s*Ver\.?\s*\d+)?"
+    r"|NSプロ(?:\s*[A-Za-z0-9\-]+)*(?:\s*Ver\.?\s*\d+)?"
+    r"|DS-91w",
+    re.IGNORECASE,
+)
 
 # Quantity/packaging notes ("3ダースセット", "12球入り", "×3箱") - real
 # information about a specific listing's bundle, but not part of the
@@ -111,6 +138,9 @@ _PROMO_PHRASES = [
     "ロフト角",
     "ゴルフクラブ",
     "ゴルフボール",
+    # Bare "ボール" - not "ゴルフボール" above, but the same shop habit of
+    # tacking the generic category noun onto the end (STEP19).
+    "ボール",
     # Common shop colorway suffixes - occasionally a genuine distinguishing
     # variant, but usually just shop-added packaging info in this domain;
     # STEP18 asked for these removed (e.g. "...3ダースセット ホワイト").
@@ -126,6 +156,22 @@ _PROMO_PHRASES = [
     "ゴールド",
     "パープル",
     "ネイビー",
+    # Coupon copy (STEP19) - like "送料無料"/"ポイント◯倍" above, this
+    # appears on nearly every listing regardless of the product itself.
+    r"最大\d+%OFF",
+    "クーポン発行中",
+    "クーポン",
+    # Finish/plating names (STEP19) - real spec info, but describe a
+    # specific unit's coating, not what the model IS.
+    "パールサテン",
+    "ダイヤモンドブラックサテン",
+    # Handedness/gender attributes (STEP19) - a purchase option, not part
+    # of the product's own name (this catalog doesn't track handedness).
+    "右利き用",
+    "左利き用",
+    "レフティ",
+    "メンズ",
+    "レディース",
 ]
 _PROMO_PATTERN = re.compile("|".join(_PROMO_PHRASES))
 
@@ -144,6 +190,15 @@ _MUNICIPALITY_PATTERN = re.compile(
 # Runs of punctuation/symbols shops use for emphasis (!!, ★, ◆, ~, ×) once
 # the text they were decorating has already been stripped out around them.
 _DECORATION_PATTERN = re.compile(r"[!!★☆◆■□▼▲♪♫~〜×]+")
+
+# A bracket pair left with nothing (or just whitespace) inside - either
+# already empty in the raw listing ("［ ］", seemingly a shop template
+# placeholder never filled in), or emptied out by _BRACKET_TAG_PATTERN
+# above stripping its contents. Every bracket style this domain uses,
+# including the two half-width parens/full-width square brackets that
+# _BRACKET_TAG_PATTERN above deliberately leaves alone when they hold
+# real content (STEP19).
+_EMPTY_BRACKET_PATTERN = re.compile(r"[［\[（(]\s*[］\]）)]")
 
 _WHITESPACE_PATTERN = re.compile(r"[\s　]+")
 
@@ -182,12 +237,18 @@ def _dedupe_brand_name_repeats(text: str, brand: str) -> str:
 def strip_promotional_noise(raw_title: str, brand: str | None = None) -> str:
     text = _BRACKET_TAG_PATTERN.sub(" ", raw_title)
     text = _DATE_LIMIT_PATTERN.sub(" ", text)
+    text = _YEAR_MODEL_PATTERN.sub(" ", text)
     text = _QUANTITY_PATTERN.sub(" ", text)
     text = _PROMO_PATTERN.sub(" ", text)
+    text = _SHAFT_SPEC_PATTERN.sub(" ", text)
     text = _MUNICIPALITY_PATTERN.sub(" ", text)
     text = _DECORATION_PATTERN.sub(" ", text)
     if brand:
         text = _dedupe_brand_name_repeats(text, brand)
+    # Run after content-stripping (which can itself empty out a bracket
+    # pair) and after brand dedup, so anything either pass hollowed out
+    # gets swept up too.
+    text = _EMPTY_BRACKET_PATTERN.sub(" ", text)
     text = _WHITESPACE_PATTERN.sub(" ", text).strip(" -・/")
     return text or raw_title.strip()
 
@@ -214,12 +275,21 @@ def _ai_tighten(regex_cleaned: str, brand: str, category: str) -> str | None:
     system = (
         "あなたはECサイトの商品タイトルから、宣伝文句を取り除いた"
         '「ブランド名＋型番（モデル名）」だけの名前を抽出するアシスタントです。\n'
+        "【出力ルール】商品タイトルは「ブランド名＋主要モデル名」のみとし、"
+        "シャフト名、仕上げ名、右利き/左利き等の属性、余計な括弧記号（［ ］等）、"
+        "および表記揺れ（長音の有無・全角半角・英語/カタカナ等）による重複は"
+        "すべて削ぎ落としなさい。\n"
         "厳守事項:\n"
-        "- 与えられたテキストに実際に含まれる文字列の削除のみ行い、"
-        "含まれていない情報（型番・特徴等）を新たに付け加えないこと。\n"
-        "- ブランド名や型番が英語・カタカナ等の複数の表記で重複して登場する場合は、"
-        "最も自然な1つの表記のみを残し、残りの重複表記は削除すること"
-        "（例:「OPUS SP ... オーパス エスピー」→「OPUS SP」のみ残す）。\n"
+        "- 与えられたテキストに実際に含まれる文字列の削除・整理のみ行い、"
+        "含まれていない新しい情報（型番・特徴等）を付け加えないこと。"
+        "ただし、テキスト中に実際に存在する年式・年数（例:「2025」）は、"
+        "削除する代わりに「モデル名 (年)」のように括弧書きへ整形してもよい"
+        "（新事実の追加ではなく、既存の年数の表記整形として扱う）。\n"
+        "- ブランド名や型番が英語・カタカナ・長音の有無等、複数の表記で"
+        "重複して登場する場合は、最も自然な1つの表記のみを残し、"
+        "残りの重複表記は削除すること"
+        "（例:「OPUS SP ... オーパス エスピー」→「OPUS SP」のみ残す。"
+        "「FR-3 ... FR3」→「FR-3」のみ残す）。\n"
         "- ブランド名は必ず残すこと。\n"
         "- 自信を持って抽出できない場合は、入力テキストをそのまま返すこと。\n"
         '- 出力は必ず次のJSON形式のみ: {"clean_name": "..."}'
