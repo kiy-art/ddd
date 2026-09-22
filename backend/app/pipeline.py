@@ -9,7 +9,8 @@ import time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ai, analysis, crud, forecast, models, rakuten, yahoo
+from app import ai, analysis, crud, email, forecast, models, rakuten, yahoo
+from app.config import get_settings
 from app.rakuten import search_lowest_price
 
 RAKUTEN_REQUEST_INTERVAL_SECONDS = 1.1  # stay under the API's ~1 req/sec free-tier limit
@@ -234,6 +235,58 @@ def fetch_yahoo_prices(db: Session) -> tuple[int, int]:
             )
             skipped += 1
     return updated, skipped
+
+
+def send_price_alert_notifications(db: Session) -> tuple[int, int]:
+    """Finds every untriggered price alert whose product has actually
+    reached (or dropped below) the subscriber's own target price - the
+    same real, already-stored condition the admin page already displays
+    (see routers/admin.py's list_price_alerts) - and emails each one via
+    Resend (app/email.py). A no-op (returns (0, 0) immediately) when
+    RESEND_API_KEY isn't configured, matching how fetch_yahoo_prices treats
+    an unconfigured optional integration.
+
+    An alert is marked notified only after its email actually sends, so a
+    Resend failure leaves it untouched and it's retried on the next run
+    instead of being silently lost.
+
+    Returns (sent_count, skipped_count).
+    """
+    settings = get_settings()
+    if not settings.resend_api_key:
+        return 0, 0
+
+    sent = 0
+    skipped = 0
+    for alert in crud.list_price_alerts(db, only_untriggered=True):
+        product = crud.get_product(db, alert.product_id)
+        if product is None or product.current_price is None or product.current_price > alert.target_price:
+            continue  # not triggered yet - not an error, just not due
+
+        try:
+            product_url = f"{settings.site_url}/products/{product.slug}"
+            html = email.price_alert_email_html(
+                product_name=product.name,
+                product_url=product_url,
+                current_price=product.current_price,
+                target_price=alert.target_price,
+            )
+            email.send_email(
+                to=alert.email,
+                subject=f"【PAR.】{product.name}が目標価格以下になりました",
+                html=html,
+            )
+            crud.mark_price_alert_notified(db, alert)
+            sent += 1
+        except Exception as exc:  # noqa: BLE001 - one bad send shouldn't block the rest
+            crud.create_error_log(
+                db,
+                source="price_alert_email",
+                message=f"{product.name} -> {alert.email}: {exc}",
+                product_id=product.id,
+            )
+            skipped += 1
+    return sent, skipped
 
 
 def find_price_anomalies(db: Session) -> list[dict]:

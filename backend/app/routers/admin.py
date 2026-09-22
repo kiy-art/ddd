@@ -98,10 +98,11 @@ def fix_price_anomalies(db: Session = Depends(get_db)):
 
 @router.get("/price-alerts", response_model=list[schemas.PriceAlertAdminOut])
 def list_price_alerts(db: Session = Depends(get_db)):
-    """No email delivery is wired up yet (see models.PriceAlert), so this
-    is how an admin can currently see who asked to be notified and whether
-    their target price has already been reached, until real delivery
-    (email/LINE/push) is configured."""
+    """Email delivery runs automatically as part of /fetch-rakuten (see
+    pipeline.send_price_alert_notifications) once RESEND_API_KEY is
+    configured. This view still lets an admin see who asked to be notified
+    and whether their target price has already been reached, independent
+    of whether delivery is configured."""
     result = []
     for alert in crud.list_price_alerts(db):
         product = crud.get_product(db, alert.product_id)
@@ -202,6 +203,11 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         analyzed += 1
         if pipeline.sync_product_analysis(db, product):
             regenerated += 1
+
+    # Runs last, after every product's current_price is fresh for this
+    # cycle - a no-op when RESEND_API_KEY isn't configured.
+    alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
+
     return {
         "prices_updated": price_updated,
         "prices_skipped": price_skipped,
@@ -213,6 +219,8 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         "popularity_categories_checked": popularity_categories_checked,
         "products_checked": analyzed,
         "ai_regenerated": regenerated,
+        "price_alerts_sent": alerts_sent,
+        "price_alerts_skipped": alerts_skipped,
     }
 
 
@@ -228,6 +236,20 @@ def fetch_yahoo(db: Session = Depends(get_db)):
 
     updated, skipped = pipeline.fetch_yahoo_prices(db)
     return {"yahoo_prices_updated": updated, "yahoo_prices_skipped": skipped}
+
+
+@router.post("/send-price-alerts")
+def send_price_alerts(db: Session = Depends(get_db)):
+    """Manual trigger for the price-alert email check alone, useful for
+    testing without waiting for the next scheduled /fetch-rakuten run."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.resend_api_key:
+        raise HTTPException(status_code=400, detail="RESEND_API_KEY is not configured")
+
+    sent, skipped = pipeline.send_price_alert_notifications(db)
+    return {"price_alerts_sent": sent, "price_alerts_skipped": skipped}
 
 
 @router.post("/sync-popularity")

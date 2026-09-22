@@ -17,6 +17,17 @@ class Settings(BaseSettings):
     rakuten_affiliate_id: str = ""
     yahoo_client_id: str = ""
     yahoo_affiliate_id: str = ""
+    resend_api_key: str = ""
+    # Resend's own shared sending address - works with zero setup (no
+    # domain verification, no cost) on the free plan, which is exactly why
+    # it's the default here. A verified custom domain (optional, still
+    # free) can be swapped in later by just changing this env var.
+    resend_from_email: str = "PAR. <onboarding@resend.dev>"
+    # The public frontend URL, used to build a clickable product link inside
+    # price-alert emails. Defaults to the real production URL (confirmed
+    # working during the Yahoo! Developer Network registration) rather than
+    # localhost, since email links need to work outside this dev sandbox.
+    site_url: str = "https://golf-deals-frontend.onrender.com"
     ga4_property_id: str = ""
     ga4_service_account_json: str = ""
 

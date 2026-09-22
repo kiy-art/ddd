@@ -132,10 +132,11 @@ class PriceHistory(Base):
 
 class PriceAlert(Base):
     """A "notify me when this drops below ¥X" subscription (spec: price-drop
-    alerts). No email is actually sent yet - no email provider is configured
-    - so this only records the request and lets an admin see which alerts
-    have already crossed their target, ready to wire up real delivery
-    (email/LINE/push) later without changing this schema."""
+    alerts). Delivery is email via Resend (see app/email.py,
+    pipeline.send_price_alert_notifications) - a no-op until RESEND_API_KEY
+    is configured, in which case this still only lets an admin see which
+    alerts have already crossed their target (see routers/admin.py's
+    list_price_alerts)."""
 
     __tablename__ = "price_alerts"
 

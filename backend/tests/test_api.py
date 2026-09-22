@@ -349,3 +349,15 @@ def test_pending_product_hidden_from_public_but_visible_to_admin(client, admin_h
     assert public[0]["slug"] == slug
 
     assert client.get("/api/admin/pending-products", headers=admin_headers).json() == []
+
+
+def test_send_price_alerts_requires_resend_configured(client, admin_headers, monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        resp = client.post("/api/admin/send-price-alerts", headers=admin_headers)
+        assert resp.status_code == 400
+    finally:
+        get_settings.cache_clear()

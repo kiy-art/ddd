@@ -30,6 +30,16 @@ services:
         sync: false
       - key: RAKUTEN_AFFILIATE_ID
         sync: false
+      - key: YAHOO_CLIENT_ID
+        sync: false
+      - key: YAHOO_AFFILIATE_ID
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: "PAR. <onboarding@resend.dev>"
+      - key: SITE_URL
+        value: https://golf-deals-frontend.onrender.com
 
   - type: web
     name: golf-deals-frontend

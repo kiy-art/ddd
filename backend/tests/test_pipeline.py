@@ -1,4 +1,4 @@
-from app import crud, pipeline, schemas, yahoo
+from app import crud, email, pipeline, schemas, yahoo
 
 
 def _make_product(db, initial_price=60000):
@@ -285,6 +285,126 @@ def test_fetch_yahoo_prices_wraps_affiliate_url_when_configured(db_session, monk
 
         db_session.refresh(product)
         assert product.yahoo_url.startswith("https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=test-sid-123")
+    finally:
+        get_settings.cache_clear()
+
+
+def test_send_price_alert_notifications_is_noop_when_not_configured(db_session, monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=90000)
+        crud.create_price_alert(db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000))
+
+        sent_calls = []
+        monkeypatch.setattr(email, "send_email", lambda **kwargs: sent_calls.append(kwargs))
+
+        sent, skipped = pipeline.send_price_alert_notifications(db_session)
+        assert (sent, skipped) == (0, 0)
+        assert sent_calls == []
+    finally:
+        get_settings.cache_clear()
+
+
+def test_send_price_alert_notifications_sends_when_target_reached(db_session, monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=90000)  # already below the target
+        alert = crud.create_price_alert(
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+        )
+
+        sent_calls = []
+        monkeypatch.setattr(email, "send_email", lambda **kwargs: sent_calls.append(kwargs))
+
+        sent, skipped = pipeline.send_price_alert_notifications(db_session)
+        assert (sent, skipped) == (1, 0)
+        assert len(sent_calls) == 1
+        assert sent_calls[0]["to"] == "user@example.com"
+
+        db_session.refresh(alert)
+        assert alert.notified_at is not None
+    finally:
+        get_settings.cache_clear()
+
+
+def test_send_price_alert_notifications_skips_when_target_not_yet_reached(db_session, monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=120000)  # still above the target
+        alert = crud.create_price_alert(
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+        )
+
+        sent_calls = []
+        monkeypatch.setattr(email, "send_email", lambda **kwargs: sent_calls.append(kwargs))
+
+        sent, skipped = pipeline.send_price_alert_notifications(db_session)
+        assert (sent, skipped) == (0, 0)
+        assert sent_calls == []
+
+        db_session.refresh(alert)
+        assert alert.notified_at is None
+    finally:
+        get_settings.cache_clear()
+
+
+def test_send_price_alert_notifications_never_resends_an_already_notified_alert(db_session, monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=90000)
+        alert = crud.create_price_alert(
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+        )
+        crud.mark_price_alert_notified(db_session, alert)
+
+        sent_calls = []
+        monkeypatch.setattr(email, "send_email", lambda **kwargs: sent_calls.append(kwargs))
+
+        sent, skipped = pipeline.send_price_alert_notifications(db_session)
+        assert (sent, skipped) == (0, 0)
+        assert sent_calls == []
+    finally:
+        get_settings.cache_clear()
+
+
+def test_send_price_alert_notifications_leaves_alert_unmarked_on_send_failure(db_session, monkeypatch):
+    """A Resend failure must not silently lose the alert - it stays
+    untriggered so the next run retries it."""
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=90000)
+        alert = crud.create_price_alert(
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+        )
+
+        def failing_send(**kwargs):
+            raise email.EmailSendError("Resend API 500: boom")
+
+        monkeypatch.setattr(email, "send_email", failing_send)
+
+        sent, skipped = pipeline.send_price_alert_notifications(db_session)
+        assert (sent, skipped) == (0, 1)
+
+        db_session.refresh(alert)
+        assert alert.notified_at is None
+
+        logs = crud.list_error_logs(db_session)
+        assert any("price_alert_email" == log.source for log in logs)
     finally:
         get_settings.cache_clear()
 

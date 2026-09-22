@@ -8,7 +8,9 @@ Pipeline (spec section 9):
   4. update price stats
   5. determine buy_score
   6. generate AI wording (only when facts changed - cost control)
-  7. (site reflects DB state directly via the public API)
+  7. email any price alert whose target price has now been reached
+     (Resend, when RESEND_API_KEY is configured)
+  8. (site reflects DB state directly via the public API)
 
 Any per-product failure is logged to ErrorLog and skipped, the batch keeps going.
 
@@ -79,6 +81,10 @@ def main():
                 )
 
         print(f"Analysis: checked={checked} ai_regenerated={regenerated} skipped_on_error={skipped_analysis}")
+
+        if settings.resend_api_key:
+            alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
+            print(f"Price alerts: sent={alerts_sent} skipped={alerts_skipped}")
     finally:
         db.close()
 
