@@ -16,7 +16,7 @@ export default async function BrandsPage() {
 
   return (
     <div>
-      <section className="bg-brand px-6 py-20 text-white sm:py-28">
+      <section className="bg-foreground px-6 py-20 text-white sm:py-28">
         <div className="mx-auto max-w-7xl">
           <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Brands</span>
           <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">ブランドで探す</h1>
@@ -36,7 +36,7 @@ export default async function BrandsPage() {
                 <FadeIn key={b.brand} delay={(i % 8) * 50}>
                   <Link
                     href={`/brand/${encodeURIComponent(b.brand)}`}
-                    className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-24px_rgba(15,61,46,0.25)]"
+                    className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-24px_rgba(20,19,15,0.22)]"
                   >
                     <span className="font-display text-lg font-medium text-foreground">{b.brand}</span>
                     <span className="text-xs text-foreground/45">{b.product_count}商品</span>

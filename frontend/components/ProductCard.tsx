@@ -36,7 +36,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
           list_source: listSource ?? "unknown",
         })
       }
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-24px_rgba(15,61,46,0.25)]"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-24px_rgba(20,19,15,0.22)]"
     >
       <div className="relative aspect-[4/3] w-full bg-background">
         <FavoriteButton
@@ -75,27 +75,42 @@ export default function ProductCard({ product, listSource }: { product: Product;
 
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-4">
           <div>
-            <div className="font-display text-2xl font-semibold text-foreground">
-              {yen(product.current_price)}
-            </div>
-            {hasReliableTrend && product.average_price !== null ? (
-              <div className="mt-0.5 text-xs text-foreground/45">30日平均 {yen(product.average_price)}</div>
+            {hasReliableTrend && pct !== null && pct < 0 && product.average_price !== null ? (
+              <>
+                <div className="text-xs text-foreground/35 line-through">
+                  30日平均 {yen(product.average_price)}
+                </div>
+                <div className="font-display text-2xl font-semibold text-foreground">
+                  {yen(product.current_price)}
+                </div>
+              </>
             ) : (
-              <div className="mt-0.5 text-xs text-foreground/35">データ蓄積中（{product.history_span_days}日分）</div>
+              <>
+                <div className="font-display text-2xl font-semibold text-foreground">
+                  {yen(product.current_price)}
+                </div>
+                {hasReliableTrend && product.average_price !== null ? (
+                  <div className="mt-0.5 text-xs text-foreground/45">30日平均 {yen(product.average_price)}</div>
+                ) : (
+                  <div className="mt-0.5 text-xs text-foreground/35">
+                    データ蓄積中（{product.history_span_days}日分）
+                  </div>
+                )}
+              </>
             )}
           </div>
           {pct !== null && (
             <div className="text-right">
               <div
                 className={`font-display text-lg font-semibold ${
-                  pct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/60"
+                  pct < 0 ? "text-sale" : "text-foreground/60"
                 }`}
               >
                 {pct > 0 ? "+" : ""}
                 {pct}%
               </div>
               <div className="text-[10px] uppercase tracking-widest text-foreground/35">
-                {pct <= CAUTION_DISCOUNT_PERCENT ? "要確認" : "vs 30d avg"}
+                {pct <= CAUTION_DISCOUNT_PERCENT ? "要確認" : pct < 0 ? "OFF" : "vs 30d avg"}
               </div>
             </div>
           )}

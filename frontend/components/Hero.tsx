@@ -10,17 +10,17 @@ export default function Hero({
   avgDiscount: number | null;
 }) {
   return (
-    <section className="relative overflow-hidden bg-brand text-white">
+    <section className="relative overflow-hidden bg-foreground text-white">
       {/* Abstract arc motif echoing the AI Buy Signal gauge — no stock photography needed */}
       <svg
-        className="pointer-events-none absolute -right-40 -top-40 h-[640px] w-[640px] opacity-[0.14] sm:-right-20"
+        className="pointer-events-none absolute -right-40 -top-40 h-[640px] w-[640px] opacity-[0.16] sm:-right-20"
         viewBox="0 0 400 400"
         fill="none"
       >
         <circle cx="200" cy="200" r="180" stroke="white" strokeWidth="1" />
         <circle cx="200" cy="200" r="140" stroke="white" strokeWidth="1" />
-        <circle cx="200" cy="200" r="100" stroke="#A9835B" strokeWidth="2" />
-        <path d="M200 20 A180 180 0 0 1 380 200" stroke="#A9835B" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="200" cy="200" r="100" stroke="#C1521A" strokeWidth="2" />
+        <path d="M200 20 A180 180 0 0 1 380 200" stroke="#C1521A" strokeWidth="2" strokeLinecap="round" />
       </svg>
 
       <div className="relative mx-auto flex max-w-7xl flex-col gap-10 px-6 py-24 sm:py-32 lg:py-40">

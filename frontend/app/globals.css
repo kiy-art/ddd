@@ -1,24 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  /* Warm ivory rather than stark white — quieter, more premium than pure #fff */
-  --background: #faf9f6;
-  --foreground: #14151a;
+  /* Off White — warm, not stark #fff. Lets product photography and the
+     orange CTA color carry the page instead of competing with a bright bg. */
+  --background: #f7f4ee;
+  --foreground: #14130f;
   --card: #ffffff;
-  --border: #e9e6dd;
+  --border: #e7e1d5;
 
-  /* Single primary accent: a deep, near-black fairway green. Used sparingly. */
-  --brand: #0f3d2e;
-  --brand-dark: #0a2b20;
-  --brand-light: #1f5940;
+  /* Brand: a burnt/terracotta orange — premium, not traffic-cone bright.
+     The one color used to mean "act here": CTAs, links, primary actions,
+     hover states. Used sparingly by design — see AGENTS/DESIGN notes. */
+  --brand: #c1521a;
+  --brand-dark: #963f14;
+  --brand-light: #de7239;
 
-  /* Secondary accent: muted brass — never bright gold, never used as a "warning" color */
-  --accent: #a9835b;
-  --accent-dark: #8c6a46;
+  /* Secondary accent: warm charcoal-stone, for eyebrow labels / editorial
+     furniture that needs to read as "considered" without competing with
+     the orange CTA color for attention. */
+  --accent: #8a7e6e;
+  --accent-dark: #6e6455;
 
-  /* AI signal scale — a single desaturated hue family, not traffic-light red/green/blue */
-  --signal-high: #0f3d2e;
-  --signal-mid: #8c6a46;
+  /* Discount / urgency only (SALE, 値下げ, 残りわずか) — muted red-brick,
+     never the sitewide accent. Kept visually distinct from --brand so a
+     price drop and a "click here" never look like the same signal. */
+  --sale: #b23a2e;
+  --sale-dark: #8f2e24;
+
+  /* AI signal scale: orange (act now) / warm stone (neutral) / quiet gray
+     (wait) — reuses the brand + accent hues rather than a separate
+     red/green/blue traffic-light palette. */
+  --signal-high: #c1521a;
+  --signal-mid: #8a7e6e;
   --signal-low: #9b9789;
 }
 
@@ -32,6 +45,8 @@
   --color-brand-light: var(--brand-light);
   --color-accent: var(--accent);
   --color-accent-dark: var(--accent-dark);
+  --color-sale: var(--sale);
+  --color-sale-dark: var(--sale-dark);
   --color-signal-high: var(--signal-high);
   --color-signal-mid: var(--signal-mid);
   --color-signal-low: var(--signal-low);
@@ -42,20 +57,23 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b0c0a;
-    --foreground: #f3f1ea;
-    --card: #141613;
-    --border: #262822;
+    --background: #0c0b09;
+    --foreground: #f3f0e8;
+    --card: #17150f;
+    --border: #29271f;
 
-    --brand: #3f8f6b;
-    --brand-dark: #2e7355;
-    --brand-light: #55a880;
+    --brand: #e2762f;
+    --brand-dark: #c1521a;
+    --brand-light: #f0925a;
 
-    --accent: #c7a06d;
-    --accent-dark: #a9835b;
+    --accent: #a79a85;
+    --accent-dark: #8a7e6e;
 
-    --signal-high: #55a880;
-    --signal-mid: #c7a06d;
+    --sale: #d9584a;
+    --sale-dark: #b23a2e;
+
+    --signal-high: #e2762f;
+    --signal-mid: #a79a85;
     --signal-low: #6b6a60;
   }
 }
