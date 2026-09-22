@@ -7,39 +7,74 @@ Two layers, same "rule-based baseline + optional AI enhancement" shape as
 app/ai.py and app/x_post.py:
 
 - strip_promotional_noise() is a deterministic regex pass - always runs,
-  free, instant - that removes bracket-tag noise (【...】/[...]) and a
-  curated list of common Japanese EC promotional phrases. This alone is
-  usually enough, and is always the safety-net result.
+  free, instant - that removes bracket-tag noise (【...】/（...）/[...]),
+  date/period-limited sale phrases, quantity/packaging/color notes,
+  municipality names (furusato-nozei reward listings), a curated list of
+  common Japanese EC promotional phrases, and redundant repeats of the
+  brand's own name in another script. This alone is usually enough, and
+  is always the safety-net result.
 - clean_product_title() additionally asks Claude to tighten the
   regex-cleaned text down to just "ブランド＋型番" when ANTHROPIC_API_KEY
   is configured. Claude is only ever shown the already-regex-cleaned text
   plus the already-known brand/category (both real, already-matched
-  facts - see discovery.py's _match_brand) and is instructed to remove
+  facts - see app/brands.py's match_brand) and is instructed to remove
   text only, never invent or add anything. Its output is sanity-checked
-  (non-empty, not longer than the input, still names the known brand)
-  before being trusted; any failure - not configured, API error, output
-  that doesn't pass the sanity check - falls back to the regex result.
+  (non-empty, not longer than the input, still names the known brand in
+  some known spelling) before being trusted; any failure - not
+  configured, API error, output that doesn't pass the sanity check -
+  falls back to the regex result.
+
+Known limitation (regex layer only): a shop repeating the MODEL number
+itself in another script - e.g. "OPUS SP" ... "オーパス エスピー", or
+"PRO V1" ... "プロV1" - isn't something strip_promotional_noise() can
+recognize (unlike a brand name, there's no fixed dictionary of every
+model's phonetic transliteration to check against). Only the Claude-
+assisted path collapses that; see tests/test_title_cleaner.py's
+AI-configured tests for confirmation this works when ANTHROPIC_API_KEY is
+set (as it is in production - see docs/ai_company_guidelines.md).
 """
 
 import json
 import re
 
+from app.brands import BRAND_NAME_SYNONYMS
 from app.config import get_settings
 
-# Bracket-tag segments (【...】, full/half-width [...]) are virtually
-# always shop promotional tags in this domain ("【送料無料】", "【あす楽】",
-# "【正規品】") - a real model name is essentially never wrapped in these,
-# so they're stripped wholesale regardless of their content.
-_BRACKET_TAG_PATTERN = re.compile(r"[【\[][^】\]]*[】\]]")
+# Bracket-tag segments (【...】, （...）, full/half-width [...]) are
+# virtually always shop promotional tags in this domain ("【送料無料】",
+# "【あす楽】", "（12球入り×3箱）") - a real model name is essentially never
+# wrapped in these, so they're stripped wholesale regardless of content.
+# Half-width "(...)" is deliberately NOT included here - shops use it for
+# the same noise, but also occasionally for a real spec note, so that one
+# is left to the more targeted patterns below instead of a blanket strip.
+_BRACKET_TAG_PATTERN = re.compile(r"[【\[（][^】\]）]*[】\]）]")
+
+# "9/23まで" / "9月23日まで" / "本日限定" - date- or period-limited sale
+# copy. A fixed calendar cutoff has no place in a product's own name.
+_DATE_LIMIT_PATTERN = re.compile(r"\d{1,2}/\d{1,2}まで|\d{1,2}月\d{1,2}日まで|本日限定|今だけ")
+
+# Quantity/packaging notes ("3ダースセット", "12球入り", "×3箱") - real
+# information about a specific listing's bundle, but not part of the
+# product's own name (the same reasoning STEP15 already applied to
+# "送料無料" etc.: useful to a shopper, not to what the product IS).
+_QUANTITY_PATTERN = re.compile(r"\d+ダース(?:セット)?|\d+球入り|×?\d+箱")
 
 # Common Japanese EC promotional phrases that appear even on otherwise
-# legitimate listings (unlike ACCESSORY_KEYWORDS/AUTO_PUBLISH_NG_KEYWORDS
-# in discovery.py/pipeline.py, which mark a listing as not worth
-# registering at all - see those modules' own comments for why "送料無料"/
-# "ポイント"/"得" specifically must NOT be treated as reject signals: they
-# appear on nearly every real listing, including genuine golf clubs, so
-# rejecting on them would break normal discovery/price-matching. Here they
-# only ever remove text from the display name, never the product itself).
+# legitimate listings (unlike ACCESSORY_KEYWORDS/AUTO_PUBLISH_NG_KEYWORDS/
+# NON_RETAIL_LISTING_KEYWORDS in discovery.py/pipeline.py, which mark a
+# listing as not worth registering at all - see those modules' own
+# comments for why "送料無料"/"ポイント"/"得" specifically must NOT be
+# treated as reject signals: they appear on nearly every real listing,
+# including genuine golf clubs, so rejecting candidates on them would
+# break normal discovery/price-matching. Here they only ever remove text
+# from the display name, never the product itself).
+#
+# "ゴルフクラブ"/"ゴルフボール" are included deliberately even though they
+# describe the real product category: this catalog already records
+# category on the Product row itself (never parsed from the display
+# name), and STEP18 asked for names trimmed down to brand+model only - a
+# bare, generic category noun in the title is exactly the kind of shop
+# boilerplate that goal is about, same spirit as stripping "新品"/"正規品".
 _PROMO_PHRASES = [
     "送料無料",
     "送料込み",
@@ -70,20 +105,89 @@ _PROMO_PHRASES = [
     "ラッピング無料",
     "レビューを書いて",
     "訳あり",
+    "ギフト",
+    "プレゼント",
+    "選べるシャフト",
+    "ロフト角",
+    "ゴルフクラブ",
+    "ゴルフボール",
+    # Common shop colorway suffixes - occasionally a genuine distinguishing
+    # variant, but usually just shop-added packaging info in this domain;
+    # STEP18 asked for these removed (e.g. "...3ダースセット ホワイト").
+    "ホワイト",
+    "イエロー",
+    "ブラック",
+    "レッド",
+    "ブルー",
+    "グリーン",
+    "オレンジ",
+    "ピンク",
+    "シルバー",
+    "ゴールド",
+    "パープル",
+    "ネイビー",
 ]
 _PROMO_PATTERN = re.compile("|".join(_PROMO_PHRASES))
 
-# Runs of punctuation/symbols shops use for emphasis (!!, ★, ◆, ~) once the
-# text they were decorating has already been stripped out around them.
-_DECORATION_PATTERN = re.compile(r"[!!★☆◆■□▼▲♪♫~〜]+")
+# Japanese municipality names ("千葉県柏市") - the giveaway of a furusato-
+# nozei (ふるさと納税) donation-reward listing's title. Discovery already
+# rejects candidates whose title contains "ふるさと納税"/"ふるさと" outright
+# (see pipeline.NON_RETAIL_LISTING_KEYWORDS) - this is a second, narrower
+# net for when a listing's title names the municipality without ever
+# spelling out "ふるさと納税" itself. Restricted to kana/kanji so it can't
+# match inside a Latin-script model number.
+_MUNICIPALITY_PATTERN = re.compile(
+    r"[ぁ-んァ-ヶー一-龯]{1,8}(?:都|道|府|県)(?:[ぁ-んァ-ヶー一-龯]{1,10}(?:市|区|町|村))?"
+    r"|[ぁ-んァ-ヶー一-龯]{1,10}(?:市|区|町|村)"
+)
+
+# Runs of punctuation/symbols shops use for emphasis (!!, ★, ◆, ~, ×) once
+# the text they were decorating has already been stripped out around them.
+_DECORATION_PATTERN = re.compile(r"[!!★☆◆■□▼▲♪♫~〜×]+")
 
 _WHITESPACE_PATTERN = re.compile(r"[\s　]+")
 
 
-def strip_promotional_noise(raw_title: str) -> str:
+def _dedupe_brand_name_repeats(text: str, brand: str) -> str:
+    """Once the brand's name has appeared once (in any of its known
+    spellings - see app/brands.py's BRAND_NAME_SYNONYMS), later repeats of
+    ANY spelling of that same brand are the shop just repeating itself
+    (e.g. "キャロウェイ ... callaway" for the same product) and are
+    removed; the first-seen spelling is kept as-is.
+
+    Deliberately its own small, hand-picked synonym list rather than
+    discovery.py's BRAND_KEYWORDS: that dict also maps distinct sub-brand/
+    product-line names (e.g. "Vokey"/"ボーケイ" -> "Titleist") onto a
+    parent brand purely for site navigation - stripping those here would
+    delete real, distinguishing model info, not a duplicate.
+    """
+    synonyms = BRAND_NAME_SYNONYMS.get(brand)
+    if not synonyms:
+        return text
+    all_spellings = sorted({brand, *synonyms}, key=len, reverse=True)
+    pattern = re.compile("|".join(re.escape(s) for s in all_spellings), re.IGNORECASE)
+
+    seen = False
+
+    def _replace(match: re.Match) -> str:
+        nonlocal seen
+        if not seen:
+            seen = True
+            return match.group(0)
+        return " "
+
+    return pattern.sub(_replace, text)
+
+
+def strip_promotional_noise(raw_title: str, brand: str | None = None) -> str:
     text = _BRACKET_TAG_PATTERN.sub(" ", raw_title)
+    text = _DATE_LIMIT_PATTERN.sub(" ", text)
+    text = _QUANTITY_PATTERN.sub(" ", text)
     text = _PROMO_PATTERN.sub(" ", text)
+    text = _MUNICIPALITY_PATTERN.sub(" ", text)
     text = _DECORATION_PATTERN.sub(" ", text)
+    if brand:
+        text = _dedupe_brand_name_repeats(text, brand)
     text = _WHITESPACE_PATTERN.sub(" ", text).strip(" -・/")
     return text or raw_title.strip()
 
@@ -93,7 +197,11 @@ def _looks_like_a_reasonable_cleanup(candidate: str, regex_cleaned: str, brand: 
         return False
     if len(candidate) > len(regex_cleaned) + 10:
         return False  # Claude added text rather than only removing it
-    return brand.lower() in candidate.lower()
+    # Any known spelling of the brand counts - Claude may (correctly)
+    # prefer the katakana form even when the raw title's first mention
+    # happened to be the English one, or vice versa.
+    acceptable_names = [brand, *BRAND_NAME_SYNONYMS.get(brand, [])]
+    return any(name.lower() in candidate.lower() for name in acceptable_names)
 
 
 def _ai_tighten(regex_cleaned: str, brand: str, category: str) -> str | None:
@@ -109,6 +217,9 @@ def _ai_tighten(regex_cleaned: str, brand: str, category: str) -> str | None:
         "厳守事項:\n"
         "- 与えられたテキストに実際に含まれる文字列の削除のみ行い、"
         "含まれていない情報（型番・特徴等）を新たに付け加えないこと。\n"
+        "- ブランド名や型番が英語・カタカナ等の複数の表記で重複して登場する場合は、"
+        "最も自然な1つの表記のみを残し、残りの重複表記は削除すること"
+        "（例:「OPUS SP ... オーパス エスピー」→「OPUS SP」のみ残す）。\n"
         "- ブランド名は必ず残すこと。\n"
         "- 自信を持って抽出できない場合は、入力テキストをそのまま返すこと。\n"
         '- 出力は必ず次のJSON形式のみ: {"clean_name": "..."}'
@@ -146,6 +257,6 @@ def clean_product_title(raw_title: str, brand: str, category: str) -> str:
     """Always returns a usable name - the regex-cleaned text at minimum,
     Claude's further-tightened version when configured and its output
     passes the sanity check."""
-    regex_cleaned = strip_promotional_noise(raw_title)
+    regex_cleaned = strip_promotional_noise(raw_title, brand=brand)
     tightened = _ai_tighten(regex_cleaned, brand, category)
     return tightened or regex_cleaned

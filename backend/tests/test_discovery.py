@@ -150,7 +150,7 @@ def test_auto_publish_respects_the_lower_ball_price_floor(db_session, monkeypatc
 
     discovery.discover_new_products(db_session)
 
-    product = crud.find_product_by_identity(db_session, "Titleist Pro V1 ゴルフボール 1ダース", "Titleist", None)
+    product = crud.find_product_by_identity(db_session, "Titleist Pro V1", "Titleist", None)
     assert product is not None
     assert product.pending_review is False
 
@@ -228,5 +228,5 @@ def test_discover_new_products_dedups_by_cleaned_title_across_differently_noisy_
 
     assert discovered == 1
     all_products = list(db_session.execute(select(models.Product)).scalars().all())
-    matching = [p for p in all_products if p.name == "Titleist Pro V1 ゴルフボール 1ダース"]
+    matching = [p for p in all_products if p.name == "Titleist Pro V1"]
     assert len(matching) == 1

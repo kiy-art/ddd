@@ -36,6 +36,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import crud, models, rakuten, schemas, title_cleaner
+# Brand recognition lives in app/brands.py (shared with app/popularity.py
+# and app/title_cleaner.py, none of which need to import each other just
+# for this) - BRAND_KEYWORDS is re-exported here so existing
+# `from app.discovery import BRAND_KEYWORDS` call sites (see
+# app/popularity.py) keep working unchanged.
+from app.brands import BRAND_KEYWORDS, match_brand as _match_brand  # noqa: F401 (BRAND_KEYWORDS re-exported for app/popularity.py)
 from app.pipeline import (
     RAKUTEN_REQUEST_INTERVAL_SECONDS,
     _looks_like_accessory,
@@ -77,73 +83,6 @@ DISCOVERY_SEARCH_HITS = 30
 # single run's growth reviewable-in-aggregate even though most of it no
 # longer sits in the pending-review queue (see _is_safe_to_auto_publish).
 MAX_NEW_PER_CATEGORY = 20
-
-# Maps a keyword that might appear in a Rakuten item name (English brand
-# name or a common Japanese rendering) to this site's canonical brand name
-# (matching the brand strings already used across data/*.csv). A listing
-# whose name matches none of these is skipped — better to miss a real
-# product than to publish one under a guessed/wrong brand.
-BRAND_KEYWORDS = {
-    "PING": "PING",
-    "ピン": "PING",
-    "Titleist": "Titleist",
-    "タイトリスト": "Titleist",
-    "Callaway": "Callaway",
-    "キャロウェイ": "Callaway",
-    "TaylorMade": "TaylorMade",
-    "テーラーメイド": "TaylorMade",
-    "Srixon": "Srixon",
-    "スリクソン": "Srixon",
-    "Bridgestone": "Bridgestone",
-    "ブリヂストン": "Bridgestone",
-    "ブリジストン": "Bridgestone",
-    "Cobra": "Cobra",
-    "コブラ": "Cobra",
-    "Mizuno": "Mizuno",
-    "ミズノ": "Mizuno",
-    "XXIO": "XXIO",
-    "ゼクシオ": "XXIO",
-    "Honma": "Honma",
-    "ホンマ": "Honma",
-    # Vokey is Titleist's wedge line, not a separate manufacturer - matches
-    # the brand recorded for it elsewhere in the catalog (see
-    # data/real_products_batch3.csv), so a discovered Vokey wedge groups
-    # onto the same brand page as other Titleist products instead of
-    # fragmenting into its own.
-    "Vokey": "Titleist",
-    "ボーケイ": "Titleist",
-    "Scotty Cameron": "Scotty Cameron",
-    "スコッティキャメロン": "Scotty Cameron",
-    "スコッティ・キャメロン": "Scotty Cameron",
-    "Odyssey": "Odyssey",
-    "オデッセイ": "Odyssey",
-    "Cleveland": "Cleveland",
-    "クリーブランド": "Cleveland",
-    "PXG": "PXG",
-    "L.A.B Golf": "L.A.B Golf",
-    "L.A.B. Golf": "L.A.B Golf",
-    "ラブゴルフ": "L.A.B Golf",
-    "Yonex": "Yonex",
-    "ヨネックス": "Yonex",
-    "Fourteen": "Fourteen",
-    "フォーティーン": "Fourteen",
-    "Miura": "Miura",
-    "三浦技研": "Miura",
-    "Bettinardi": "Bettinardi",
-    "ベティナルディ": "Bettinardi",
-    "Wilson": "Wilson",
-    "ウイルソン": "Wilson",
-    "Epon": "Epon",
-    "エポン": "Epon",
-}
-
-
-def _match_brand(item_name: str) -> str | None:
-    lowered = item_name.lower()
-    for keyword, brand in BRAND_KEYWORDS.items():
-        if keyword.lower() in lowered:
-            return brand
-    return None
 
 
 # Item-name substrings that make a candidate too likely to be a used item,

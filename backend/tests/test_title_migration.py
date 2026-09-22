@@ -78,7 +78,7 @@ def test_apply_merges_duplicates_that_clean_to_the_same_name(db_session):
 
     remaining = db_session.get(models.Product, survivor_id)
     assert remaining is not None
-    assert remaining.name == "Titleist Pro V1 ゴルフボール 1ダース"
+    assert remaining.name == "Titleist Pro V1"
     assert db_session.get(models.Product, loser_id) is None
     assert result.merge_groups == 1
     assert result.products_merged == 1

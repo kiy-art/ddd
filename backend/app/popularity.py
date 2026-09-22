@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import crud, models, rakuten
-from app.discovery import BRAND_KEYWORDS
+from app.brands import match_brand as _match_brand
 from app.pipeline import RAKUTEN_REQUEST_INTERVAL_SECONDS
 
 # Rakuten Ichiba's own genre IDs for each category, found via
@@ -41,14 +41,6 @@ RANKING_HITS = 30
 
 def _normalize(text: str) -> str:
     return re.sub(r"\s+", "", text).lower()
-
-
-def _match_brand(item_name: str) -> str | None:
-    lowered = item_name.lower()
-    for keyword, brand in BRAND_KEYWORDS.items():
-        if keyword.lower() in lowered:
-            return brand
-    return None
 
 
 def _find_rank(product: models.Product, ranking_items: list) -> int | None:

@@ -1,3 +1,5 @@
+import json
+
 from app import title_cleaner
 
 
@@ -8,7 +10,8 @@ def test_strip_promotional_noise_removes_bracket_tags():
 def test_strip_promotional_noise_removes_known_promo_phrases():
     result = title_cleaner.strip_promotional_noise("タイトリスト Titleist Pro V1 ゴルフボール ポイント10倍!!")
     assert "ポイント" not in result
-    assert "タイトリスト Titleist Pro V1 ゴルフボール" in result
+    assert "ゴルフボール" not in result
+    assert "タイトリスト Titleist Pro V1" in result
 
 
 def test_strip_promotional_noise_removes_wakeari():
@@ -66,3 +69,87 @@ def test_looks_like_a_reasonable_cleanup_rejects_empty_output():
 
 def test_looks_like_a_reasonable_cleanup_accepts_a_valid_tightened_name():
     assert title_cleaner._looks_like_a_reasonable_cleanup("PING G440 ドライバー", "PING G440 ドライバー 2023年モデル", "PING") is True
+
+
+# --- STEP18: real furusato-nozei / date-limited / set-quantity listings ---
+
+
+def test_strip_promotional_noise_handles_furusato_gift_example():
+    """STEP18 example 1: a furusato-nozei-style reward listing, with
+    date/gift/customization boilerplate and the brand name repeated in
+    three scripts (キャロウェイ/callaway). The MODEL number itself is also
+    repeated phonetically ("OPUS SP" / "オーパス エスピー") - unlike a brand
+    name, the regex layer has no dictionary of model transliterations to
+    dedupe that against, so it survives here; only the AI-tightened path
+    (see test_clean_product_title_ai_tightened_examples below) collapses
+    it down to the fully clean "キャロウェイ OPUS SP クロムウェッジ"."""
+    raw = "ゴルフクラブ キャロウェイ OPUS SP クロムウェッジ 選べるシャフト ロフト角 callaway オーパス エスピー 千葉県柏市 ギフト プレゼント"
+    result = title_cleaner.strip_promotional_noise(raw, brand="Callaway")
+    assert result == "キャロウェイ OPUS SP クロムウェッジ オーパス エスピー"
+    for noise in ["ゴルフクラブ", "選べるシャフト", "ロフト角", "千葉県柏市", "ギフト", "プレゼント"]:
+        assert noise not in result
+    assert "callaway" not in result.lower()
+
+
+def test_strip_promotional_noise_handles_date_limited_set_example():
+    """STEP18 example 2: a date-limited sale with dozen/box/color set
+    notation. "PRO V1" / "プロV1" is again the model number repeated
+    phonetically, not the brand - regex-only can't collapse that (see
+    test_clean_product_title_ai_tightened_examples for the AI-tightened
+    "タイトリスト Pro V1")."""
+    raw = "9/23まで タイトリスト PRO V1 プロV1 ゴルフボール 3ダースセット （12球入り×3箱） ホワイト"
+    result = title_cleaner.strip_promotional_noise(raw, brand="Titleist")
+    assert result == "タイトリスト PRO V1 プロV1"
+    for noise in ["9/23まで", "3ダースセット", "12球入り", "ホワイト", "ゴルフボール"]:
+        assert noise not in result
+
+
+def test_clean_product_title_ai_tightened_examples(monkeypatch):
+    """With ANTHROPIC_API_KEY configured, clean_product_title() asks
+    Claude to collapse the regex layer's known limitation above (repeated
+    model-number transliterations) - verified here against a fake
+    anthropic.Anthropic client (no live API call), following the same
+    "mock the client, not our own code" shape as the rest of this file's
+    ANTHROPIC_API_KEY="" tests exercise the non-AI path."""
+    import anthropic
+
+    class _FakeTextBlock:
+        type = "text"
+
+        def __init__(self, text):
+            self.text = text
+
+    class _FakeMessage:
+        def __init__(self, text):
+            self.content = [_FakeTextBlock(text)]
+
+    class _FakeMessages:
+        def __init__(self, clean_name):
+            self._clean_name = clean_name
+
+        def create(self, **kwargs):
+            return _FakeMessage(json.dumps({"clean_name": self._clean_name}))
+
+    class _FakeClient:
+        def __init__(self, clean_name, **kwargs):
+            self.messages = _FakeMessages(clean_name)
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        monkeypatch.setattr(
+            anthropic, "Anthropic", lambda api_key: _FakeClient("キャロウェイ OPUS SP クロムウェッジ")
+        )
+        raw1 = (
+            "ゴルフクラブ キャロウェイ OPUS SP クロムウェッジ 選べるシャフト ロフト角 "
+            "callaway オーパス エスピー 千葉県柏市 ギフト プレゼント"
+        )
+        assert title_cleaner.clean_product_title(raw1, "Callaway", "wedge") == "キャロウェイ OPUS SP クロムウェッジ"
+
+        monkeypatch.setattr(anthropic, "Anthropic", lambda api_key: _FakeClient("タイトリスト Pro V1"))
+        raw2 = "9/23まで タイトリスト PRO V1 プロV1 ゴルフボール 3ダースセット （12球入り×3箱） ホワイト"
+        assert title_cleaner.clean_product_title(raw2, "Titleist", "ball") == "タイトリスト Pro V1"
+    finally:
+        get_settings.cache_clear()
