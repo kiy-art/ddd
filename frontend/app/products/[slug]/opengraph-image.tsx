@@ -1,10 +1,16 @@
 import { ImageResponse } from "next/og";
 
 import { getProduct } from "@/lib/api";
+import { getFallbackValueScore } from "@/lib/fallbackScore";
+import { getModelCycleInsight } from "@/lib/modelCycle";
 
 export const alt = "PAR. BUY SIGNAL";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+
+// Same threshold used across the site (AiBuySignal.tsx, ProductCard.tsx,
+// the product page) for "enough price history to claim a trend".
+const THIN_DATA_DAYS = 7;
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -18,9 +24,30 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const name = product?.name ?? "PAR.";
   const brand = product?.brand ?? "";
   const price = product ? yen(product.current_price) : "";
-  const pct = product?.price_change_percent ?? null;
+
+  const hasReliableTrend =
+    product !== null && product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
+  const pct = hasReliableTrend ? product.price_change_percent : null;
   const pctLabel = pct !== null ? `${pct > 0 ? "+" : ""}${pct}% vs 30日平均` : "";
-  const score = product?.buy_signal_score ?? null;
+  const score = hasReliableTrend ? (product?.buy_signal_score ?? null) : null;
+
+  // Same fallback ladder shown on the product page itself (see
+  // AiBuySignal.tsx / PriceTimeline.tsx): a real MSRP-based score first,
+  // then a release-date/model-cycle read, so a not-yet-trend-established
+  // product still shares something concrete when its page gets shared,
+  // instead of a bare price with no buy-time context at all.
+  const fallback =
+    !hasReliableTrend && product
+      ? getFallbackValueScore({
+          msrp: product.msrp,
+          current_price: product.current_price,
+          release_date: product.release_date,
+        })
+      : null;
+  const cycleInsight =
+    !hasReliableTrend && !fallback && product
+      ? getModelCycleInsight({ release_date: product.release_date, is_current_generation: product.is_current_generation })
+      : null;
 
   return new ImageResponse(
     (
@@ -62,7 +89,8 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             <span style={{ display: "flex", fontSize: 56, fontWeight: 700, color: "#FAF9F6" }}>{price}</span>
             {pctLabel && <span style={{ display: "flex", fontSize: 24, color: "#E2762F" }}>{pctLabel}</span>}
           </div>
-          {score !== null && (
+
+          {score !== null ? (
             <div
               style={{
                 display: "flex",
@@ -78,6 +106,56 @@ export default async function Image({ params }: { params: Promise<{ slug: string
               <span style={{ display: "flex", fontSize: 64, fontWeight: 700, color: "#FAF9F6" }}>{score}</span>
               <span style={{ display: "flex", fontSize: 16, color: "#E2762F", letterSpacing: 2 }}>BUY SIGNAL</span>
             </div>
+          ) : fallback ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 200,
+                height: 200,
+                borderRadius: 100,
+                border: "8px dashed #C1521A",
+              }}
+            >
+              <span style={{ display: "flex", fontSize: 64, fontWeight: 700, color: "#FAF9F6" }}>
+                {fallback.score}
+              </span>
+              <span style={{ display: "flex", fontSize: 16, color: "#E2762F", letterSpacing: 2 }}>定価比較</span>
+            </div>
+          ) : (
+            cycleInsight && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 260,
+                  minHeight: 200,
+                  borderRadius: 32,
+                  border: "8px dashed #C1521A",
+                  padding: "0 16px",
+                }}
+              >
+                <span
+                  style={{
+                    display: "flex",
+                    fontSize: 34,
+                    fontWeight: 700,
+                    color: "#FAF9F6",
+                    textAlign: "center",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {cycleInsight.stageLabel}
+                </span>
+                <span style={{ display: "flex", fontSize: 16, color: "#E2762F", letterSpacing: 2, marginTop: 12 }}>
+                  {cycleInsight.tier === "fact" ? "FACT" : "AI推測"}
+                </span>
+              </div>
+            )
           )}
         </div>
       </div>

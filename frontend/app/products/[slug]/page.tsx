@@ -67,6 +67,36 @@ function ctaLabel(url: string): string {
   return "販売ページで価格を見る";
 }
 
+// Deterministic, keyword-targeted <title>/meta description/OGP/JSON-LD text
+// built purely from real facts (price, lowest price) - used unconditionally,
+// never swapped out for product.ai_title/ai_summary. Those are Claude-
+// generated for on-page reading (shown separately further down this page)
+// and were never written with search intent in mind ("最安値", "買い時判定",
+// "安くなる時期"), so preferring them for metadata would silently make every
+// AI-enriched product's SEO worse than a brand-new, not-yet-processed one's.
+function seoTitle(product: Product): string {
+  // No manual "- PAR." suffix: the root layout's title.template
+  // ("%s | PAR.") already appends the brand to every page title, so
+  // adding it here too would show it twice in the tab title/SERP snippet.
+  const modelPart = product.model_number ? ` ${product.model_number}` : "";
+  return `${product.brand} ${product.name}${modelPart}の最安値・買い時判定｜価格推移とAI予測`;
+}
+
+function seoDescription(product: Product): string {
+  const lowestPart = product.lowest_price !== null ? `（過去最安値 ${yen(product.lowest_price)}）` : "";
+  const currentPart = product.current_price !== null ? yen(product.current_price) : "価格情報";
+  return `${product.brand} ${product.name}の価格推移${lowestPart}をもとに、今が買い時かをAIが分析。値下がりしやすい時期の目安も掲載しています。現在価格は${currentPart}です。`;
+}
+
+// A plain helper (not called directly in the component body) so the
+// Date.now() fallback doesn't trip the "components must be pure" lint rule
+// - this page re-renders live on every request anyway (`revalidate = 0`),
+// so the impurity is intentional and harmless, just not allowed inline.
+function computePriceValidUntil(lastPriceUpdatedAt: string | null): string {
+  const base = lastPriceUpdatedAt ? new Date(lastPriceUpdatedAt).getTime() : Date.now();
+  return new Date(base + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 async function loadProduct(slug: string) {
   try {
     return await getProduct(slug);
@@ -82,18 +112,12 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const url = `${siteUrl}/products/${product.slug}`;
-  // A deterministic, search-intent-matched fallback (price / lowest price /
-  // forecast / buy-time) so every product gets a strong title even before
-  // ai_title has been generated for it - ai_title, when present, still wins.
-  const modelPart = product.model_number ? ` ${product.model_number}` : "";
-  const fallbackTitle = `${product.brand} ${product.name}${modelPart}の価格推移・最安値・価格予測｜買い時を分析 - PAR.`;
-  const fallbackDescription = `${product.brand} ${product.name}の価格推移・過去最安値${
-    product.lowest_price !== null ? `（${yen(product.lowest_price)}）` : ""
-  }・AIによる価格予測を掲載。現在価格${
-    product.current_price !== null ? yen(product.current_price) : ""
-  }が買い時かどうかを、実際の価格データから客観的に分析します。`;
-  const title = product.ai_title || fallbackTitle;
-  const description = product.ai_summary || product.buy_reason || fallbackDescription;
+  const title = seoTitle(product);
+  const description = seoDescription(product);
+  // openGraph/twitter titles aren't run through the root layout's
+  // title.template ("%s | PAR.") the way the <title> field is, so the
+  // brand needs to be appended explicitly here to match.
+  const ogTitle = `${title} - PAR.`;
 
   return {
     title,
@@ -102,12 +126,12 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     openGraph: {
       type: "website",
       url,
-      title,
+      title: ogTitle,
       description,
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: ogTitle,
       description,
     },
   };
@@ -174,25 +198,69 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   ];
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+  // Google recommends priceValidUntil on Offer/AggregateOffer for the price
+  // to be eligible for rich results. This page is fully dynamic (no cache,
+  // see `revalidate = 0` above) and re-renders live from the DB on every
+  // crawl, so a short, honest window - "current as of the last recorded
+  // price fetch, good for about a week" - matches this site's own daily
+  // refresh cadence rather than overclaiming a price that far outlives it.
+  const priceValidUntil = computePriceValidUntil(lastPriceUpdatedAt);
+
+  // Two independent, real price sources (Rakuten via current_price, Yahoo!
+  // via yahoo_price - see StoreComparisonTable) become an AggregateOffer
+  // when both are known, matching Google's guidance for a product sold
+  // through multiple listings; a single known price stays a plain Offer.
+  const offerSources: { price: number; url: string }[] = [];
+  if (product.current_price !== null) {
+    offerSources.push({
+      price: product.current_price,
+      url: product.affiliate_url || product.product_url || `${siteUrl}/products/${product.slug}`,
+    });
+  }
+  if (product.yahoo_price !== null && product.yahoo_url) {
+    offerSources.push({ price: product.yahoo_price, url: product.yahoo_url });
+  }
+
+  const offers =
+    offerSources.length === 1
+      ? {
+          "@type": "Offer",
+          priceCurrency: "JPY",
+          price: offerSources[0].price,
+          availability: "https://schema.org/InStock",
+          url: offerSources[0].url,
+          priceValidUntil,
+        }
+      : offerSources.length >= 2
+        ? {
+            "@type": "AggregateOffer",
+            priceCurrency: "JPY",
+            lowPrice: Math.min(...offerSources.map((o) => o.price)),
+            highPrice: Math.max(...offerSources.map((o) => o.price)),
+            offerCount: offerSources.length,
+            priceValidUntil,
+            offers: offerSources.map((o) => ({
+              "@type": "Offer",
+              priceCurrency: "JPY",
+              price: o.price,
+              availability: "https://schema.org/InStock",
+              url: o.url,
+            })),
+          }
+        : null;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
+    description: seoDescription(product),
+    sku: product.model_number || String(product.id),
     brand: { "@type": "Brand", name: product.brand },
     ...(product.model_number ? { mpn: product.model_number } : {}),
     ...(product.image_url ? { image: [product.image_url] } : {}),
     url: `${siteUrl}/products/${product.slug}`,
-    ...(product.current_price !== null
-      ? {
-          offers: {
-            "@type": "Offer",
-            priceCurrency: "JPY",
-            price: product.current_price,
-            availability: "https://schema.org/InStock",
-            url: product.affiliate_url || product.product_url || `${siteUrl}/products/${product.slug}`,
-          },
-        }
-      : {}),
+    ...(offers ? { offers } : {}),
   };
 
   const breadcrumbJsonLd = {

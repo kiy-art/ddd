@@ -49,9 +49,23 @@ export async function generateMetadata({
   const { category } = await params;
   const label = CATEGORY_LABELS[category];
   if (!label) return {};
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const url = `${siteUrl}/category/${category}`;
+  // No manual "- PAR." suffix here: the root layout's title.template
+  // ("%s | PAR.") already appends it to the <title> field. openGraph/
+  // twitter titles aren't covered by that template, so they get it added
+  // explicitly below.
+  const title = `${label}の最安値・買い時ランキング｜価格推移を比較`;
+  const description = `${label}の価格推移と過去最安値をもとに、今が買い時の${label}をAIが判定。値下がりしやすい時期の目安も掲載しています。`;
+  const ogTitle = `${title} - PAR.`;
+
   return {
-    title: `${label}の買い時商品一覧`,
-    description: `${label}の価格推移と買い時判定を一覧で確認できます。`,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { type: "website", url, title: ogTitle, description },
+    twitter: { card: "summary_large_image", title: ogTitle, description },
   };
 }
 

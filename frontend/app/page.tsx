@@ -7,8 +7,9 @@ import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
 import Newsletter from "@/components/Newsletter";
 import ProductCard from "@/components/ProductCard";
-import { BUY_SCORE_LABELS, getProducts } from "@/lib/api";
+import { BUY_SCORE_LABELS, Product, getProducts } from "@/lib/api";
 import { computeDeals } from "@/lib/deals";
+import { getFallbackValueScore } from "@/lib/fallbackScore";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -52,7 +53,36 @@ export default async function Home({
     ? Math.round((withPct.reduce((sum, p) => sum + (p.price_change_percent ?? 0), 0) / withPct.length) * 10) / 10
     : null;
 
-  const bestBuy = allProducts.slice(0, 5);
+  // "AIが選んだ、今日の買い時" needs to actually be ranked, not an arbitrary
+  // slice of whatever order the API returned. Real price-history-backed
+  // picks (strong_buy/buy with enough history) come first; when the
+  // catalog doesn't yet have 5 of those (still common while price history
+  // is thin - see lib/fallbackScore.ts), the remaining slots are filled by
+  // the same real MSRP-based fallback score the product page itself falls
+  // back to, ranked the same way - never an arbitrary pad.
+  const BEST_BUY_COUNT = 5;
+  const reliableBestBuy = allProducts
+    .filter((p) => (p.buy_score === "strong_buy" || p.buy_score === "buy") && p.history_span_days >= THIN_DATA_DAYS)
+    .sort((a, b) => (b.buy_signal_score ?? 0) - (a.buy_signal_score ?? 0));
+
+  let bestBuy: Product[] = reliableBestBuy.slice(0, BEST_BUY_COUNT);
+  if (bestBuy.length < BEST_BUY_COUNT) {
+    const usedIds = new Set(bestBuy.map((p) => p.id));
+    const fallbackRanked = allProducts
+      .filter((p) => !usedIds.has(p.id))
+      .map((p) => ({
+        product: p,
+        fallback: getFallbackValueScore({ msrp: p.msrp, current_price: p.current_price, release_date: p.release_date }),
+      }))
+      .filter(
+        (entry): entry is { product: Product; fallback: NonNullable<ReturnType<typeof getFallbackValueScore>> } =>
+          entry.fallback !== null
+      )
+      .sort((a, b) => b.fallback.score - a.fallback.score)
+      .map((entry) => entry.product);
+    bestBuy = [...bestBuy, ...fallbackRanked].slice(0, BEST_BUY_COUNT);
+  }
+
   const topDeals = computeDeals(allProducts).slice(0, 3);
   const popularAndDropping = allProducts
     .filter((p) => {
