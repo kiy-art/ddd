@@ -9,6 +9,20 @@ CATEGORIES = ["driver", "iron", "wedge", "putter", "ball"]
 
 BUY_SCORES = ["strong_buy", "buy", "neutral", "not_buy", "insufficient_data"]
 
+# The manufacturer's own stated target skill level for this specific model
+# (e.g. PING explicitly markets G440 MAX as its most forgiving/beginner-
+# friendly driver in the line, and G440 LST as a lower-spin better-player
+# model) - researched per product from official product pages/press
+# releases, never inferred from price or guessed. "all_levels" is for a
+# model a manufacturer explicitly positions as broadly suitable, not a
+# default for "unresearched" (that's None).
+SKILL_LEVELS = ["beginner", "all_levels", "advanced"]
+
+# Likewise the manufacturer's own stated performance emphasis for this
+# model within its lineup (a "MAX"/forgiveness variant vs an "LS"/low-spin
+# distance variant vs a "Tour"/control-shaping variant, etc).
+PERFORMANCE_TYPES = ["distance", "forgiveness", "control", "balanced"]
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -31,6 +45,15 @@ class Product(Base):
     # (which can itself already be a discounted price).
     msrp: Mapped[int | None] = mapped_column(Integer, nullable=True)
     release_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+
+    # Manufacturer-stated lineup positioning (see SKILL_LEVELS/PERFORMANCE_TYPES
+    # above) and whether this is still the brand's current model in this
+    # category as of when it was last checked - all three researched facts,
+    # None meaning "not researched yet", never a guess from price/specs we
+    # don't actually have.
+    skill_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    performance_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    is_current_generation: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     # Rakuten Ichiba's own real-time bestseller rank for this product's
     # category (see app/popularity.py) - refreshed on every sync, and

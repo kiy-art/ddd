@@ -42,6 +42,9 @@ ADDED_COLUMNS = [
     ("products", "release_date", "DATE"),
     ("products", "popularity_rank", "INTEGER"),
     ("products", "popularity_updated_at", "TIMESTAMP"),
+    ("products", "skill_level", "VARCHAR(20)"),
+    ("products", "performance_type", "VARCHAR(20)"),
+    ("products", "is_current_generation", "BOOLEAN"),
 ]
 
 

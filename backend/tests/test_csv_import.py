@@ -41,6 +41,23 @@ Qi35 Driver,TaylorMade,driver,Qi35,85000,https://example.com/qi35,,99000,2025-02
     assert product.release_date.isoformat() == "2025-02-07"
 
 
+def test_positioning_facts_are_optional_and_set_on_create(db_session):
+    csv_with_facts = (
+        b"product_name,brand,category,model_number,price,product_url,image_url,"
+        b"skill_level,performance_type,is_current_generation\n"
+        b"G440 MAX Driver,PING,driver,G440 MAX,75000,https://example.com/g440max,,"
+        b"beginner,forgiveness,true\n"
+    )
+    result = import_csv(db_session, csv_with_facts)
+    assert result.created_products == 1
+
+    product = crud.find_product_by_identity(db_session, "G440 MAX Driver", "PING", "G440 MAX")
+    assert product is not None
+    assert product.skill_level == "beginner"
+    assert product.performance_type == "forgiveness"
+    assert product.is_current_generation is True
+
+
 def test_missing_required_columns_returns_error():
     class _FakeDb:
         def add(self, *a, **k):

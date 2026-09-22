@@ -30,6 +30,22 @@ const emptyForm = {
   initial_price: "",
   msrp: "",
   release_date: "",
+  skill_level: "",
+  performance_type: "",
+  is_current_generation: "",
+};
+
+const SKILL_LEVEL_LABELS: Record<string, string> = {
+  beginner: "初心者向け",
+  all_levels: "オールレベル",
+  advanced: "上級者向け",
+};
+
+const PERFORMANCE_TYPE_LABELS: Record<string, string> = {
+  distance: "飛距離重視",
+  forgiveness: "やさしさ重視",
+  control: "操作性重視",
+  balanced: "バランス型",
 };
 
 export default function AdminProductsPage() {
@@ -125,6 +141,9 @@ export default function AdminProductsPage() {
         initial_price: form.initial_price ? Number(form.initial_price) : undefined,
         msrp: form.msrp ? Number(form.msrp) : undefined,
         release_date: form.release_date || undefined,
+        skill_level: form.skill_level || undefined,
+        performance_type: form.performance_type || undefined,
+        is_current_generation: form.is_current_generation ? form.is_current_generation === "true" : undefined,
       });
       setForm(emptyForm);
       await load();
@@ -187,6 +206,24 @@ export default function AdminProductsPage() {
           type="date"
           value={form.release_date}
           onChange={(v) => setForm({ ...form, release_date: v })}
+        />
+        <SelectField
+          label="対象スキルレベル"
+          value={form.skill_level}
+          options={SKILL_LEVEL_LABELS}
+          onChange={(v) => setForm({ ...form, skill_level: v })}
+        />
+        <SelectField
+          label="性能タイプ"
+          value={form.performance_type}
+          options={PERFORMANCE_TYPE_LABELS}
+          onChange={(v) => setForm({ ...form, performance_type: v })}
+        />
+        <SelectField
+          label="現行モデルか"
+          value={form.is_current_generation}
+          options={{ true: "現行モデル", false: "型落ちモデル" }}
+          onChange={(v) => setForm({ ...form, is_current_generation: v })}
         />
         {error && <p className="col-span-full text-sm text-red-600">{error}</p>}
         <button
@@ -297,6 +334,36 @@ function Field({
   );
 }
 
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Record<string, string>;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      {label}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+      >
+        <option value="">未設定</option>
+        {Object.entries(options).map(([v, label2]) => (
+          <option key={v} value={v}>
+            {label2}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function ProductRow({
   product,
   token,
@@ -328,6 +395,9 @@ function ProductRow({
     affiliate_url: product.affiliate_url ?? "",
     msrp: product.msrp !== null ? String(product.msrp) : "",
     release_date: product.release_date ?? "",
+    skill_level: product.skill_level ?? "",
+    performance_type: product.performance_type ?? "",
+    is_current_generation: product.is_current_generation === null ? "" : String(product.is_current_generation),
   });
 
   useEffect(() => {
@@ -348,6 +418,9 @@ function ProductRow({
       affiliate_url: edit.affiliate_url || undefined,
       msrp: edit.msrp ? Number(edit.msrp) : null,
       release_date: edit.release_date || null,
+      skill_level: edit.skill_level || null,
+      performance_type: edit.performance_type || null,
+      is_current_generation: edit.is_current_generation ? edit.is_current_generation === "true" : null,
     });
     onChanged();
   };
@@ -456,6 +529,24 @@ function ProductRow({
               type="date"
               value={edit.release_date}
               onChange={(v) => setEdit({ ...edit, release_date: v })}
+            />
+            <SelectField
+              label="対象スキルレベル"
+              value={edit.skill_level}
+              options={SKILL_LEVEL_LABELS}
+              onChange={(v) => setEdit({ ...edit, skill_level: v })}
+            />
+            <SelectField
+              label="性能タイプ"
+              value={edit.performance_type}
+              options={PERFORMANCE_TYPE_LABELS}
+              onChange={(v) => setEdit({ ...edit, performance_type: v })}
+            />
+            <SelectField
+              label="現行モデルか"
+              value={edit.is_current_generation}
+              options={{ true: "現行モデル", false: "型落ちモデル" }}
+              onChange={(v) => setEdit({ ...edit, is_current_generation: v })}
             />
           </div>
           <div className="flex gap-2">

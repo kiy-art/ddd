@@ -1,27 +1,36 @@
-brand,model_number,msrp,release_date
-TaylorMade,Qi35,99000,2025-02-07
-Callaway,ELYTE MAX FAST,,2025-02-07
-Titleist,GT2,,2024-08-23
-Cobra,DARKSPEED MAX,,2024-03-09
-Srixon,ZX7 Mk II,81400,2022-11-19
-PXG,0311 GEN6,,2023-04-07
-Mizuno,ST-X 230,92400,2023-03-10
-Yonex,EZONE GT TYPE S,96800,2024-04-01
-PING,i230,,2023-01-19
-Titleist,T100,165000,2023-08-25
-Mizuno,JPX 925 Forged,,2024-09-13
-XXIO,XXIO13,,2023-12-09
-Honma,TW777 PCB MAX,,2025-11-28
-Callaway,APEX PRO 24,,2024-09-29
-Cobra,KING TOUR,165000,2023-02-11
-Miura,IC-602,,2024-04-12
-Cleveland,RTZ,24200,2025-02-08
-Callaway,OPUS Chrome,29700,2024-09-13
-Titleist,Vokey SM10,,2024-03-08
-PING,Glide 4.0,,2022-05-13
-Mizuno,T24,24200,2023-09-15
-Honma,TW-W,,2024-03-22
-Fourteen,FR-5,,2025-05-17
-Scotty Cameron,Studio Style Newport 2,82500,2025-03-14
-Odyssey,Ai-ONE #2,46200,2024-02-16
-Titleist,Pro V1 2025,,2025-02-05
+brand,model_number,msrp,release_date,skill_level,performance_type,is_current_generation
+TaylorMade,Qi35,99000,2025-02-07,,,
+Callaway,ELYTE MAX FAST,,2025-02-07,,,
+Titleist,GT2,,2024-08-23,,,true
+Cobra,DARKSPEED MAX,,2024-03-09,,,
+Srixon,ZX7 Mk II,81400,2022-11-19,,,
+PXG,0311 GEN6,,2023-04-07,,,
+Mizuno,ST-X 230,92400,2023-03-10,,,
+Yonex,EZONE GT TYPE S,96800,2024-04-01,,,true
+PING,i230,,2023-01-19,,,false
+Titleist,T100,165000,2023-08-25,,,
+Mizuno,JPX 925 Forged,,2024-09-13,,,
+XXIO,XXIO13,,2023-12-09,,,
+Honma,TW777 PCB MAX,,2025-11-28,beginner,forgiveness,
+Callaway,APEX PRO 24,,2024-09-29,advanced,control,
+Cobra,KING TOUR,165000,2023-02-11,advanced,control,
+Miura,IC-602,,2024-04-12,all_levels,forgiveness,
+Cleveland,RTZ,24200,2025-02-08,all_levels,control,
+Callaway,OPUS Chrome,29700,2024-09-13,,control,
+Titleist,Vokey SM10,,2024-03-08,advanced,control,
+PING,Glide 4.0,,2022-05-13,all_levels,balanced,
+Mizuno,T24,24200,2023-09-15,advanced,control,
+Honma,TW-W,,2024-03-22,all_levels,forgiveness,
+Fourteen,FR-5,,2025-05-17,all_levels,balanced,
+Scotty Cameron,Studio Style Newport 2,82500,2025-03-14,,,
+Odyssey,Ai-ONE #2,46200,2024-02-16,all_levels,forgiveness,
+Titleist,Pro V1 2025,,2025-02-05,all_levels,balanced,
+Bridgestone,TOUR B X,,,,distance,
+TaylorMade,Spider Tour,,,all_levels,forgiveness,
+PING,PLD Milled Anser,,,advanced,control,
+Callaway,Chrome Soft,,,all_levels,distance,
+Srixon,Z-STAR,,,,control,
+L.A.B Golf,DF3,,2024-02-01,all_levels,forgiveness,
+Titleist,Pro V1x,,,,control,
+Bettinardi,Studio Stock 16,,,,control,
+Wilson,Staff Model,,,,control,

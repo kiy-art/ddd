@@ -16,7 +16,7 @@ import SeasonalTrend from "@/components/SeasonalTrend";
 import TrackedCta from "@/components/TrackedCta";
 import TrackViewed from "@/components/TrackViewed";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
-import { getPopularityBadge, getProductBadge } from "@/lib/badges";
+import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
 
 export const revalidate = 0;
 
@@ -104,6 +104,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
   const badge = getProductBadge(product);
   const popularityBadge = getPopularityBadge(product);
+  const positioningFacts = getPositioningFacts(product);
   const msrpPct =
     product.msrp !== null && product.current_price !== null
       ? Math.round(((product.current_price - product.msrp) / product.msrp) * 1000) / 10
@@ -230,6 +231,18 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   <p className="mt-1 text-xs text-foreground/40">
                     発売日 {new Date(product.release_date).toLocaleDateString("ja-JP")}
                   </p>
+                )}
+                {positioningFacts.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {positioningFacts.map((fact) => (
+                      <span
+                        key={fact.label}
+                        className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground/60"
+                      >
+                        {fact.label}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">

@@ -9,7 +9,7 @@ import FavoriteButton from "@/components/FavoriteButton";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
-import { getPopularityBadge, getProductBadge } from "@/lib/badges";
+import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
 
 // See app/products/[slug]/page.tsx for why this threshold exists: a
 // "30-day average" claim needs more than a day or two of real data behind it.
@@ -47,6 +47,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
   // would leave the reader to notice the coincidence themselves.
   const isDiscounted = (msrpPct !== null && msrpPct < 0) || (pct !== null && pct < 0);
   const isPopularAndDropping = popularityBadge !== null && isDiscounted;
+  const positioningFacts = getPositioningFacts(product);
 
   return (
     <Link
@@ -107,6 +108,18 @@ export default function ProductCard({ product, listSource }: { product: Product;
             <h3 className="mt-1 line-clamp-2 font-display text-lg font-medium leading-snug text-foreground">
               {product.name}
             </h3>
+            {positioningFacts.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {positioningFacts.slice(0, 2).map((fact) => (
+                  <span
+                    key={fact.label}
+                    className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-foreground/55"
+                  >
+                    {fact.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <AiBuySignal
             buyScore={product.buy_score}

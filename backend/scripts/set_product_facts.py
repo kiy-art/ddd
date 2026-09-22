@@ -1,5 +1,7 @@
-"""Backfills msrp/release_date onto existing products from a hand-researched
-CSV (brand,model_number,msrp,release_date - either value may be blank).
+"""Backfills msrp/release_date/skill_level/performance_type/is_current_generation
+onto existing products from a hand-researched CSV (brand,model_number,msrp,
+release_date,skill_level,performance_type,is_current_generation - any value
+may be blank).
 
 These are manually-curated facts (see the comment on Product.msrp), so this
 never overwrites a value that's already set - not by this script on a
@@ -43,6 +45,12 @@ def main():
                     if row.get("release_date", "").strip()
                     else None
                 )
+                skill_level = row.get("skill_level", "").strip() or None
+                performance_type = row.get("performance_type", "").strip() or None
+                is_current_generation_raw = row.get("is_current_generation", "").strip().lower()
+                is_current_generation = (
+                    is_current_generation_raw in ("true", "1", "yes") if is_current_generation_raw else None
+                )
 
                 products = list(
                     db.execute(
@@ -63,6 +71,15 @@ def main():
                         changed = True
                     if release_date is not None and product.release_date is None:
                         product.release_date = release_date
+                        changed = True
+                    if skill_level is not None and product.skill_level is None:
+                        product.skill_level = skill_level
+                        changed = True
+                    if performance_type is not None and product.performance_type is None:
+                        product.performance_type = performance_type
+                        changed = True
+                    if is_current_generation is not None and product.is_current_generation is None:
+                        product.is_current_generation = is_current_generation
                         changed = True
                     if changed:
                         matched += 1

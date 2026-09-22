@@ -16,6 +16,9 @@ export interface Product {
   affiliate_url: string | null;
   msrp: number | null;
   release_date: string | null;
+  skill_level: string | null;
+  performance_type: string | null;
+  is_current_generation: boolean | null;
   popularity_rank: number | null;
   popularity_updated_at: string | null;
   current_price: number | null;
@@ -212,6 +215,9 @@ export function adminCreateProduct(
     initial_price?: number;
     msrp?: number;
     release_date?: string;
+    skill_level?: string;
+    performance_type?: string;
+    is_current_generation?: boolean;
   }
 ) {
   return apiFetch<Product>(`/api/admin/products`, {

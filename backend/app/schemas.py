@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
-from app.models import BUY_SCORES, CATEGORIES
+from app.models import BUY_SCORES, CATEGORIES, PERFORMANCE_TYPES, SKILL_LEVELS
 
 
 class PriceHistoryOut(BaseModel):
@@ -25,6 +25,9 @@ class ProductBase(BaseModel):
     affiliate_url: str | None = None
     msrp: int | None = None
     release_date: datetime.date | None = None
+    skill_level: str | None = Field(default=None, pattern="^(" + "|".join(SKILL_LEVELS) + ")$")
+    performance_type: str | None = Field(default=None, pattern="^(" + "|".join(PERFORMANCE_TYPES) + ")$")
+    is_current_generation: bool | None = None
 
 
 class ProductCreate(ProductBase):
@@ -42,6 +45,9 @@ class ProductUpdate(BaseModel):
     affiliate_url: str | None = None
     msrp: int | None = None
     release_date: datetime.date | None = None
+    skill_level: str | None = Field(default=None, pattern="^(" + "|".join(SKILL_LEVELS) + ")$")
+    performance_type: str | None = Field(default=None, pattern="^(" + "|".join(PERFORMANCE_TYPES) + ")$")
+    is_current_generation: bool | None = None
 
 
 class ProductOut(ProductBase):
