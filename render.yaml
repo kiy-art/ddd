@@ -28,6 +28,10 @@ services:
         value: claude-sonnet-5
       - key: CORS_ORIGINS
         sync: false
+      - key: RAKUTEN_APP_ID
+        sync: false
+      - key: RAKUTEN_ACCESS_KEY
+        sync: false
       - key: RAKUTEN_AFFILIATE_ID
         sync: false
       - key: YAHOO_CLIENT_ID
