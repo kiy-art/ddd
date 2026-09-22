@@ -30,7 +30,12 @@ export default function PriceForecast({ product }: { product: Product }) {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
-      <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">🔮 Price Forecast</span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">🔮 Price Forecast</span>
+        <span className="rounded-full bg-accent-dark px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+          FORECAST
+        </span>
+      </div>
       <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">価格予測</h2>
 
       {!hasForecast ? (
@@ -55,15 +60,24 @@ function ForecastBody({ product }: { product: Product }) {
   const forecastCenter = product.forecast_center_price!;
 
   let waitMessage: string | null = null;
+  let diffCallout: { amount: number; percent: number; direction: "down" | "up" } | null = null;
   if (current !== null) {
     if (product.forecast_trend === "down") {
       const min = Math.max(0, current - forecastHigh);
       const max = Math.max(0, current - forecastLow);
       waitMessage = `待った場合、約${yen(min)}〜${yen(max)}安くなる可能性があります。`;
+      const amount = current - forecastCenter;
+      if (amount > 0) {
+        diffCallout = { amount, percent: Math.round((amount / current) * 100), direction: "down" };
+      }
     } else if (product.forecast_trend === "up") {
       const min = Math.max(0, forecastLow - current);
       const max = Math.max(0, forecastHigh - current);
       waitMessage = `待つと約${yen(min)}〜${yen(max)}高くなる可能性があります。今のうちの購入も選択肢です。`;
+      const amount = forecastCenter - current;
+      if (amount > 0) {
+        diffCallout = { amount, percent: Math.round((amount / current) * 100), direction: "up" };
+      }
     } else {
       waitMessage = "大きな価格変動は予測されていません。";
     }
@@ -101,33 +115,54 @@ function ForecastBody({ product }: { product: Product }) {
 
       {reasons.length > 0 && (
         <div>
-          <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">予測の根拠</span>
-          <ul className="mt-2 flex flex-col gap-1.5 text-sm text-foreground/60">
+          <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">🔮 予測の根拠</span>
+          <ol className="mt-2 flex flex-col gap-2 text-sm text-foreground/60">
             {reasons.map((reason, i) => (
-              <li key={i} className="flex gap-2">
-                <span className="text-foreground/30">・</span>
+              <li key={i} className="flex gap-2.5">
+                <span className="shrink-0 font-display text-xs font-semibold text-accent-dark">
+                  {["①", "②", "③", "④", "⑤"][i] ?? `${i + 1}.`}
+                </span>
                 <span>{reason}</span>
               </li>
             ))}
-          </ul>
+          </ol>
         </div>
       )}
 
       {current !== null && (
         <div className="rounded-xl border border-border bg-background p-5">
-          <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">
-            今買う / 待つ
-          </span>
-          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <span className="text-xs text-foreground/45">今買う場合</span>
-              <p className="mt-1 font-display text-xl font-semibold text-foreground">現在価格 {yen(current)}</p>
+          <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">今買う vs 待つ</span>
+
+          {diffCallout && (
+            <div className="mt-3 flex items-baseline gap-3 rounded-lg bg-card px-4 py-3">
+              <span className="text-xs text-foreground/45">予測される差額</span>
+              <span className="font-display text-2xl font-semibold text-foreground">{yen(diffCallout.amount)}</span>
+              <span className={`text-sm font-semibold ${diffCallout.direction === "down" ? "text-brand dark:text-brand-light" : "text-foreground/60"}`}>
+                約{diffCallout.percent}%{diffCallout.direction === "down" ? "安くなる" : "高くなる"}可能性
+              </span>
             </div>
-            <div>
-              <span className="text-xs text-foreground/45">待つ場合の予測</span>
+          )}
+
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <span className="text-xs font-semibold text-foreground/50">今購入する場合</span>
+              <p className="mt-1 font-display text-xl font-semibold text-foreground">{yen(current)}</p>
+              <ul className="mt-2 flex flex-col gap-1 text-xs text-foreground/55">
+                <li>・在庫があり、すぐに購入できる</li>
+                <li>・希望のスペック（色・サイズ等）を確保しやすい</li>
+                <li>・価格が下がる保証を待つ必要がない</li>
+              </ul>
+            </div>
+            <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
+              <span className="text-xs font-semibold text-foreground/50">価格低下を待つ場合</span>
               <p className="mt-1 font-display text-xl font-semibold text-foreground">
                 {yen(forecastLow)}〜{yen(forecastHigh)}
               </p>
+              <ul className="mt-2 flex flex-col gap-1 text-xs text-foreground/55">
+                <li>・価格が下がる保証はない（あくまで予測）</li>
+                <li>・在庫切れ・希望スペック終売の可能性がある</li>
+                <li>・待っている間はプレーに使えない</li>
+              </ul>
             </div>
           </div>
           {waitMessage && <p className="mt-3 text-sm leading-relaxed text-foreground/60">{waitMessage}</p>}
@@ -137,18 +172,21 @@ function ForecastBody({ product }: { product: Product }) {
         </div>
       )}
 
-      <details className="rounded-xl border border-border bg-background px-4 py-3 text-xs leading-relaxed text-foreground/50">
-        <summary className="cursor-pointer font-medium text-foreground/60">この予測について</summary>
+      <div className="rounded-xl border border-border bg-background px-4 py-4 text-xs leading-relaxed text-foreground/50">
+        <p className="font-medium text-foreground/60">この価格予測について</p>
         <ul className="mt-2 flex flex-col gap-1">
-          <li>・この商品の過去の価格データ（実績）のみを基にした傾向分析です。</li>
-          <li>・モデルチェンジ時期や季節ごとの傾向は、十分なデータが蓄積され次第、分析に加える予定です（現時点では未使用）。</li>
-          <li>・将来の価格を保証するものではなく、実際の価格は在庫状況や市場動向により変動します。</li>
+          <li>・この商品自身の過去の価格データ（実績）のみを基にした機械的な傾向分析であり、AIが自由に判断したものではありません。</li>
+          <li>・将来価格を保証するものではありません。</li>
+          <li>・市場状況によって実際の価格は大きく変動する可能性があります。</li>
+          <li>・後継モデルの発売時期など、メーカーの発売予定が変更される可能性があります。</li>
+          <li>・在庫状況によって価格が変わる場合があります。</li>
+          <li>・モデルチェンジ周期や季節ごとの傾向は、商品固有のデータとしては十分に蓄積され次第、分析に加える予定です（現時点では商品固有の予測には未使用）。</li>
           <li>・公式のメーカー発表に基づく情報ではありません。</li>
         </ul>
         <Link href="/guides/how-to-read-price-forecast" className="mt-2 inline-block font-medium text-brand hover:underline">
           価格予測の詳しい見方はこちら →
         </Link>
-      </details>
+      </div>
     </div>
   );
 }

@@ -6,10 +6,12 @@ export default function FadeIn({
   children,
   delay = 0,
   className,
+  id,
 }: {
   children: React.ReactNode;
   delay?: number;
   className?: string;
+  id?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -34,6 +36,7 @@ export default function FadeIn({
   return (
     <div
       ref={ref}
+      id={id}
       className={`${visible ? "animate-fade-up" : "opacity-0"} ${className ?? ""}`}
       style={visible ? { animationDelay: `${delay}ms` } : undefined}
     >

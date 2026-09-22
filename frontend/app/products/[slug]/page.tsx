@@ -6,13 +6,18 @@ import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
 import CompareButton from "@/components/CompareButton";
 import CompareStrip from "@/components/CompareStrip";
+import DataSourceNote from "@/components/DataSourceNote";
 import FadeIn from "@/components/FadeIn";
 import FavoriteButton from "@/components/FavoriteButton";
 import MonthlyTrendChart from "@/components/MonthlyTrendChart";
+import PriceAlertForm from "@/components/PriceAlertForm";
 import PriceForecast from "@/components/PriceForecast";
-import PriceHistoryChart from "@/components/PriceHistoryChart";
+import PriceHistoryChartPanel from "@/components/PriceHistoryChartPanel";
+import PriceRangeBar from "@/components/PriceRangeBar";
+import PriceTimeline from "@/components/PriceTimeline";
+import ProductFAQ from "@/components/ProductFAQ";
 import SafeProductImage from "@/components/SafeProductImage";
-import SeasonalTrend from "@/components/SeasonalTrend";
+import StoreComparisonTable from "@/components/StoreComparisonTable";
 import TrackedCta from "@/components/TrackedCta";
 import TrackViewed from "@/components/TrackViewed";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
@@ -75,8 +80,18 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const url = `${siteUrl}/products/${product.slug}`;
-  const title = product.ai_title || `${product.name}の価格推移・買い時｜PAR.`;
-  const description = product.ai_summary || product.buy_reason || product.name;
+  // A deterministic, search-intent-matched fallback (price / lowest price /
+  // forecast / buy-time) so every product gets a strong title even before
+  // ai_title has been generated for it - ai_title, when present, still wins.
+  const modelPart = product.model_number ? ` ${product.model_number}` : "";
+  const fallbackTitle = `${product.brand} ${product.name}${modelPart}の価格推移・最安値・価格予測｜買い時を分析 - PAR.`;
+  const fallbackDescription = `${product.brand} ${product.name}の価格推移・過去最安値${
+    product.lowest_price !== null ? `（${yen(product.lowest_price)}）` : ""
+  }・AIによる価格予測を掲載。現在価格${
+    product.current_price !== null ? yen(product.current_price) : ""
+  }が買い時かどうかを、実際の価格データから客観的に分析します。`;
+  const title = product.ai_title || fallbackTitle;
+  const description = product.ai_summary || product.buy_reason || fallbackDescription;
 
   return {
     title,
@@ -113,6 +128,24 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
     hasReliableTrend &&
     product.price_change_percent !== null &&
     product.price_change_percent <= CAUTION_DISCOUNT_PERCENT;
+
+  // The API only ever sends us the all-time low (lowest_price) and 30-day
+  // average (average_price), not an all-time high - but the full
+  // price_history array is already on the page, so the high is a real
+  // derived value from real data, not a guess (see PriceRangeBar).
+  const highestPrice =
+    product.price_history.length > 0
+      ? Math.max(...product.price_history.map((h) => h.price), product.current_price ?? 0)
+      : product.current_price;
+  const hasFullRange =
+    hasReliableTrend &&
+    product.lowest_price !== null &&
+    product.average_price !== null &&
+    highestPrice !== null &&
+    product.current_price !== null;
+
+  const lastPriceUpdatedAt =
+    product.price_history.length > 0 ? product.price_history[product.price_history.length - 1].recorded_at : null;
 
   let categoryProducts: Product[] = [];
   try {
@@ -262,6 +295,12 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 size="lg"
               />
               <div className="flex flex-col gap-1 border-l border-border pl-6">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
+                    FACT
+                  </span>
+                  <span className="text-xs text-foreground/40">現在価格</span>
+                </div>
                 <span className="font-display text-4xl font-semibold text-foreground">
                   {yen(product.current_price)}
                 </span>
@@ -305,6 +344,15 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 </p>
               )}
             </div>
+
+            {hasFullRange && (
+              <PriceRangeBar
+                low={product.lowest_price!}
+                average={product.average_price!}
+                high={highestPrice!}
+                current={product.current_price!}
+              />
+            )}
 
             <dl className={`grid gap-4 text-xs text-foreground/45 ${product.msrp !== null ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
               {product.msrp !== null && (
@@ -374,6 +422,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   </TrackedCta>
                 )}
               </div>
+              <a href="#store-comparison" className="text-center text-xs font-semibold text-brand hover:underline">
+                他の販売価格を比較する ↓
+              </a>
               {product.affiliate_url && (
                 <p className="text-xs text-foreground/35">
                   ※広告・PRを含みます。上記リンクにはアフィリエイトリンクが含まれる場合があり、リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
@@ -385,8 +436,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
         {compareProducts.length >= 2 && (
           <FadeIn className="mt-10">
-            <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Compare</span>
-            <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">同じカテゴリの候補と比較</h2>
+            <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Related</span>
+            <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">関連商品・同じカテゴリの候補と比較</h2>
             <div className="mt-6">
               <CompareStrip products={compareProducts} currentId={product.id} />
             </div>
@@ -394,10 +445,15 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         )}
 
         <FadeIn className="mt-16 rounded-2xl border border-border bg-card p-6 sm:p-10">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Price History</span>
-          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">直近の価格推移</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Price History</span>
+            <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
+              FACT
+            </span>
+          </div>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">価格推移チャート</h2>
           <div className="mt-8">
-            <PriceHistoryChart
+            <PriceHistoryChartPanel
               history={product.price_history}
               forecast={
                 product.forecast_center_price !== null &&
@@ -412,6 +468,12 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     }
                   : null
               }
+              referenceLines={[
+                ...(product.lowest_price !== null ? [{ label: "過去最安", value: product.lowest_price }] : []),
+                ...(hasReliableTrend && product.average_price !== null
+                  ? [{ label: "過去平均", value: product.average_price }]
+                  : []),
+              ]}
             />
           </div>
         </FadeIn>
@@ -421,7 +483,12 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         </FadeIn>
 
         <FadeIn className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-10">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Long-Term Trend</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Long-Term Trend</span>
+            <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
+              FACT
+            </span>
+          </div>
           <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">長期価格推移（月次・最大3年）</h2>
           <div className="mt-8">
             <MonthlyTrendChart history={product.price_history} />
@@ -429,7 +496,15 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         </FadeIn>
 
         <FadeIn className="mt-10">
-          <SeasonalTrend category={product.category} />
+          <PriceTimeline product={product} />
+        </FadeIn>
+
+        <FadeIn id="store-comparison" className="mt-10 scroll-mt-20">
+          <StoreComparisonTable product={product} lastUpdatedAt={lastPriceUpdatedAt} />
+        </FadeIn>
+
+        <FadeIn className="mt-10">
+          <PriceAlertForm slug={product.slug} currentPrice={product.current_price} />
         </FadeIn>
 
         {product.ai_summary && product.ai_summary !== product.buy_reason && (
@@ -447,6 +522,14 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             ⚠ {product.ai_caution}
           </p>
         )}
+
+        <FadeIn className="mt-10">
+          <ProductFAQ product={product} />
+        </FadeIn>
+
+        <FadeIn className="mt-10">
+          <DataSourceNote />
+        </FadeIn>
       </div>
     </article>
   );

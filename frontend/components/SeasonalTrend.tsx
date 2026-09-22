@@ -16,13 +16,9 @@ export default function SeasonalTrend({ category }: { category: string }) {
   if (!note) return null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
-      <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
-        Seasonal Pattern
-      </span>
-      <h2 className="mt-2 font-display text-xl font-semibold text-foreground">
-        一般的な季節傾向
-      </h2>
+    <div>
+      <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Seasonal Pattern</span>
+      <h3 className="mt-2 font-display text-lg font-semibold text-foreground">一般的な季節傾向（カテゴリ全体）</h3>
       <p className="mt-3 text-sm leading-relaxed text-foreground/60">{note}</p>
       <p className="mt-4 text-xs text-foreground/35">
         ※これはこの商品固有の値下がり予測ではなく、ゴルフ業界全般の一般的な傾向に関する参考情報です。

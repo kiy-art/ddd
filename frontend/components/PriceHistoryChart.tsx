@@ -8,12 +8,23 @@ export interface ChartForecast {
   targetDate: string;
 }
 
+export interface ChartReferenceLine {
+  label: string;
+  value: number;
+}
+
 export default function PriceHistoryChart({
   history,
   forecast,
+  referenceLines,
 }: {
   history: PriceHistoryItem[];
   forecast?: ChartForecast | null;
+  // Fixed reference values (e.g. all-time low / all-time average) drawn as
+  // dashed lines - real facts, not derived from whatever window is
+  // currently visible, so they still make sense when a period filter (see
+  // PriceHistoryChartPanel) is showing only a recent slice of history.
+  referenceLines?: ChartReferenceLine[];
 }) {
   if (history.length < 2) {
     return (
@@ -37,7 +48,10 @@ export default function PriceHistoryChart({
   const xAt = (t: number) => padLeft + ((t - firstTime) / totalTime) * (width - padLeft - padRight);
 
   const prices = history.map((h) => h.price);
-  const rangeValues = forecast ? [...prices, forecast.lowPrice, forecast.highPrice] : prices;
+  const refValues = referenceLines?.map((r) => r.value) ?? [];
+  const rangeValues = forecast
+    ? [...prices, forecast.lowPrice, forecast.highPrice, ...refValues]
+    : [...prices, ...refValues];
   const min = Math.min(...rangeValues);
   const max = Math.max(...rangeValues);
   const range = max - min || 1;
@@ -103,6 +117,27 @@ export default function PriceHistoryChart({
               ¥{tick.price.toLocaleString("ja-JP")}
             </text>
           ))}
+
+          {referenceLines?.map((ref) => {
+            const y = yAt(ref.value);
+            return (
+              <g key={ref.label}>
+                <line
+                  x1={padLeft}
+                  x2={forecastX ?? width - padRight}
+                  y1={y}
+                  y2={y}
+                  stroke="var(--foreground)"
+                  strokeOpacity={0.25}
+                  strokeWidth={1}
+                  strokeDasharray="4 3"
+                />
+                <text x={width - padRight} y={y} dy={-4} textAnchor="end" fontSize={10} fill="var(--foreground)" opacity={0.4}>
+                  {ref.label} ¥{ref.value.toLocaleString("ja-JP")}
+                </text>
+              </g>
+            );
+          })}
 
           <path d={areaPath} fill="url(#price-area)" stroke="none" />
           <path
