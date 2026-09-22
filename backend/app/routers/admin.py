@@ -183,32 +183,70 @@ def fetch_rakuten(db: Session = Depends(get_db)):
             ),
         )
 
-    price_updated, price_skipped = pipeline.fetch_rakuten_prices(db)
+    # Every step below runs in its own try/except with a rollback on
+    # failure: this endpoint is the one thing the daily cron job calls, so
+    # one step blowing up (a network error, a malformed listing, Rakuten
+    # rate-limiting mid-run) must never take the later steps down with it -
+    # price-alert emails in particular are the most user-facing part of
+    # this job and run last, so they're the ones a partial failure earlier
+    # would otherwise silently cost. A bare rollback() is required, not
+    # optional, before the next step's queries: on Postgres, any query
+    # after an unhandled exception on the same session fails with
+    # "current transaction is aborted" until the session is rolled back.
+    price_updated, price_skipped = 0, 0
+    try:
+        price_updated, price_skipped = pipeline.fetch_rakuten_prices(db)
+    except Exception as exc:  # noqa: BLE001 - keep the rest of the job alive
+        db.rollback()
+        crud.create_error_log(db, source="price_fetch", message=f"Rakuten fetch failed: {exc}")
 
     # Yahoo is a second, optional price source (unlike Rakuten above, which
-    # this endpoint already requires) - only attempted when configured, and
-    # a failure here never blocks the rest of the daily job.
+    # this endpoint already requires) - only attempted when configured.
     yahoo_updated, yahoo_skipped = 0, 0
     if settings.yahoo_client_id:
         try:
             yahoo_updated, yahoo_skipped = pipeline.fetch_yahoo_prices(db)
         except Exception as exc:  # noqa: BLE001 - Yahoo failing shouldn't fail the whole job
+            db.rollback()
             crud.create_error_log(db, source="price_fetch", message=f"Yahoo fetch failed: {exc}")
 
-    products_discovered, candidates_considered = discovery.discover_new_products(db)
-    products_ranked, popularity_categories_checked = popularity.sync_popularity_rankings(db)
+    products_discovered, candidates_considered = 0, 0
+    try:
+        products_discovered, candidates_considered = discovery.discover_new_products(db)
+    except Exception as exc:  # noqa: BLE001 - discovery failing shouldn't fail the whole job
+        db.rollback()
+        crud.create_error_log(db, source="discovery", message=f"Discovery failed: {exc}")
+
+    products_ranked, popularity_categories_checked = 0, 0
+    try:
+        products_ranked, popularity_categories_checked = popularity.sync_popularity_rankings(db)
+    except Exception as exc:  # noqa: BLE001 - popularity sync failing shouldn't fail the whole job
+        db.rollback()
+        crud.create_error_log(db, source="popularity", message=f"Popularity sync failed: {exc}")
+
     analyzed = 0
     regenerated = 0
     for product in db.execute(select(models.Product)).scalars().all():
         analyzed += 1
-        if pipeline.sync_product_analysis(db, product):
-            regenerated += 1
+        try:
+            if pipeline.sync_product_analysis(db, product):
+                regenerated += 1
+        except Exception as exc:  # noqa: BLE001 - one product's analysis failing shouldn't stop the rest
+            db.rollback()
+            crud.create_error_log(
+                db, source="analysis", message=f"{product.name}: {exc}", product_id=product.id
+            )
 
     # Runs last, after every product's current_price is fresh for this
     # cycle - a no-op when RESEND_API_KEY isn't configured.
-    alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
+    alerts_sent, alerts_skipped = 0, 0
+    try:
+        alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
+    except Exception as exc:  # noqa: BLE001 - alert delivery failing shouldn't fail the whole job
+        db.rollback()
+        crud.create_error_log(db, source="price_alert_email", message=f"Price alert batch failed: {exc}")
 
-    return {
+    result = {
         "prices_updated": price_updated,
         "prices_skipped": price_skipped,
         "yahoo_prices_updated": yahoo_updated,
@@ -222,6 +260,27 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         "price_alerts_sent": alerts_sent,
         "price_alerts_skipped": alerts_skipped,
     }
+
+    # A single, always-added "job finished" summary - the most recent
+    # ErrorLog row (sorted by created_at desc in /admin/logs), so an admin
+    # can see at a glance that today's run actually completed and what it
+    # did, without needing to read GitHub Actions' own run history.
+    crud.create_error_log(
+        db,
+        source="daily_job",
+        level="info",
+        message=(
+            "日次更新ジョブ完了: "
+            f"楽天更新{price_updated}件/スキップ{price_skipped}件, "
+            f"Yahoo更新{yahoo_updated}件/スキップ{yahoo_skipped}件, "
+            f"新商品発見{products_discovered}件, "
+            f"人気ランキング反映{products_ranked}件, "
+            f"分析{analyzed}件中AI再生成{regenerated}件, "
+            f"値下がり通知送信{alerts_sent}件/スキップ{alerts_skipped}件"
+        ),
+    )
+
+    return result
 
 
 @router.post("/fetch-yahoo")

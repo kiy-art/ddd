@@ -1,6 +1,6 @@
 # AI会社 ガイドライン（システム設計書兼ルールブック）
 
-最終更新: 2026-09-22（ANALYZING/0日分フォールバック改善、Amazon検索リンク実装、Amazonアソシエイト申請状況を反映）
+最終更新: 2026-09-22（日次自動更新ジョブの堅牢化、Renderの無料Cronに関する誤解を訂正）
 
 このファイルは、AIアフィリエイト事業（現在: ゴルフ用品価格比較サイト「PAR.」、将来: 他ジャンルへの横展開）における絶対ルール・事業戦略・現在のシステム構造を記録する。今後のすべての意思決定はこのファイルを起点とする。
 
@@ -37,7 +37,8 @@
 - **フロントエンド**: Next.js（App Router）+ Tailwind CSS v4
 - **AI文章生成**: Anthropic Claude API（`app/ai.py`）— 事実の分析結果をもとに紹介文を生成するだけで、買い時判定そのものはルールベース（後述）
 - **デプロイ**: Render（`golf-deals-backend` / `golf-deals-frontend`、`render.yaml`で定義）
-- **日次バッチ**: GitHub Actions → `POST /api/admin/fetch-rakuten` を1日1回叩く
+- **日次バッチ**: GitHub Actions（`.github/workflows/update-prices.yml`）→ `POST /api/admin/fetch-rakuten` を1日1回叩く
+  - **重要な訂正（2026-09-22）**：「Renderの無料Cron」という表現が過去の指示に出てきたことがあるが、**Renderの公式Cron Jobsサービスは無料ではない**（1ジョブあたり月額最低$1〜の従量課金、無料プランの対象外）。実際に無料で動いているのはRenderのCronではなく、**GitHub Actionsのスケジュール実行（`schedule: cron`）から、無料のRender Web Service（`golf-deals-backend`）のHTTPエンドポイントを1日1回叩く**という構成。今後「Renderの無料Cron」という指示が来た場合は、このGitHub Actions方式を指すものとして扱う（Renderの有料Cron Jobsサービスは絶対ルール1により無断では契約しない）。
 
 ### 3.2 データ取得・保存パイプライン
 
@@ -50,6 +51,21 @@
 4. **価格予測**（`app/forecast.py`）: 商品自身の価格履歴に対する線形トレンド予測。信頼度（high/medium/low）はデータ量・期間で決まる。発売から60日未満の商品は信頼度を強制的にlowにする（発売直後価格は定価付近に固定されがちなため）。
 5. **AI文章生成**（`app/ai.py`）: 上記の事実が変化した場合のみClaude APIを呼び出す（`content_hash`による差分検知でコスト制御）。`insufficient_data`の商品やAPIキー未設定時は生成しない。
 6. **新商品の自動発見**（`app/discovery.py`）: 楽天のカテゴリ検索から新商品候補を発見し、`pending_review=True`で作成。**管理者が承認するまで一般公開されない**（誤マッチ・中古品混入を防ぐため）。
+
+### 3.2.1 日次ジョブの堅牢化（2026-09-22）
+
+`POST /admin/fetch-rakuten`は1リクエストの中で「楽天価格取得→Yahoo価格取得→新商品発見→人気ランキング同期→全商品の買い時再分析→値下がり通知メール送信」を順に実行する、実質的に日次バッチ処理そのもの。以下の対策で、**どこか1ステップが予期せぬ例外を出しても、それ以降のステップ（特に最後に実行される値下がり通知メール）が止まらないようにした**：
+
+- 各ステップを個別の`try/except`で囲み、失敗した場合は`db.rollback()`してから次のステップへ進む（`db.rollback()`が無いと、Postgres環境では失敗後のセッションで以降のクエリが全て失敗する — 実際に踏みかねなかった不具合）。
+- 商品ごとの再分析ループも1商品の失敗で全体が止まらないよう個別に保護（従来ルーターにはこの保護が無かった。`scripts/update_prices.py`側には元々あったので、両者を揃えた）。
+- ジョブの最後に必ず`ErrorLog`（`source="daily_job"`, `level="info"`）へ実行結果サマリーを1件書き込む。`/admin/logs`は新しい順に並ぶため、日次ジョブが最後まで到達したかどうかを管理画面で一目で確認できる（GitHub Actionsのログを見に行かなくてよい）。
+- `.github/workflows/update-prices.yml`側も強化：
+  - Renderの無料Webサービスは15分アイドルでスリープするため、本処理の前に軽いヘルスチェックで先に起こす（`continue-on-error: true`、失敗しても本処理に影響しない）。
+  - `curl --max-time`を180秒→900秒に延長（商品数が増えるほど各API呼び出し間隔（約1.1秒/件）の積み重ねで所要時間が伸びるため）。
+  - `--retry 1 --retry-delay 60 --retry-all-errors`でネットワーク瞬断やRenderの再起動に対して1回だけ自動リトライ（パイプラインは冪等に近い設計＝2回走っても致命的な不整合は起きない）。
+  - ジョブ全体に`timeout-minutes: 35`（リトライ込みの最悪ケースを想定）。
+  - 実行結果をGitHub ActionsのStep Summaryにも出力（失敗時も出す）。スケジュール実行が失敗した場合はGitHubがリポジトリオーナーに自動でメール通知する（追加設定不要）。
+- 検証：`backend/tests/test_api.py::test_fetch_rakuten_survives_a_step_blowing_up`で、新商品発見ステップが例外を投げても値下がり通知ステップまで実行されることを確認済み。
 
 ### 3.3 「ANALYZING」問題と現状のフォールバック処理
 
@@ -95,5 +111,10 @@
 ## 4. 運用メモ
 
 - 本番URL: `https://golf-deals-frontend.onrender.com`
-- 日次バッチのトリガー: GitHub Actions（Renderの無料プランはスリープするため、外部からのcronで叩く構成）
+- 日次バッチのトリガー: GitHub Actions（Renderの無料プランはスリープするため、外部からのcronで叩く構成。Renderの有料Cron Jobsは使っていない — 3.1参照）
+- **日次ジョブの状況確認方法**：
+  1. GitHub Actionsの実行履歴（リポジトリの「Actions」タブ→「Daily price update」）。各実行のStep Summaryに結果JSONが表示される。
+  2. 管理画面の「ログ」ページ（`/admin/logs`）。最新のジョブ実行結果が`source: daily_job`の1行に要約されている（新しい順に並ぶので一番上）。
+  3. GitHub Actionsのスケジュール実行が失敗した場合、GitHubがリポジトリオーナーに自動でメール通知する。
+  - **注意**：GitHub Actionsのスケジュール実行は、リポジトリに60日間コミットが無いと自動的に無効化される仕様がある（GitHub側の一般的な挙動）。長期間コードの変更が無い場合は、手動で`workflow_dispatch`を1回実行するか、空コミットではなく実際の変更をpushして再有効化する必要がある。
 - 環境変数の秘密情報（APIキー等）はRenderの環境変数に設定し、チャット等には貼らない運用とする。

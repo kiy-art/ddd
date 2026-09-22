@@ -163,6 +163,47 @@ def test_fetch_rakuten_requires_app_id(client, admin_headers):
     assert resp.status_code == 400
 
 
+def test_fetch_rakuten_survives_a_step_blowing_up(client, admin_headers, monkeypatch):
+    """The daily job runs several independent steps in one request (price
+    fetch, discovery, popularity sync, analysis, price alerts) - one of
+    them raising an unexpected exception must not take the rest down with
+    it (see routers/admin.py's fetch_rakuten), especially price alerts,
+    which runs last and is the most user-facing part of the job."""
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
+    from app.config import get_settings
+    from app.routers import admin as admin_router
+
+    get_settings.cache_clear()
+
+    def _boom(db):
+        raise RuntimeError("boom: discovery is down")
+
+    monkeypatch.setattr(admin_router.pipeline, "fetch_rakuten_prices", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.popularity, "sync_popularity_rankings", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.discovery, "discover_new_products", _boom)
+
+    try:
+        resp = client.post("/api/admin/fetch-rakuten", headers=admin_headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["products_discovered"] == 0
+        assert body["candidates_considered"] == 0
+        # Steps after the failed one still ran (price alerts is last).
+        assert body["price_alerts_sent"] == 0
+        assert body["price_alerts_skipped"] == 0
+
+        logs = client.get("/api/admin/logs", headers=admin_headers).json()
+        sources = [log["source"] for log in logs]
+        assert "discovery" in sources
+        # The summary row is only ever written at the very end of the
+        # function, so its presence proves the job reached completion
+        # despite the discovery step failing partway through.
+        assert "daily_job" in sources
+    finally:
+        get_settings.cache_clear()
+
+
 def test_delete_price_removes_bad_entry_and_recomputes(client, admin_headers):
     created = client.post(
         "/api/admin/products",

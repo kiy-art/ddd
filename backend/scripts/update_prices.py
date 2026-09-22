@@ -55,14 +55,24 @@ def main():
             for err in result.errors:
                 print(f"  - {err}")
         elif settings.rakuten_app_id and settings.rakuten_access_key:
-            updated, skipped = pipeline.fetch_rakuten_prices(db)
-            print(f"Rakuten fetch: updated={updated} skipped={skipped}")
+            try:
+                updated, skipped = pipeline.fetch_rakuten_prices(db)
+                print(f"Rakuten fetch: updated={updated} skipped={skipped}")
+            except Exception as exc:  # noqa: BLE001 - keep going (Yahoo/analysis/alerts still matter)
+                db.rollback()
+                print(f"Rakuten fetch failed: {exc}", file=sys.stderr)
+                crud.create_error_log(db, source="price_fetch", message=f"Rakuten fetch failed: {exc}")
         else:
             print("No --csv given and RAKUTEN_APP_ID not set; re-running analysis only.")
 
         if settings.yahoo_client_id:
-            yahoo_updated, yahoo_skipped = pipeline.fetch_yahoo_prices(db)
-            print(f"Yahoo fetch: updated={yahoo_updated} skipped={yahoo_skipped}")
+            try:
+                yahoo_updated, yahoo_skipped = pipeline.fetch_yahoo_prices(db)
+                print(f"Yahoo fetch: updated={yahoo_updated} skipped={yahoo_skipped}")
+            except Exception as exc:  # noqa: BLE001 - keep going (analysis/alerts still matter)
+                db.rollback()
+                print(f"Yahoo fetch failed: {exc}", file=sys.stderr)
+                crud.create_error_log(db, source="price_fetch", message=f"Yahoo fetch failed: {exc}")
 
         products = list(db.execute(select(models.Product)).scalars().all())
         checked = 0
@@ -83,8 +93,13 @@ def main():
         print(f"Analysis: checked={checked} ai_regenerated={regenerated} skipped_on_error={skipped_analysis}")
 
         if settings.resend_api_key:
-            alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
-            print(f"Price alerts: sent={alerts_sent} skipped={alerts_skipped}")
+            try:
+                alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
+                print(f"Price alerts: sent={alerts_sent} skipped={alerts_skipped}")
+            except Exception as exc:  # noqa: BLE001 - don't let this crash the script's exit code
+                db.rollback()
+                print(f"Price alert batch failed: {exc}", file=sys.stderr)
+                crud.create_error_log(db, source="price_alert_email", message=f"Price alert batch failed: {exc}")
     finally:
         db.close()
 

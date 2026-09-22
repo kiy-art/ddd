@@ -8,9 +8,49 @@ on:
 jobs:
   update-prices:
     runs-on: ubuntu-latest
+    # Bounds total CI time even if something hangs. Sized for the retry
+    # step's own worst case (two attempts at --max-time 900 plus the
+    # --retry-delay 60 between them, plus the wake-up step) with a little
+    # headroom - not unbounded, but not so tight it races the retry itself.
+    timeout-minutes: 35
     steps:
-      - name: Trigger price update on the live backend
+      # Render's free plan spins a web service down after 15 minutes of no
+      # traffic; the first request of the day always pays that cold-start
+      # cost (up to ~1 minute). Waking it up here, separately from the real
+      # job, keeps that cost out of the main step's own timeout budget and
+      # out of its retry count. Failure here is never fatal - the next step
+      # will wake it anyway if this one doesn't land.
+      - name: Wake up the backend (Render free tier sleeps when idle)
+        continue-on-error: true
+        run: curl -sS --max-time 90 "https://golf-deals-backend.onrender.com/api/health" || true
+
+      # --max-time is generous: this single request runs the full daily
+      # pipeline server-side (Rakuten + Yahoo price fetch, new-product
+      # discovery, popularity sync, re-analysis, price-alert emails), each
+      # external API call rate-limited to roughly one per second per
+      # source - so total runtime scales with catalog size. --retry covers
+      # a transient network blip or a mid-run Render restart; the pipeline
+      # itself is safe to run twice in a row (skips already-notified
+      # alerts, re-fetches are just a fresh price point), so one retry
+      # costs a little extra API usage, never correctness.
+      - name: Trigger the daily price update job
         run: |
-          curl -sS --fail-with-body --max-time 180 -X POST \
-            "https://golf-deals-backend.onrender.com/api/admin/fetch-rakuten" \
-            -H "Authorization: Bearer ${{ secrets.ADMIN_API_TOKEN }}"
+          curl -sS --fail-with-body --max-time 900 --retry 1 --retry-delay 60 --retry-all-errors \
+            -X POST "https://golf-deals-backend.onrender.com/api/admin/fetch-rakuten" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_API_TOKEN }}" \
+            -o response.json
+          cat response.json
+
+      # Runs even when the step above failed, so a failed run still shows
+      # whatever was captured instead of forcing a dig through raw logs.
+      # GitHub also emails the repo owner automatically when a scheduled
+      # workflow run fails - no extra notification wiring needed here.
+      - name: Summarize result
+        if: always()
+        run: |
+          {
+            echo '### Daily price update result'
+            echo '```json'
+            cat response.json 2>/dev/null || echo '(no response captured - the request itself failed, see the previous step)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
