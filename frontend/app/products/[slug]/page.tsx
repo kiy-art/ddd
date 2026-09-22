@@ -14,6 +14,7 @@ import SeasonalTrend from "@/components/SeasonalTrend";
 import TrackedCta from "@/components/TrackedCta";
 import TrackViewed from "@/components/TrackViewed";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
+import { getProductBadge } from "@/lib/badges";
 
 export const revalidate = 0;
 
@@ -99,6 +100,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   if (!product) notFound();
 
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
+  const badge = getProductBadge(product);
   const needsPriceCaution =
     hasReliableTrend &&
     product.price_change_percent !== null &&
@@ -192,12 +194,23 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             <TrackViewed slug={product.slug} />
             <div className="flex items-start justify-between gap-4">
               <div>
-                <Link
-                  href={`/brand/${encodeURIComponent(product.brand)}`}
-                  className="text-xs font-medium uppercase tracking-widest text-foreground/40 hover:text-brand"
-                >
-                  {product.brand}
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/brand/${encodeURIComponent(product.brand)}`}
+                    className="text-xs font-medium uppercase tracking-widest text-foreground/40 hover:text-brand"
+                  >
+                    {product.brand}
+                  </Link>
+                  {badge && (
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
+                        badge.tone === "strong" ? "bg-brand text-white" : "bg-foreground text-white"
+                      }`}
+                    >
+                      {badge.label}
+                    </span>
+                  )}
+                </div>
                 <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
                   {product.name}
                 </h1>

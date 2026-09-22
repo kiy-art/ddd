@@ -8,6 +8,7 @@ import FavoriteButton from "@/components/FavoriteButton";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
+import { getProductBadge } from "@/lib/badges";
 
 // See app/products/[slug]/page.tsx for why this threshold exists: a
 // "30-day average" claim needs more than a day or two of real data behind it.
@@ -25,6 +26,7 @@ function yen(value: number | null): string {
 export default function ProductCard({ product, listSource }: { product: Product; listSource?: string }) {
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
   const pct = hasReliableTrend ? product.price_change_percent : null;
+  const badge = getProductBadge(product);
 
   return (
     <Link
@@ -39,6 +41,15 @@ export default function ProductCard({ product, listSource }: { product: Product;
       className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-24px_rgba(20,19,15,0.22)]"
     >
       <div className="relative aspect-[4/3] w-full bg-background">
+        {badge && (
+          <span
+            className={`absolute left-3 top-3 z-10 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest shadow-sm ${
+              badge.tone === "strong" ? "bg-brand text-white" : "bg-foreground text-white"
+            }`}
+          >
+            {badge.label}
+          </span>
+        )}
         <FavoriteButton
           slug={product.slug}
           className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-2 text-foreground/60 shadow-sm backdrop-blur-sm transition-colors hover:text-brand"
