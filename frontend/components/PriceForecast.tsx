@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Product } from "@/lib/api";
 import { forecastMonthLabel } from "@/lib/forecast";
 
@@ -143,6 +145,9 @@ function ForecastBody({ product }: { product: Product }) {
           <li>・将来の価格を保証するものではなく、実際の価格は在庫状況や市場動向により変動します。</li>
           <li>・公式のメーカー発表に基づく情報ではありません。</li>
         </ul>
+        <Link href="/guides/how-to-read-price-forecast" className="mt-2 inline-block font-medium text-brand hover:underline">
+          価格予測の詳しい見方はこちら →
+        </Link>
       </details>
     </div>
   );
