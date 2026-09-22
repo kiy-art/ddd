@@ -8,6 +8,7 @@ import {
   adminImportCsv,
   adminListProducts,
   adminRunUpdate,
+  adminSendPriceAlerts,
   Product,
 } from "@/lib/api";
 import { useAdminAuth } from "@/lib/adminAuth";
@@ -90,6 +91,24 @@ export default function AdminDashboard() {
     } catch (err) {
       setMessage(
         `取得失敗: ${err instanceof Error ? err.message : String(err)}（RAKUTEN_APP_IDが設定されているか確認してください）`
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSendPriceAlerts = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await adminSendPriceAlerts(token);
+      setMessage(
+        `値下がり通知の送信完了: 送信${result.price_alerts_sent}件 / スキップ${result.price_alerts_skipped}件`
+      );
+    } catch (err) {
+      setMessage(
+        `送信失敗: ${err instanceof Error ? err.message : String(err)}（RESEND_API_KEYが設定されているか確認してください）`
       );
     } finally {
       setBusy(false);
@@ -183,6 +202,21 @@ export default function AdminDashboard() {
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ実行
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">値下がり通知メールを送信</h2>
+        <p className="text-sm text-foreground/50">
+          目標価格に到達した未通知のアラートにメールを送信します（Resend経由）。毎日の自動更新でも実行されます。
+          RESEND_API_KEY が設定されている必要があります。
+        </p>
+        <button
+          onClick={handleSendPriceAlerts}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          今すぐ送信
         </button>
       </div>
 

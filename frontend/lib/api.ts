@@ -373,11 +373,24 @@ export function adminFetchRakuten(token: string) {
   return apiFetch<{
     prices_updated: number;
     prices_skipped: number;
+    yahoo_prices_updated: number;
+    yahoo_prices_skipped: number;
     products_discovered: number;
     candidates_considered: number;
+    products_ranked: number;
+    popularity_categories_checked: number;
     products_checked: number;
     ai_regenerated: number;
+    price_alerts_sent: number;
+    price_alerts_skipped: number;
   }>(`/api/admin/fetch-rakuten`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
+export function adminSendPriceAlerts(token: string) {
+  return apiFetch<{ price_alerts_sent: number; price_alerts_skipped: number }>(`/api/admin/send-price-alerts`, {
     method: "POST",
     headers: adminHeaders(token),
   });
