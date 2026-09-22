@@ -109,10 +109,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 // --- Public API ---------------------------------------------------------
 
-export function getProducts(params?: { category?: string; buy_score?: string }) {
+export function getProducts(params?: { category?: string; buy_score?: string; limit?: number }) {
   const qs = new URLSearchParams();
   if (params?.category) qs.set("category", params.category);
   if (params?.buy_score) qs.set("buy_score", params.buy_score);
+  if (params?.limit) qs.set("limit", String(params.limit));
   const query = qs.toString();
   return apiFetch<Product[]>(`/api/products${query ? `?${query}` : ""}`);
 }

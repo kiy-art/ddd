@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
+import FavoriteButton from "@/components/FavoriteButton";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
@@ -38,6 +39,10 @@ export default function ProductCard({ product, listSource }: { product: Product;
       className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-24px_rgba(15,61,46,0.25)]"
     >
       <div className="relative aspect-[4/3] w-full bg-background">
+        <FavoriteButton
+          slug={product.slug}
+          className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-2 text-foreground/60 shadow-sm backdrop-blur-sm transition-colors hover:text-brand"
+        />
         {product.image_url ? (
           <SafeProductImage
             src={product.image_url}

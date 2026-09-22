@@ -100,6 +100,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   <Link href="/guides" className="hover:text-foreground">
                     購入ガイド
                   </Link>
+                  <Link href="/favorites" className="hover:text-foreground">
+                    お気に入り
+                  </Link>
                   <Link href="/faq" className="hover:text-foreground">
                     よくある質問
                   </Link>

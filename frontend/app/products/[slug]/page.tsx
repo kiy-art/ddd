@@ -6,11 +6,13 @@ import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
 import CompareStrip from "@/components/CompareStrip";
 import FadeIn from "@/components/FadeIn";
+import FavoriteButton from "@/components/FavoriteButton";
 import MonthlyTrendChart from "@/components/MonthlyTrendChart";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SafeProductImage from "@/components/SafeProductImage";
 import SeasonalTrend from "@/components/SeasonalTrend";
 import TrackedCta from "@/components/TrackedCta";
+import TrackViewed from "@/components/TrackViewed";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
 
 export const revalidate = 0;
@@ -187,16 +189,23 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
           </FadeIn>
 
           <FadeIn delay={100} className="flex flex-col gap-6">
-            <div>
-              <Link
-                href={`/brand/${encodeURIComponent(product.brand)}`}
-                className="text-xs font-medium uppercase tracking-widest text-foreground/40 hover:text-brand"
-              >
-                {product.brand}
-              </Link>
-              <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-                {product.name}
-              </h1>
+            <TrackViewed slug={product.slug} />
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <Link
+                  href={`/brand/${encodeURIComponent(product.brand)}`}
+                  className="text-xs font-medium uppercase tracking-widest text-foreground/40 hover:text-brand"
+                >
+                  {product.brand}
+                </Link>
+                <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+                  {product.name}
+                </h1>
+              </div>
+              <FavoriteButton
+                slug={product.slug}
+                className="shrink-0 rounded-full border border-border p-3 text-foreground/50 transition-colors hover:text-brand"
+              />
             </div>
 
             <div className="flex items-center gap-6 rounded-2xl border border-border bg-card p-6">

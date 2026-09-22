@@ -15,6 +15,20 @@ const NAV_LINKS = [
   { href: "/guides", label: "購入ガイド" },
 ];
 
+function SearchForm({ className }: { className?: string }) {
+  return (
+    <form action="/search" method="GET" className={className}>
+      <input
+        type="text"
+        name="q"
+        placeholder="商品を検索"
+        aria-label="商品を検索"
+        className="w-full rounded-full border border-border bg-card px-4 py-2 text-sm text-foreground outline-none focus:border-brand"
+      />
+    </form>
+  );
+}
+
 function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   return (
     <nav className="flex flex-col gap-1">
@@ -51,9 +65,13 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
           <Logo />
         </Link>
         <div className="flex-1 px-4 py-4">
+          <SearchForm className="mb-4" />
           <NavLinks pathname={pathname} />
         </div>
         <div className="flex flex-col gap-2 border-t border-border/70 px-4 py-4 text-xs text-foreground/45">
+          <Link href="/favorites" className="hover:text-foreground">
+            お気に入り
+          </Link>
           <Link href="/faq" className="hover:text-foreground">
             よくある質問
           </Link>
@@ -115,8 +133,12 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
                 </svg>
               </button>
             </div>
+            <SearchForm className="mb-4" />
             <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
             <div className="mt-auto flex flex-col gap-2 border-t border-border/70 pt-4 text-xs text-foreground/45">
+              <Link href="/favorites" onClick={() => setMobileOpen(false)} className="hover:text-foreground">
+                お気に入り
+              </Link>
               <Link href="/faq" onClick={() => setMobileOpen(false)} className="hover:text-foreground">
                 よくある質問
               </Link>
