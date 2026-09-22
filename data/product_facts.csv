@@ -1,16 +1,16 @@
 brand,model_number,msrp,release_date,skill_level,performance_type,is_current_generation
-TaylorMade,Qi35,99000,2025-02-07,,,
-Callaway,ELYTE MAX FAST,,2025-02-07,,,
-Titleist,GT2,,2024-08-23,,,true
-Cobra,DARKSPEED MAX,,2024-03-09,,,
-Srixon,ZX7 Mk II,81400,2022-11-19,,,
-PXG,0311 GEN6,,2023-04-07,,,
-Mizuno,ST-X 230,92400,2023-03-10,,,
-Yonex,EZONE GT TYPE S,96800,2024-04-01,,,true
-PING,i230,,2023-01-19,,,false
-Titleist,T100,165000,2023-08-25,,,
-Mizuno,JPX 925 Forged,,2024-09-13,,,
-XXIO,XXIO13,,2023-12-09,,,
+TaylorMade,Qi35,99000,2025-02-07,all_levels,forgiveness,
+Callaway,ELYTE MAX FAST,,2025-02-07,,distance,
+Titleist,GT2,,2024-08-23,all_levels,balanced,true
+Cobra,DARKSPEED MAX,,2024-03-09,all_levels,forgiveness,
+Srixon,ZX7 Mk II,81400,2022-11-19,advanced,control,
+PXG,0311 GEN6,,2023-04-07,all_levels,balanced,
+Mizuno,ST-X 230,92400,2023-03-10,advanced,distance,
+Yonex,EZONE GT TYPE S,96800,2024-04-01,all_levels,control,true
+PING,i230,,2023-01-19,advanced,control,false
+Titleist,T100,165000,2023-08-25,advanced,control,
+Mizuno,JPX 925 Forged,,2024-09-13,advanced,forgiveness,
+XXIO,XXIO13,,2023-12-09,beginner,distance,
 Honma,TW777 PCB MAX,,2025-11-28,beginner,forgiveness,
 Callaway,APEX PRO 24,,2024-09-29,advanced,control,
 Cobra,KING TOUR,165000,2023-02-11,advanced,control,
