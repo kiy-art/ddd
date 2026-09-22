@@ -235,6 +235,29 @@ def mark_price_alert_notified(db: Session, alert: models.PriceAlert) -> None:
     db.commit()
 
 
+# --- Contact messages -------------------------------------------------------
+
+
+def create_contact_message(db: Session, data: schemas.ContactMessageCreate) -> models.ContactMessage:
+    message = models.ContactMessage(name=data.name, email=data.email, message=data.message)
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    return message
+
+
+def list_contact_messages(db: Session) -> list[models.ContactMessage]:
+    query = select(models.ContactMessage).order_by(models.ContactMessage.created_at.desc())
+    return list(db.execute(query).scalars().all())
+
+
+def mark_contact_message_read(db: Session, message: models.ContactMessage) -> models.ContactMessage:
+    message.read_at = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(message)
+    return message
+
+
 # --- Error logs ----------------------------------------------------------------
 
 

@@ -250,6 +250,37 @@ def test_price_alert_unknown_product_404(client):
     assert resp.status_code == 404
 
 
+def test_contact_message_submit_and_admin_visibility(client, admin_headers):
+    resp = client.post(
+        "/api/contact",
+        json={"name": "山田太郎", "email": "yamada@example.com", "message": "商品の登録について質問があります。"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["email"] == "yamada@example.com"
+    assert body["read_at"] is None
+
+    admin_resp = client.get("/api/admin/contact-messages", headers=admin_headers)
+    assert admin_resp.status_code == 200
+    messages = admin_resp.json()
+    assert len(messages) == 1
+    assert messages[0]["message"] == "商品の登録について質問があります。"
+
+    mark_resp = client.post(f"/api/admin/contact-messages/{body['id']}/read", headers=admin_headers)
+    assert mark_resp.status_code == 200
+    assert mark_resp.json()["read_at"] is not None
+
+
+def test_contact_message_rejects_invalid_email(client):
+    resp = client.post("/api/contact", json={"email": "not-an-email", "message": "hello"})
+    assert resp.status_code == 422
+
+
+def test_contact_message_requires_admin_token(client):
+    resp = client.get("/api/admin/contact-messages")
+    assert resp.status_code == 401
+
+
 def test_analytics_top_pages_requires_ga4_configuration(client, admin_headers):
     resp = client.get("/api/admin/analytics/top-pages", headers=admin_headers)
     assert resp.status_code == 400

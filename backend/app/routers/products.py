@@ -60,6 +60,13 @@ def list_by_category(category: str, limit: int = 50, offset: int = 0, db: Sessio
     )
 
 
+@router.post("/contact", response_model=schemas.ContactMessageOut, status_code=201)
+def submit_contact_message(data: schemas.ContactMessageCreate, db: Session = Depends(get_db)):
+    """No email is sent - see models.ContactMessage - this only records the
+    message for an admin to read via GET /admin/contact-messages."""
+    return crud.create_contact_message(db, data)
+
+
 @router.post("/products/{slug}/alerts", response_model=schemas.PriceAlertOut, status_code=201)
 def create_price_alert(slug: str, data: schemas.PriceAlertCreate, db: Session = Depends(get_db)):
     """Records a "notify me below ¥X" request. No email is sent yet - see

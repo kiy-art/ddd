@@ -75,6 +75,9 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
           <Link href="/faq" className="hover:text-foreground">
             よくある質問
           </Link>
+          <Link href="/contact" className="hover:text-foreground">
+            お問い合わせ
+          </Link>
           <Link href="/disclaimer" className="hover:text-foreground">
             運営者情報・免責事項
           </Link>
@@ -141,6 +144,9 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
               </Link>
               <Link href="/faq" onClick={() => setMobileOpen(false)} className="hover:text-foreground">
                 よくある質問
+              </Link>
+              <Link href="/contact" onClick={() => setMobileOpen(false)} className="hover:text-foreground">
+                お問い合わせ
               </Link>
               <Link href="/disclaimer" onClick={() => setMobileOpen(false)} className="hover:text-foreground">
                 運営者情報・免責事項

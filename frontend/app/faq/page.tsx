@@ -69,7 +69,11 @@ export default function FaqPage() {
         <Link href="/disclaimer" className="mx-1 text-brand hover:underline">
           運営者情報・免責事項
         </Link>
-        もあわせてご確認ください。
+        をご確認のうえ、
+        <Link href="/contact" className="mx-1 text-brand hover:underline">
+          お問い合わせフォーム
+        </Link>
+        からご連絡ください。
       </p>
     </div>
   );

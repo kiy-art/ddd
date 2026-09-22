@@ -138,6 +138,19 @@ async def import_csv(file: UploadFile, db: Session = Depends(get_db)):
     return result
 
 
+@router.get("/contact-messages", response_model=list[schemas.ContactMessageOut])
+def list_contact_messages(db: Session = Depends(get_db)):
+    return crud.list_contact_messages(db)
+
+
+@router.post("/contact-messages/{message_id}/read", response_model=schemas.ContactMessageOut)
+def mark_contact_message_read(message_id: int, db: Session = Depends(get_db)):
+    message = db.get(models.ContactMessage, message_id)
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return crud.mark_contact_message_read(db, message)
+
+
 @router.get("/logs", response_model=list[schemas.ErrorLogOut])
 def get_logs(limit: int = 100, offset: int = 0, db: Session = Depends(get_db)):
     return crud.list_error_logs(db, limit=limit, offset=offset)

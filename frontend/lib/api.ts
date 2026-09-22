@@ -162,6 +162,22 @@ export function createPriceAlert(slug: string, email: string, targetPrice: numbe
   });
 }
 
+export interface ContactMessage {
+  id: number;
+  name: string | null;
+  email: string;
+  message: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export function submitContactMessage(data: { name?: string; email: string; message: string }) {
+  return apiFetch<ContactMessage>(`/api/contact`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 // --- Admin API (client-side, Bearer token from localStorage) ------------
 
 function adminHeaders(token: string): HeadersInit {
@@ -271,6 +287,17 @@ export interface PageStat {
 
 export function adminGetTopPages(token: string, days = 28) {
   return apiFetch<PageStat[]>(`/api/admin/analytics/top-pages?days=${days}`, { headers: adminHeaders(token) });
+}
+
+export function adminGetContactMessages(token: string) {
+  return apiFetch<ContactMessage[]>(`/api/admin/contact-messages`, { headers: adminHeaders(token) });
+}
+
+export function adminMarkContactMessageRead(token: string, id: number) {
+  return apiFetch<ContactMessage>(`/api/admin/contact-messages/${id}/read`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
 }
 
 export function adminGetLogs(token: string) {

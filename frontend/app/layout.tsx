@@ -106,6 +106,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   <Link href="/faq" className="hover:text-foreground">
                     よくある質問
                   </Link>
+                  <Link href="/contact" className="hover:text-foreground">
+                    お問い合わせ
+                  </Link>
                   <Link href="/disclaimer" className="hover:text-foreground">
                     運営者情報・免責事項
                   </Link>

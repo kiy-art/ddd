@@ -132,6 +132,23 @@ class PriceAlertAdminOut(PriceAlertOut):
     triggered: bool
 
 
+class ContactMessageCreate(BaseModel):
+    name: str | None = Field(default=None, max_length=255)
+    email: str = Field(pattern=EMAIL_PATTERN, max_length=255)
+    message: str = Field(min_length=1, max_length=5000)
+
+
+class ContactMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str | None
+    email: str
+    message: str
+    created_at: datetime.datetime
+    read_at: datetime.datetime | None
+
+
 class PageStatOut(BaseModel):
     path: str
     pageviews: int

@@ -88,6 +88,22 @@ class PriceAlert(Base):
     product: Mapped["Product"] = relationship()
 
 
+class ContactMessage(Base):
+    """A message submitted through the public /contact form. No email
+    provider is configured (see PriceAlert above for the same constraint),
+    so this only records the message for an admin to read in the admin
+    panel - nothing is sent automatically."""
+
+    __tablename__ = "contact_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    read_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class ErrorLog(Base):
     __tablename__ = "error_logs"
 

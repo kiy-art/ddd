@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "運営者情報・免責事項",
@@ -60,7 +61,13 @@ export default function DisclaimerPage() {
 
         <section className="flex flex-col gap-2">
           <h2 className="font-display text-lg font-medium text-foreground">お問い合わせ</h2>
-          <p>サイトに関するお問い合わせは、運営者までご連絡ください。</p>
+          <p>
+            サイトに関するお問い合わせは、
+            <Link href="/contact" className="text-brand hover:underline">
+              お問い合わせフォーム
+            </Link>
+            からご連絡ください。
+          </p>
         </section>
       </article>
     </div>
