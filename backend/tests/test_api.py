@@ -495,3 +495,57 @@ def test_send_price_alerts_requires_resend_configured(client, admin_headers, mon
         assert resp.status_code == 400
     finally:
         get_settings.cache_clear()
+
+
+def test_run_migration_clean_titles_requires_admin_auth(client):
+    resp = client.post("/api/admin/run-migration-clean-titles")
+    assert resp.status_code == 401
+
+
+def test_run_migration_clean_titles_dry_run_does_not_rename(client, admin_headers):
+    created = client.post(
+        "/api/admin/products",
+        headers=admin_headers,
+        json={
+            "name": "【送料無料】PING G440 ドライバー ポイント10倍!!",
+            "brand": "PING",
+            "category": "driver",
+            "initial_price": 68000,
+        },
+    ).json()
+
+    resp = client.post("/api/admin/run-migration-clean-titles?dry_run=true", headers=admin_headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["applied"] is False
+    assert body["renamed"] == 1
+
+    product = client.get("/api/admin/products", headers=admin_headers).json()
+    unchanged = next(p for p in product if p["id"] == created["id"])
+    assert unchanged["name"] == "【送料無料】PING G440 ドライバー ポイント10倍!!"
+
+    logs = client.get("/api/admin/logs", headers=admin_headers).json()
+    assert any(log["source"] == "title_cleanup" for log in logs)
+
+
+def test_run_migration_clean_titles_applies_by_default(client, admin_headers):
+    created = client.post(
+        "/api/admin/products",
+        headers=admin_headers,
+        json={
+            "name": "【送料無料】PING G440 ドライバー ポイント10倍!!",
+            "brand": "PING",
+            "category": "driver",
+            "initial_price": 68000,
+        },
+    ).json()
+
+    resp = client.post("/api/admin/run-migration-clean-titles", headers=admin_headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["applied"] is True
+    assert body["renamed"] == 1
+
+    products = client.get("/api/admin/products", headers=admin_headers).json()
+    cleaned = next(p for p in products if p["id"] == created["id"])
+    assert cleaned["name"] == "PING G440 ドライバー"

@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, discovery, models, pipeline, popularity, progress, schemas, x_post
+from app import crud, discovery, models, pipeline, popularity, progress, schemas, title_migration, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -445,6 +445,51 @@ def discover_products(db: Session = Depends(get_db)):
     finally:
         progress.finish_run()
     return {"products_discovered": discovered, "candidates_considered": considered}
+
+
+@router.post("/run-migration-clean-titles")
+def run_migration_clean_titles(dry_run: bool = False, db: Session = Depends(get_db)):
+    """Runs the STEP15 title-cleanup + duplicate-merge migration
+    (app/title_migration.py, same logic as scripts/migrate_clean_titles.py)
+    against the live database. Added as a STEP16 workaround: Render's free
+    tier has no shell/SSH access to run the script directly, and this
+    endpoint is the $0 alternative - no paid plan required.
+
+    Pass ?dry_run=true to preview the plan (renames/merges that WOULD
+    happen) without writing anything - the same safety default the CLI
+    script itself has, just opt-in here since a single admin-panel button
+    press is expected to actually apply by default."""
+    progress.start_run("run_migration_clean_titles", "商品名クレンジング・重複統合（手動実行）")
+    try:
+        progress.start_stage("title_cleanup")
+        result = title_migration.run_title_cleanup_migration(
+            db,
+            apply=not dry_run,
+            on_progress=lambda cur, total: progress.update_stage_progress("title_cleanup", cur, total),
+        )
+        progress.finish_stage(
+            "title_cleanup",
+            f"対象{result.products_checked}件 / リネーム{result.renamed}件 / "
+            f"統合{result.merge_groups}グループ（{result.products_merged}件）"
+            + ("（dry-run）" if dry_run else ""),
+        )
+    finally:
+        progress.finish_run()
+
+    crud.create_error_log(
+        db,
+        source="title_cleanup",
+        level="info",
+        message="\n".join(result.plan_lines),
+    )
+
+    return {
+        "applied": result.applied,
+        "products_checked": result.products_checked,
+        "renamed": result.renamed,
+        "merge_groups": result.merge_groups,
+        "products_merged": result.products_merged,
+    }
 
 
 @router.get("/live")

@@ -39,6 +39,7 @@ STAGE_LABELS = {
     "analysis": "買い時判定・AI説明文生成中",
     "price_alerts": "値下がり通知メール送信中",
     "x_post": "SNS投稿中",
+    "title_cleanup": "商品名クレンジング・重複統合中",
 }
 
 _SUBSCRIBER_QUEUE_SIZE = 500

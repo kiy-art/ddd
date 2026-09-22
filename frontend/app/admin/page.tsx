@@ -8,6 +8,7 @@ import {
   adminImportCsv,
   adminListProducts,
   adminPostToX,
+  adminRunMigrationCleanTitles,
   adminRunUpdate,
   adminSendPriceAlerts,
   Product,
@@ -155,6 +156,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCleanTitles = async () => {
+    if (!token) return;
+    const confirmed = window.confirm(
+      "商品名のクレンジングと重複統合を実行します。宣伝文句を取り除いた名前に更新し、" +
+        "同じ型番と判定された商品は1つに統合（片方は削除）されます。実況ダッシュボードで進行状況を確認できます。\n\n" +
+        "実行しますか？"
+    );
+    if (!confirmed) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await adminRunMigrationCleanTitles(token, false);
+      setMessage(
+        `商品名クレンジング完了: 対象${result.products_checked}件 / リネーム${result.renamed}件 / ` +
+          `統合${result.merge_groups}グループ（${result.products_merged}件を統合）`
+      );
+      await load();
+    } catch (err) {
+      setMessage(`実行失敗: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const byScore = products.reduce<Record<string, number>>((acc, p) => {
     acc[p.buy_score] = (acc[p.buy_score] ?? 0) + 1;
     return acc;
@@ -211,6 +236,23 @@ export default function AdminDashboard() {
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ検出
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">既存商品データの大掃除（型番統合）</h2>
+        <p className="text-sm text-foreground/50">
+          ショップ独自の宣伝文句（「【送料無料】」「ポイント10倍」等）を取り除いた「ブランド＋型番」のきれいな
+          商品名に整形します。同じ型番と判定された商品は1つに統合（価格履歴等は残る側に引き継がれ、
+          もう一方は削除）されます。Renderの無料プランにはシェル機能が無いため、この管理画面のボタンから
+          `scripts/migrate_clean_titles.py` と同じ処理を実行できるようにしたものです。
+        </p>
+        <button
+          onClick={handleCleanTitles}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          大掃除を実行
         </button>
       </div>
 

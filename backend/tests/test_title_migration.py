@@ -1,12 +1,5 @@
-import importlib.util
-import pathlib
-
 from app import crud, models, schemas
-
-_SCRIPT_PATH = pathlib.Path(__file__).resolve().parent.parent / "scripts" / "migrate_clean_titles.py"
-_spec = importlib.util.spec_from_file_location("migrate_clean_titles", _SCRIPT_PATH)
-migrate_clean_titles = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(migrate_clean_titles)
+from app.title_migration import run_title_cleanup_migration
 
 
 def _make_product(db, **overrides):
@@ -18,28 +11,46 @@ def _make_product(db, **overrides):
 def test_dry_run_renames_nothing(db_session):
     product = _make_product(db_session, name="【送料無料】PING G440 ドライバー ポイント10倍!!")
 
-    migrate_clean_titles.run(apply=False, db=db_session)
+    result = run_title_cleanup_migration(db_session, apply=False)
 
     db_session.refresh(product)
     assert product.name == "【送料無料】PING G440 ドライバー ポイント10倍!!"
+    assert result.applied is False
+    assert result.products_checked == 1
+    assert result.renamed == 1
 
 
 def test_apply_cleans_a_noisy_title(db_session):
     product = _make_product(db_session, name="【送料無料】PING G440 ドライバー ポイント10倍!!")
 
-    migrate_clean_titles.run(apply=True, db=db_session)
+    result = run_title_cleanup_migration(db_session, apply=True)
 
     db_session.refresh(product)
     assert product.name == "PING G440 ドライバー"
+    assert result.applied is True
+    assert result.renamed == 1
+    assert result.merge_groups == 0
+    assert result.products_merged == 0
 
 
 def test_apply_leaves_an_already_clean_title_unchanged(db_session):
     product = _make_product(db_session, name="PING G440 ドライバー")
 
-    migrate_clean_titles.run(apply=True, db=db_session)
+    result = run_title_cleanup_migration(db_session, apply=True)
 
     db_session.refresh(product)
     assert product.name == "PING G440 ドライバー"
+    assert result.renamed == 0
+
+
+def test_on_progress_reports_every_product(db_session):
+    _make_product(db_session, name="Product A")
+    _make_product(db_session, name="Product B", brand="Titleist", category="ball")
+    calls = []
+
+    run_title_cleanup_migration(db_session, apply=False, on_progress=lambda cur, total: calls.append((cur, total)))
+
+    assert calls == [(1, 2), (2, 2)]
 
 
 def test_apply_merges_duplicates_that_clean_to_the_same_name(db_session):
@@ -63,12 +74,14 @@ def test_apply_merges_duplicates_that_clean_to_the_same_name(db_session):
     crud.add_price(db_session, loser_candidate, 5400)
     survivor_id, loser_id = survivor_candidate.id, loser_candidate.id
 
-    migrate_clean_titles.run(apply=True, db=db_session)
+    result = run_title_cleanup_migration(db_session, apply=True)
 
     remaining = db_session.get(models.Product, survivor_id)
     assert remaining is not None
     assert remaining.name == "Titleist Pro V1 ゴルフボール 1ダース"
     assert db_session.get(models.Product, loser_id) is None
+    assert result.merge_groups == 1
+    assert result.products_merged == 1
 
     history = crud.get_price_history(db_session, survivor_id)
     assert sorted(h.price for h in history) == [5400, 5600]
@@ -94,7 +107,7 @@ def test_apply_prefers_a_published_product_as_the_merge_survivor(db_session):
     )
     published_id = published.id
 
-    migrate_clean_titles.run(apply=True, db=db_session)
+    run_title_cleanup_migration(db_session, apply=True)
 
     survivor = db_session.get(models.Product, published_id)
     assert survivor is not None
@@ -123,7 +136,7 @@ def test_apply_fills_blank_curated_facts_from_a_merged_loser_without_overwriting
     db_session.commit()
     survivor_id = survivor.id
 
-    migrate_clean_titles.run(apply=True, db=db_session)
+    run_title_cleanup_migration(db_session, apply=True)
 
     remaining = db_session.get(models.Product, survivor_id)
     assert remaining.msrp == 6000  # unchanged, not overwritten

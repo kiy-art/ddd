@@ -306,6 +306,19 @@ export function adminDiscoverProducts(token: string) {
   );
 }
 
+export function adminRunMigrationCleanTitles(token: string, dryRun: boolean) {
+  return apiFetch<{
+    applied: boolean;
+    products_checked: number;
+    renamed: number;
+    merge_groups: number;
+    products_merged: number;
+  }>(`/api/admin/run-migration-clean-titles?dry_run=${dryRun}`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
 export function adminGetPriceAnomalies(token: string) {
   return apiFetch<PriceAnomaly[]>(`/api/admin/price-anomalies`, { headers: adminHeaders(token) });
 }
