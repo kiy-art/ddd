@@ -1,6 +1,7 @@
 import TrackedCta from "@/components/TrackedCta";
 import { getAmazonSearchUrl } from "@/lib/amazon";
 import { Product } from "@/lib/api";
+import { getYahooSearchUrl } from "@/lib/yahoo";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -21,11 +22,21 @@ function storeLabel(url: string): string {
 
 /**
  * Real price-source comparison, not a fabricated multi-store table. This
- * site currently tracks exactly one live price source per product (Rakuten
- * Ichiba, via rakuten.py) plus, when set, the manufacturer's own product
- * page (no price tracked there). Shipping fee/points/stock count aren't
- * collected at all, so those columns say "要確認" rather than a guessed
- * "送料無料" - see DataSourceNote for what's real vs. not yet connected.
+ * site tracks two independent live price sources per product (Rakuten
+ * Ichiba via rakuten.py, Yahoo!ショッピング via yahoo.py) plus, when set,
+ * the manufacturer's own product page (no price tracked there). Shipping
+ * fee/points/stock count aren't collected at all, so those columns say
+ * "要確認" rather than a guessed "送料無料" - see DataSourceNote for
+ * what's real vs. not yet connected.
+ *
+ * Rakuten/Yahoo/Amazon rows are always shown (never conditionally hidden)
+ * so the table can't visually read as favoring whichever mall happens to
+ * have a confirmed price today - Yahoo/Amazon fall back to an honest
+ * "no confirmed price yet, here's a search link" row instead of
+ * disappearing. Display order is sorted by price (cheapest first, unknown
+ * last) rather than a fixed source order, for the same reason: which mall
+ * leads the table should depend on today's actual prices, not on which
+ * one this component happens to list first in code.
  */
 export default function StoreComparisonTable({
   product,
@@ -40,11 +51,18 @@ export default function StoreComparisonTable({
     priceDisplay?: string;
     url: string;
     isPriceSource: boolean;
-    // Separate from isPriceSource: a search-result link (Amazon below) still
-    // carries our affiliate tag and earns a commission on a resulting sale,
-    // so it needs the same "sponsored" rel/disclosure treatment as a real
-    // tracked price row even though it has no price to show.
+    // Separate from isPriceSource: a search-result link (Amazon/Yahoo
+    // fallback below) can still carry our affiliate tag and earn a
+    // commission on a resulting sale, so it needs the same "sponsored"
+    // rel/disclosure treatment as a real tracked price row even though it
+    // has no price to show.
     sponsored: boolean;
+    // True for a row with no confirmed price where a real discount is
+    // plausible (a third-party marketplace search) - gets a bolder CTA to
+    // earn the click that would otherwise go to the price column. False
+    // for the manufacturer's own page (typically fixed MSRP, so implying
+    // "may be cheapest" there would be misleading).
+    worthChecking: boolean;
     updatedAt: string | null;
     detailNote?: string;
     ctaLabel?: string;
@@ -58,12 +76,17 @@ export default function StoreComparisonTable({
       url: product.affiliate_url,
       isPriceSource: true,
       sponsored: true,
+      worthChecking: false,
       updatedAt: lastUpdatedAt,
     });
   }
   // Yahoo!ショッピング商品検索API - a real, independently-fetched second
-  // price source (see app/yahoo.py), only shown when a match was actually
-  // found for this specific product; never a fabricated row.
+  // price source (see app/yahoo.py). Always shown, same as every other row
+  // here: when this product has no confirmed Yahoo match (or
+  // YAHOO_CLIENT_ID isn't configured on the backend), it falls back to a
+  // plain (non-affiliate - see lib/yahoo.ts) search link rather than
+  // disappearing, so the table can't read as quietly dropping whichever
+  // mall doesn't currently have data.
   if (product.yahoo_price !== null && product.yahoo_url) {
     rows.push({
       label: "Yahoo!ショッピング",
@@ -71,7 +94,21 @@ export default function StoreComparisonTable({
       url: product.yahoo_url,
       isPriceSource: true,
       sponsored: true,
+      worthChecking: false,
       updatedAt: product.yahoo_updated_at,
+    });
+  } else {
+    rows.push({
+      label: "Yahoo!ショッピング",
+      price: null,
+      priceDisplay: "-",
+      url: getYahooSearchUrl(product.name),
+      isPriceSource: false,
+      sponsored: false,
+      worthChecking: true,
+      updatedAt: null,
+      detailNote: "お得な出品が見つかる場合があります",
+      ctaLabel: "Yahoo!ショッピングで価格をチェック →",
     });
   }
   if (product.product_url && product.product_url !== product.affiliate_url) {
@@ -81,7 +118,9 @@ export default function StoreComparisonTable({
       url: product.product_url,
       isPriceSource: false,
       sponsored: false,
+      worthChecking: false,
       updatedAt: null,
+      ctaLabel: "公式サイトを見る →",
     });
   }
   // Amazon: 実績作りフェーズ（PA-API未申請）につき価格は取得せず、商品名の
@@ -94,12 +133,18 @@ export default function StoreComparisonTable({
     url: getAmazonSearchUrl(product.name),
     isPriceSource: false,
     sponsored: true,
+    worthChecking: true,
     updatedAt: null,
-    detailNote: "商品名の検索結果ページが開きます",
-    ctaLabel: "Amazonで探す →",
+    detailNote: "Amazon内の価格をチェック（最安値の可能性あり）",
+    ctaLabel: "Amazonで最安値をチェック →",
   });
 
   if (rows.length === 0) return null;
+
+  // Cheapest-first, unknown-price rows last - see the component docstring
+  // for why this (not a fixed source order) is what keeps the table from
+  // reading as favoring one mall.
+  const displayRows = [...rows].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
 
   const hasSponsoredRow = rows.some((row) => row.sponsored);
   const remainingStores = ["ゴルフ専門店"];
@@ -138,7 +183,7 @@ export default function StoreComparisonTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {displayRows.map((row) => (
               <tr key={row.url} className="border-b border-border last:border-0">
                 <td className="py-3 pr-4 font-medium text-foreground">
                   {row.label}
@@ -162,13 +207,23 @@ export default function StoreComparisonTable({
                     href={row.url}
                     target="_blank"
                     rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
-                    className="inline-block rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground/70 hover:border-brand/40 hover:text-brand"
+                    className={
+                      row.worthChecking
+                        ? "inline-block rounded-full bg-brand px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
+                        : "inline-block rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground/70 hover:border-brand/40 hover:text-brand"
+                    }
                     event="cta_click"
                     params={{
                       product_id: product.id,
                       product_slug: product.slug,
                       product_name: product.name,
-                      cta_type: row.isPriceSource ? "affiliate" : row.sponsored ? "affiliate_search" : "official",
+                      cta_type: row.isPriceSource
+                        ? "affiliate"
+                        : row.sponsored
+                          ? "affiliate_search"
+                          : row.worthChecking
+                            ? "marketplace_search"
+                            : "official",
                       buy_score: product.buy_score,
                     }}
                   >
