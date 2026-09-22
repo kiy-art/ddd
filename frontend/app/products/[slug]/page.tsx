@@ -8,6 +8,7 @@ import CompareStrip from "@/components/CompareStrip";
 import FadeIn from "@/components/FadeIn";
 import FavoriteButton from "@/components/FavoriteButton";
 import MonthlyTrendChart from "@/components/MonthlyTrendChart";
+import PriceForecast from "@/components/PriceForecast";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import SafeProductImage from "@/components/SafeProductImage";
 import SeasonalTrend from "@/components/SeasonalTrend";
@@ -354,8 +355,27 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
           <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Price History</span>
           <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">直近の価格推移</h2>
           <div className="mt-8">
-            <PriceHistoryChart history={product.price_history} />
+            <PriceHistoryChart
+              history={product.price_history}
+              forecast={
+                product.forecast_center_price !== null &&
+                product.forecast_low_price !== null &&
+                product.forecast_high_price !== null &&
+                product.forecast_target_date !== null
+                  ? {
+                      centerPrice: product.forecast_center_price,
+                      lowPrice: product.forecast_low_price,
+                      highPrice: product.forecast_high_price,
+                      targetDate: product.forecast_target_date,
+                    }
+                  : null
+              }
+            />
           </div>
+        </FadeIn>
+
+        <FadeIn className="mt-10">
+          <PriceForecast product={product} />
         </FadeIn>
 
         <FadeIn className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-10">

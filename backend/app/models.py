@@ -34,6 +34,17 @@ class Product(Base):
     buy_score: Mapped[str] = mapped_column(String(30), default="insufficient_data")
     buy_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Short-term price forecast (see app/forecast.py). All nullable: a
+    # product without enough price history simply has no forecast rather
+    # than a fabricated one - never backfilled with a guess.
+    forecast_confidence: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    forecast_center_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    forecast_low_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    forecast_high_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    forecast_target_date: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    forecast_trend: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    forecast_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # True for a product auto-discovered via the Rakuten catalog-search
     # pipeline (see app/discovery.py) that an admin hasn't reviewed yet.
     # Hidden from every public endpoint regardless of buy_score until an

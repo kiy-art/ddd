@@ -24,6 +24,13 @@ export interface Product {
   history_span_days: number;
   buy_reason: string | null;
   pending_review: boolean;
+  forecast_confidence: string | null;
+  forecast_center_price: number | null;
+  forecast_low_price: number | null;
+  forecast_high_price: number | null;
+  forecast_target_date: string | null;
+  forecast_trend: string | null;
+  forecast_reason: string | null;
   ai_title: string | null;
   ai_summary: string | null;
   ai_caution: string | null;

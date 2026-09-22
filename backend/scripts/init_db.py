@@ -31,6 +31,13 @@ ADDED_COLUMNS = [
     ("products", "buy_signal_score", "INTEGER"),
     ("products", "history_span_days", "INTEGER"),
     ("products", "pending_review", "BOOLEAN"),
+    ("products", "forecast_confidence", "VARCHAR(10)"),
+    ("products", "forecast_center_price", "INTEGER"),
+    ("products", "forecast_low_price", "INTEGER"),
+    ("products", "forecast_high_price", "INTEGER"),
+    ("products", "forecast_target_date", "TIMESTAMP"),
+    ("products", "forecast_trend", "VARCHAR(10)"),
+    ("products", "forecast_reason", "TEXT"),
 ]
 
 

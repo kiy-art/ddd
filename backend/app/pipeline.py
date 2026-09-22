@@ -9,7 +9,7 @@ import time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ai, analysis, crud, models, rakuten
+from app import ai, analysis, crud, forecast, models, rakuten
 from app.rakuten import search_lowest_price
 
 RAKUTEN_REQUEST_INTERVAL_SECONDS = 1.1  # stay under the API's ~1 req/sec free-tier limit
@@ -74,6 +74,24 @@ def sync_product_analysis(db: Session, product: models.Product) -> bool:
     product.buy_signal_score = result.buy_signal_score
     product.history_span_days = result.history_span_days
     product.buy_reason = analysis.rule_based_reason(result)
+
+    forecast_result = forecast.forecast_price(pairs, product.current_price)
+    if forecast_result is None:
+        product.forecast_confidence = None
+        product.forecast_center_price = None
+        product.forecast_low_price = None
+        product.forecast_high_price = None
+        product.forecast_target_date = None
+        product.forecast_trend = None
+        product.forecast_reason = None
+    else:
+        product.forecast_confidence = forecast_result.confidence
+        product.forecast_center_price = forecast_result.center_price
+        product.forecast_low_price = forecast_result.low_price
+        product.forecast_high_price = forecast_result.high_price
+        product.forecast_target_date = forecast_result.target_date
+        product.forecast_trend = forecast_result.trend
+        product.forecast_reason = "\n".join(forecast_result.reasons)
 
     new_hash = ai.content_hash(product.name, product.current_price, product.buy_score, product.average_price)
     if not ai.should_regenerate(product, new_hash):

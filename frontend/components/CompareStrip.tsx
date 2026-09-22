@@ -41,6 +41,11 @@ export default function CompareStrip({ products, currentId }: { products: Produc
         <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{p.brand}</span>
         <span className="line-clamp-2 font-display text-sm font-medium text-foreground">{p.name}</span>
         <span className="font-display text-lg font-semibold text-foreground">{yen(p.current_price)}</span>
+        {p.forecast_confidence !== null && p.forecast_low_price !== null && p.forecast_high_price !== null && (
+          <span className="text-[11px] text-accent-dark">
+            🔮 予測 {yen(p.forecast_low_price)}〜{yen(p.forecast_high_price)}
+          </span>
+        )}
         <div className="mt-1">
           <AiBuySignal
             buyScore={p.buy_score}
