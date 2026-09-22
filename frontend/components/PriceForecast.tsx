@@ -1,4 +1,5 @@
 import { Product } from "@/lib/api";
+import { forecastMonthLabel } from "@/lib/forecast";
 
 const CONFIDENCE_META: Record<string, { dot: string; label: string }> = {
   high: { dot: "🟢", label: "高" },
@@ -15,11 +16,6 @@ const TREND_LABEL: Record<string, string> = {
 function yen(value: number | null): string {
   if (value === null) return "-";
   return `¥${value.toLocaleString("ja-JP")}`;
-}
-
-function monthLabel(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月頃`;
 }
 
 export default function PriceForecast({ product }: { product: Product }) {
@@ -88,7 +84,7 @@ function ForecastBody({ product }: { product: Product }) {
         <div>
           <span className="text-xs text-foreground/45">予測時期</span>
           <p className="mt-1 font-display text-2xl font-semibold text-foreground">
-            {monthLabel(product.forecast_target_date!)}
+            {forecastMonthLabel(product.forecast_target_date!)}
           </p>
           <p className="mt-0.5 text-xs text-foreground/45">{trendLabel}</p>
         </div>

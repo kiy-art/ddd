@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
 import FadeIn from "@/components/FadeIn";
+import ForecastPreviewCard from "@/components/ForecastPreviewCard";
 import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
 import Newsletter from "@/components/Newsletter";
@@ -49,6 +50,18 @@ export default async function Home({
 
   const bestBuy = allProducts.slice(0, 5);
   const topDeals = computeDeals(allProducts).slice(0, 3);
+  const forecastPicks = allProducts
+    .filter(
+      (p) =>
+        p.forecast_trend === "down" &&
+        p.current_price !== null &&
+        p.forecast_center_price !== null &&
+        p.forecast_low_price !== null &&
+        p.forecast_high_price !== null &&
+        p.forecast_target_date !== null
+    )
+    .sort((a, b) => (b.current_price! - b.forecast_center_price!) - (a.current_price! - a.forecast_center_price!))
+    .slice(0, 3);
   const topRanked = [...allProducts]
     .sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1))
     .slice(0, 5);
@@ -123,8 +136,34 @@ export default async function Home({
         </section>
       )}
 
-      {!error && topRanked.length > 0 && (
+      {!error && forecastPicks.length > 0 && (
         <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
+          <div className="mx-auto max-w-7xl">
+            <FadeIn className="flex flex-col gap-3">
+              <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
+                🔮 Price Forecast
+              </span>
+              <h2 className="max-w-lg font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+                今後、値下がりが期待される商品
+              </h2>
+              <p className="max-w-lg text-sm text-foreground/55">
+                過去の価格データをもとにした予測情報です。将来価格を保証するものではありません。
+              </p>
+            </FadeIn>
+
+            <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {forecastPicks.map((product, i) => (
+                <FadeIn key={product.id} delay={i * 90}>
+                  <ForecastPreviewCard product={product} />
+                </FadeIn>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!error && topRanked.length > 0 && (
+        <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -177,7 +216,7 @@ export default async function Home({
       )}
 
       {!error && (
-        <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
+        <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div>
