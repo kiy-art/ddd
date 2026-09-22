@@ -6,6 +6,7 @@ import CategoryIcon from "@/components/CategoryIcon";
 import RemoveFromCompareButton from "@/components/RemoveFromCompareButton";
 import SafeProductImage from "@/components/SafeProductImage";
 import TrackedCta from "@/components/TrackedCta";
+import { getAmazonSearchUrl } from "@/lib/amazon";
 import { ProductDetail, getProduct } from "@/lib/api";
 import { MAX_COMPARE } from "@/lib/compare";
 import { forecastMonthLabel } from "@/lib/forecast";
@@ -182,25 +183,39 @@ export default async function ComparePage({
                   <CompareRow label="" last>
                     {products.map((p) => (
                       <td key={p.id} className="px-3 py-6 align-top">
-                        {p.affiliate_url ? (
+                        <div className="flex flex-col gap-2">
+                          {p.affiliate_url ? (
+                            <TrackedCta
+                              href={p.affiliate_url}
+                              target="_blank"
+                              rel="noopener noreferrer sponsored"
+                              className="block w-full rounded-full bg-brand px-4 py-3 text-center text-xs font-semibold text-white transition-transform hover:scale-[1.03]"
+                              event="cta_click"
+                              params={{ product_id: p.id, product_slug: p.slug, cta_type: "affiliate_compare" }}
+                            >
+                              {ctaLabel(p.affiliate_url)}
+                            </TrackedCta>
+                          ) : (
+                            <Link
+                              href={`/products/${p.slug}`}
+                              className="block w-full rounded-full border border-border px-4 py-3 text-center text-xs font-semibold text-foreground/70 hover:border-brand/40 hover:text-brand"
+                            >
+                              詳細を見る
+                            </Link>
+                          )}
+                          {/* Amazon: 実績作りフェーズにつき価格は取得せず、商品名の検索結果への
+                              リンクのみ（見た目でRakuten/Yahooの直リンクと混同しないよう別配色）。 */}
                           <TrackedCta
-                            href={p.affiliate_url}
+                            href={getAmazonSearchUrl(p.name)}
                             target="_blank"
                             rel="noopener noreferrer sponsored"
-                            className="block w-full rounded-full bg-brand px-4 py-3 text-center text-xs font-semibold text-white transition-transform hover:scale-[1.03]"
+                            className="block w-full rounded-full border border-border px-4 py-2.5 text-center text-xs font-semibold text-foreground/60 hover:border-brand/40 hover:text-brand"
                             event="cta_click"
-                            params={{ product_id: p.id, product_slug: p.slug, cta_type: "affiliate_compare" }}
+                            params={{ product_id: p.id, product_slug: p.slug, cta_type: "affiliate_search" }}
                           >
-                            {ctaLabel(p.affiliate_url)}
+                            Amazonで探す ↗
                           </TrackedCta>
-                        ) : (
-                          <Link
-                            href={`/products/${p.slug}`}
-                            className="block w-full rounded-full border border-border px-4 py-3 text-center text-xs font-semibold text-foreground/70 hover:border-brand/40 hover:text-brand"
-                          >
-                            詳細を見る
-                          </Link>
-                        )}
+                        </div>
                       </td>
                     ))}
                   </CompareRow>

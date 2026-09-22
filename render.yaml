@@ -53,3 +53,5 @@ services:
         sync: false
       - key: NEXT_PUBLIC_SITE_URL
         sync: false
+      - key: NEXT_PUBLIC_AMAZON_AFFILIATE_TAG
+        sync: false

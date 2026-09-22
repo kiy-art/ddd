@@ -1,4 +1,5 @@
 import TrackedCta from "@/components/TrackedCta";
+import { getAmazonSearchUrl } from "@/lib/amazon";
 import { Product } from "@/lib/api";
 
 function yen(value: number | null): string {
@@ -33,14 +34,30 @@ export default function StoreComparisonTable({
   product: Product;
   lastUpdatedAt: string | null;
 }) {
-  const rows: { label: string; price: number | null; url: string; isPriceSource: boolean; updatedAt: string | null }[] =
-    [];
+  type Row = {
+    label: string;
+    price: number | null;
+    priceDisplay?: string;
+    url: string;
+    isPriceSource: boolean;
+    // Separate from isPriceSource: a search-result link (Amazon below) still
+    // carries our affiliate tag and earns a commission on a resulting sale,
+    // so it needs the same "sponsored" rel/disclosure treatment as a real
+    // tracked price row even though it has no price to show.
+    sponsored: boolean;
+    updatedAt: string | null;
+    detailNote?: string;
+    ctaLabel?: string;
+  };
+
+  const rows: Row[] = [];
   if (product.affiliate_url) {
     rows.push({
       label: storeLabel(product.affiliate_url),
       price: product.current_price,
       url: product.affiliate_url,
       isPriceSource: true,
+      sponsored: true,
       updatedAt: lastUpdatedAt,
     });
   }
@@ -53,6 +70,7 @@ export default function StoreComparisonTable({
       price: product.yahoo_price,
       url: product.yahoo_url,
       isPriceSource: true,
+      sponsored: true,
       updatedAt: product.yahoo_updated_at,
     });
   }
@@ -62,13 +80,29 @@ export default function StoreComparisonTable({
       price: null,
       url: product.product_url,
       isPriceSource: false,
+      sponsored: false,
       updatedAt: null,
     });
   }
+  // Amazon: 実績作りフェーズ（PA-API未申請）につき価格は取得せず、商品名の
+  // 検索結果ページへのリンクのみを表示する。特定商品への直リンクではない
+  // ため、価格欄は空欄にし、文言でも「検索」であることを明記する。
+  rows.push({
+    label: "Amazon",
+    price: null,
+    priceDisplay: "-",
+    url: getAmazonSearchUrl(product.name),
+    isPriceSource: false,
+    sponsored: true,
+    updatedAt: null,
+    detailNote: "商品名の検索結果ページが開きます",
+    ctaLabel: "Amazonで探す →",
+  });
 
   if (rows.length === 0) return null;
 
-  const remainingStores = ["Amazon", "ゴルフ専門店"];
+  const hasSponsoredRow = rows.some((row) => row.sponsored);
+  const remainingStores = ["ゴルフ専門店"];
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
@@ -91,9 +125,11 @@ export default function StoreComparisonTable({
               <tr key={row.url} className="border-b border-border last:border-0">
                 <td className="py-3 pr-4 font-medium text-foreground">{row.label}</td>
                 <td className="py-3 pr-4 font-display font-semibold text-foreground">
-                  {row.isPriceSource ? yen(row.price) : "要確認"}
+                  {row.priceDisplay ?? (row.isPriceSource ? yen(row.price) : "要確認")}
                 </td>
-                <td className="py-3 pr-4 text-xs text-foreground/40">販売ページでご確認ください</td>
+                <td className="py-3 pr-4 text-xs text-foreground/40">
+                  {row.detailNote ?? "販売ページでご確認ください"}
+                </td>
                 <td className="py-3 pr-4 text-xs text-foreground/40">
                   {row.updatedAt ? new Date(row.updatedAt).toLocaleString("ja-JP") : "-"}
                 </td>
@@ -101,18 +137,18 @@ export default function StoreComparisonTable({
                   <TrackedCta
                     href={row.url}
                     target="_blank"
-                    rel={row.isPriceSource ? "noopener noreferrer sponsored" : "noopener noreferrer"}
+                    rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
                     className="inline-block rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground/70 hover:border-brand/40 hover:text-brand"
                     event="cta_click"
                     params={{
                       product_id: product.id,
                       product_slug: product.slug,
                       product_name: product.name,
-                      cta_type: row.isPriceSource ? "affiliate" : "official",
+                      cta_type: row.isPriceSource ? "affiliate" : row.sponsored ? "affiliate_search" : "official",
                       buy_score: product.buy_score,
                     }}
                   >
-                    見る →
+                    {row.ctaLabel ?? "見る →"}
                   </TrackedCta>
                 </td>
               </tr>
@@ -123,7 +159,7 @@ export default function StoreComparisonTable({
 
       <p className="mt-4 text-xs text-foreground/35">
         {remainingStores.length > 0 && `${remainingStores.join("・")}の価格比較は現在準備中です。`}
-        {product.affiliate_url && (
+        {hasSponsoredRow && (
           <>
             {" "}
             ※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
