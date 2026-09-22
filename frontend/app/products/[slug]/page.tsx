@@ -16,7 +16,7 @@ import SeasonalTrend from "@/components/SeasonalTrend";
 import TrackedCta from "@/components/TrackedCta";
 import TrackViewed from "@/components/TrackViewed";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
-import { getProductBadge } from "@/lib/badges";
+import { getPopularityBadge, getProductBadge } from "@/lib/badges";
 
 export const revalidate = 0;
 
@@ -103,6 +103,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
   const badge = getProductBadge(product);
+  const popularityBadge = getPopularityBadge(product);
   const msrpPct =
     product.msrp !== null && product.current_price !== null
       ? Math.round(((product.current_price - product.msrp) / product.msrp) * 1000) / 10
@@ -207,6 +208,11 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   >
                     {product.brand}
                   </Link>
+                  {popularityBadge && (
+                    <span className="rounded-full bg-brand px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-white">
+                      {popularityBadge.label}
+                    </span>
+                  )}
                   {badge && (
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${

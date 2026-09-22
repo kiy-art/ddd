@@ -10,6 +10,7 @@ import { CATEGORIES, CATEGORY_LABELS } from "@/lib/api";
 const NAV_LINKS = [
   ...CATEGORIES.map((c) => ({ href: `/category/${c}`, label: CATEGORY_LABELS[c] })),
   { href: "/finder", label: "クラブ診断" },
+  { href: "/popular", label: "人気ランキング" },
   { href: "/deals", label: "値下がり中" },
   { href: "/ranking", label: "買い時ランキング" },
   { href: "/brands", label: "ブランド一覧" },

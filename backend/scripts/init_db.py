@@ -40,6 +40,8 @@ ADDED_COLUMNS = [
     ("products", "forecast_reason", "TEXT"),
     ("products", "msrp", "INTEGER"),
     ("products", "release_date", "DATE"),
+    ("products", "popularity_rank", "INTEGER"),
+    ("products", "popularity_updated_at", "TIMESTAMP"),
 ]
 
 

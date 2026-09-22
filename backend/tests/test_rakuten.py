@@ -121,6 +121,61 @@ def test_search_lowest_price_returns_none_when_no_items(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_fetch_ranking_raises_when_app_id_missing(monkeypatch):
+    monkeypatch.setenv("RAKUTEN_APP_ID", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    with pytest.raises(rakuten.RakutenNotConfigured):
+        rakuten.fetch_ranking(201706)
+    get_settings.cache_clear()
+
+
+def test_fetch_ranking_parses_items_in_rank_order(monkeypatch):
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    payload = {
+        "Items": [
+            {"Item": {"rank": 1, "itemName": "PING G440 ドライバー", "itemUrl": "https://item.rakuten.co.jp/a/"}},
+            {"Item": {"rank": 2, "itemName": "テーラーメイド Qi35 ドライバー", "itemUrl": "https://item.rakuten.co.jp/b/"}},
+        ]
+    }
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        assert url == rakuten.RANKING_URL
+        assert params["applicationId"] == "test-app-id"
+        assert params["genreId"] == 201706
+        return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    results = rakuten.fetch_ranking(201706)
+    assert [r.rank for r in results] == [1, 2]
+    assert results[0].item_name == "PING G440 ドライバー"
+
+    get_settings.cache_clear()
+
+
+def test_fetch_ranking_skips_malformed_entries(monkeypatch):
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    payload = {"Items": [{"Item": {"itemName": "missing rank/url fields"}}]}
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    assert rakuten.fetch_ranking(201706) == []
+    get_settings.cache_clear()
+
+
 def test_to_affiliate_url_returns_none_when_not_configured(monkeypatch):
     monkeypatch.setenv("RAKUTEN_AFFILIATE_ID", "")
     from app.config import get_settings

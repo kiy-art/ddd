@@ -32,6 +32,13 @@ class Product(Base):
     msrp: Mapped[int | None] = mapped_column(Integer, nullable=True)
     release_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
 
+    # Rakuten Ichiba's own real-time bestseller rank for this product's
+    # category (see app/popularity.py) - refreshed on every sync, and
+    # cleared (not left stale) the moment the product drops out of that
+    # ranking, unlike msrp/release_date above.
+    popularity_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    popularity_updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
     current_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     previous_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lowest_price: Mapped[int | None] = mapped_column(Integer, nullable=True)

@@ -16,6 +16,8 @@ export interface Product {
   affiliate_url: string | null;
   msrp: number | null;
   release_date: string | null;
+  popularity_rank: number | null;
+  popularity_updated_at: string | null;
   current_price: number | null;
   previous_price: number | null;
   lowest_price: number | null;

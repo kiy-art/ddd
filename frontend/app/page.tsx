@@ -20,6 +20,10 @@ export const revalidate = 0;
 const FILTER_TABS = ["all", "strong_buy", "buy", "neutral", "not_buy"] as const;
 type FilterTab = (typeof FILTER_TABS)[number];
 
+// Same threshold used elsewhere (ProductCard, product detail page) for
+// "enough price history to claim a trend" - each file keeps its own copy.
+const THIN_DATA_DAYS = 7;
+
 function isFilterTab(value: string | undefined): value is FilterTab {
   return !!value && (FILTER_TABS as readonly string[]).includes(value);
 }
@@ -50,6 +54,15 @@ export default async function Home({
 
   const bestBuy = allProducts.slice(0, 5);
   const topDeals = computeDeals(allProducts).slice(0, 3);
+  const popularAndDropping = allProducts
+    .filter((p) => {
+      if (p.popularity_rank === null) return false;
+      if (p.msrp !== null && p.current_price !== null && p.current_price < p.msrp) return true;
+      const reliable = p.buy_score !== "insufficient_data" && p.history_span_days >= THIN_DATA_DAYS;
+      return reliable && p.price_change_percent !== null && p.price_change_percent < 0;
+    })
+    .sort((a, b) => (a.popularity_rank ?? 999) - (b.popularity_rank ?? 999))
+    .slice(0, 3);
   const forecastPicks = allProducts
     .filter(
       (p) =>
@@ -77,7 +90,7 @@ export default async function Home({
       )}
 
       {!error && bestBuy.length > 0 && (
-        <section id="best-buy" className="scroll-mt-20 bg-background px-6 py-24 sm:py-32">
+        <section id="best-buy" className="scroll-mt-20 bg-card px-6 py-24 sm:py-32">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-3">
               <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
@@ -95,6 +108,40 @@ export default async function Home({
               {bestBuy.map((product, i) => (
                 <FadeIn key={product.id} delay={i * 90}>
                   <ProductCard product={product} listSource="homepage_best_buy" />
+                </FadeIn>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!error && popularAndDropping.length > 0 && (
+        <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
+          <div className="mx-auto max-w-7xl">
+            <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <span className="text-xs font-medium uppercase tracking-[0.3em] text-sale">
+                  🔥 Popular &amp; Dropping
+                </span>
+                <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+                  人気なのに値下がり中
+                </h2>
+                <p className="mt-3 max-w-lg text-sm text-foreground/55">
+                  楽天市場の実際の売れ筋ランキングに入っているのに、価格が下がっている商品です。
+                </p>
+              </div>
+              <Link
+                href="/popular"
+                className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground/70 transition-colors hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
+              >
+                すべて見る →
+              </Link>
+            </FadeIn>
+
+            <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {popularAndDropping.map((product, i) => (
+                <FadeIn key={product.id} delay={i * 90}>
+                  <ProductCard product={product} listSource="homepage_popular_dropping" />
                 </FadeIn>
               ))}
             </div>

@@ -42,3 +42,19 @@ export function getProductBadge(product: Product): ProductBadge | null {
   }
   return null;
 }
+
+// Below this rank, a Rakuten category ranking position is too far down to
+// read as a meaningful "popular" signal to a visitor at a glance.
+const POPULARITY_BADGE_MAX_RANK = 10;
+
+/**
+ * A real third-party signal (Rakuten Ichiba's own bestseller ranking for
+ * this product's category - see app/popularity.py), not this site's own
+ * still-low traffic and not a guess. Kept as a separate badge from
+ * getProductBadge above since it answers a different question ("is this
+ * actually selling well elsewhere") from the buy-timing ones.
+ */
+export function getPopularityBadge(product: Product): ProductBadge | null {
+  if (product.popularity_rank === null || product.popularity_rank > POPULARITY_BADGE_MAX_RANK) return null;
+  return { label: `🔥 楽天人気${product.popularity_rank}位`, tone: "strong" };
+}

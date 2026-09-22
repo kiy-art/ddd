@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, discovery, models, pipeline, schemas
+from app import crud, discovery, models, pipeline, popularity, schemas
 from app.auth import require_admin
 from app.database import get_db
 
@@ -184,6 +184,7 @@ def fetch_rakuten(db: Session = Depends(get_db)):
 
     price_updated, price_skipped = pipeline.fetch_rakuten_prices(db)
     products_discovered, candidates_considered = discovery.discover_new_products(db)
+    products_ranked, popularity_categories_checked = popularity.sync_popularity_rankings(db)
     analyzed = 0
     regenerated = 0
     for product in db.execute(select(models.Product)).scalars().all():
@@ -195,9 +196,25 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         "prices_skipped": price_skipped,
         "products_discovered": products_discovered,
         "candidates_considered": candidates_considered,
+        "products_ranked": products_ranked,
+        "popularity_categories_checked": popularity_categories_checked,
         "products_checked": analyzed,
         "ai_regenerated": regenerated,
     }
+
+
+@router.post("/sync-popularity")
+def sync_popularity(db: Session = Depends(get_db)):
+    """Manual trigger for the same Rakuten-ranking sync that also runs as
+    part of the daily /fetch-rakuten job."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.rakuten_app_id:
+        raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID is not configured")
+
+    ranked, checked = popularity.sync_popularity_rankings(db)
+    return {"products_ranked": ranked, "categories_checked": checked}
 
 
 @router.post("/discover-products")

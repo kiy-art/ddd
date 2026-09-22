@@ -14,6 +14,7 @@ import httpx
 from app.config import get_settings
 
 SEARCH_URL = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701"
+RANKING_URL = "https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20220601"
 AFFILIATE_LINK_BASE = "https://hb.afl.rakuten.co.jp/ichiba"
 
 
@@ -124,3 +125,54 @@ def search_items(keyword: str, hits: int = 10, timeout: float = 10.0) -> list[Ra
     product."""
     candidates = _fetch_candidates(keyword, hits=hits, timeout=timeout)
     return [_item_to_result(item) for item in candidates]
+
+
+class RakutenRankingItem:
+    def __init__(self, rank: int, item_name: str, item_url: str):
+        self.rank = rank
+        self.item_name = item_name
+        self.item_url = item_url
+
+
+def fetch_ranking(genre_id: int, hits: int = 30, timeout: float = 10.0) -> list[RakutenRankingItem]:
+    """Rakuten's own real-time bestseller ranking for a genre (see
+    https://webservice.rakuten.co.jp/documentation/ichiba-item-ranking) -
+    an actual third-party "what's popular right now" signal, not something
+    this site computes or guesses. Returns [] (never raises past logging by
+    the caller) is the caller's job on request failure - this function
+    itself still raises so a bad genreId/network error is visible."""
+    settings = get_settings()
+    if not settings.rakuten_app_id:
+        raise RakutenNotConfigured("RAKUTEN_APP_ID is not configured")
+
+    params = {
+        "applicationId": settings.rakuten_app_id,
+        "genreId": genre_id,
+        "format": "json",
+    }
+    headers = (
+        {"Referer": settings.rakuten_referer, "Origin": settings.rakuten_referer}
+        if settings.rakuten_referer
+        else {}
+    )
+
+    response = httpx.get(RANKING_URL, params=params, headers=headers, timeout=timeout)
+    if response.is_error:
+        raise RuntimeError(f"Rakuten Ranking API {response.status_code}: {response.text[:500]}")
+    data = response.json()
+
+    items = data.get("Items") or []
+    results = []
+    for entry in items[:hits]:
+        item = entry.get("Item", entry)
+        try:
+            results.append(
+                RakutenRankingItem(
+                    rank=int(item["rank"]),
+                    item_name=item["itemName"],
+                    item_url=item["itemUrl"],
+                )
+            )
+        except (KeyError, ValueError, TypeError):
+            continue  # unexpected shape for this entry - skip it, keep the rest
+    return results

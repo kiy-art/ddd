@@ -59,6 +59,8 @@ class ProductOut(ProductBase):
     history_span_days: int
     buy_reason: str | None
     pending_review: bool
+    popularity_rank: int | None
+    popularity_updated_at: datetime.datetime | None
     forecast_confidence: str | None
     forecast_center_price: int | None
     forecast_low_price: int | None
