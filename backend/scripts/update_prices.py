@@ -58,6 +58,10 @@ def main():
         else:
             print("No --csv given and RAKUTEN_APP_ID not set; re-running analysis only.")
 
+        if settings.yahoo_client_id:
+            yahoo_updated, yahoo_skipped = pipeline.fetch_yahoo_prices(db)
+            print(f"Yahoo fetch: updated={yahoo_updated} skipped={yahoo_skipped}")
+
         products = list(db.execute(select(models.Product)).scalars().all())
         checked = 0
         regenerated = 0

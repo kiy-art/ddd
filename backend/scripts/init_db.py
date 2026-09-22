@@ -45,6 +45,9 @@ ADDED_COLUMNS = [
     ("products", "skill_level", "VARCHAR(20)"),
     ("products", "performance_type", "VARCHAR(20)"),
     ("products", "is_current_generation", "BOOLEAN"),
+    ("products", "yahoo_price", "INTEGER"),
+    ("products", "yahoo_url", "VARCHAR(1024)"),
+    ("products", "yahoo_updated_at", "TIMESTAMP"),
 ]
 
 

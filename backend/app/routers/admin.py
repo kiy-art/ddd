@@ -183,6 +183,17 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         )
 
     price_updated, price_skipped = pipeline.fetch_rakuten_prices(db)
+
+    # Yahoo is a second, optional price source (unlike Rakuten above, which
+    # this endpoint already requires) - only attempted when configured, and
+    # a failure here never blocks the rest of the daily job.
+    yahoo_updated, yahoo_skipped = 0, 0
+    if settings.yahoo_client_id:
+        try:
+            yahoo_updated, yahoo_skipped = pipeline.fetch_yahoo_prices(db)
+        except Exception as exc:  # noqa: BLE001 - Yahoo failing shouldn't fail the whole job
+            crud.create_error_log(db, source="price_fetch", message=f"Yahoo fetch failed: {exc}")
+
     products_discovered, candidates_considered = discovery.discover_new_products(db)
     products_ranked, popularity_categories_checked = popularity.sync_popularity_rankings(db)
     analyzed = 0
@@ -194,6 +205,8 @@ def fetch_rakuten(db: Session = Depends(get_db)):
     return {
         "prices_updated": price_updated,
         "prices_skipped": price_skipped,
+        "yahoo_prices_updated": yahoo_updated,
+        "yahoo_prices_skipped": yahoo_skipped,
         "products_discovered": products_discovered,
         "candidates_considered": candidates_considered,
         "products_ranked": products_ranked,
@@ -201,6 +214,20 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         "products_checked": analyzed,
         "ai_regenerated": regenerated,
     }
+
+
+@router.post("/fetch-yahoo")
+def fetch_yahoo(db: Session = Depends(get_db)):
+    """Manual trigger for the Yahoo price fetch alone, useful for testing
+    without waiting for the next scheduled /fetch-rakuten run."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.yahoo_client_id:
+        raise HTTPException(status_code=400, detail="YAHOO_CLIENT_ID is not configured")
+
+    updated, skipped = pipeline.fetch_yahoo_prices(db)
+    return {"yahoo_prices_updated": updated, "yahoo_prices_skipped": skipped}
 
 
 @router.post("/sync-popularity")

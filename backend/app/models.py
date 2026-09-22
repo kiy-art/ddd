@@ -62,6 +62,17 @@ class Product(Base):
     popularity_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
     popularity_updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # A second, independent price source (Yahoo!ショッピング, see app/yahoo.py)
+    # alongside the Rakuten-sourced current_price below - auto-synced the
+    # same way, cleared (not left stale) when a fetch finds no match. Never
+    # feeds into buy_score/price_change_percent/forecast_*, which stay
+    # anchored to the single Rakuten-sourced price_history series so the
+    # existing analysis isn't disturbed by a second, independently-noisy
+    # source; it exists purely for the store comparison table.
+    yahoo_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    yahoo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    yahoo_updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
     current_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     previous_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lowest_price: Mapped[int | None] = mapped_column(Integer, nullable=True)

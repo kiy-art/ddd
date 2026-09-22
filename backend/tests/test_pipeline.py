@@ -1,4 +1,4 @@
-from app import crud, pipeline, schemas
+from app import crud, pipeline, schemas, yahoo
 
 
 def _make_product(db, initial_price=60000):
@@ -181,6 +181,112 @@ def test_fetch_rakuten_prices_rejects_accessory_match_even_with_no_reference(db_
 
     logs = crud.list_error_logs(db_session)
     assert any("アクセサリ" in log.message and log.level == "warning" for log in logs)
+
+
+def test_fetch_yahoo_prices_accepts_plausible_price(db_session, monkeypatch):
+    product = _make_product(db_session, initial_price=60000)
+
+    monkeypatch.setattr(
+        yahoo, "search_lowest_price", lambda keyword: _FakeResult(58000, item_url="https://store.shopping.yahoo.co.jp/example/g430.html")
+    )
+
+    updated, skipped = pipeline.fetch_yahoo_prices(db_session)
+    assert updated == 1
+    assert skipped == 0
+
+    db_session.refresh(product)
+    assert product.yahoo_price == 58000
+    assert product.yahoo_url == "https://store.shopping.yahoo.co.jp/example/g430.html"
+    assert product.yahoo_updated_at is not None
+
+
+def test_fetch_yahoo_prices_rejects_implausible_price(db_session, monkeypatch):
+    product = _make_product(db_session, initial_price=60000)
+
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: _FakeResult(1100))
+
+    updated, skipped = pipeline.fetch_yahoo_prices(db_session)
+    assert updated == 0
+    assert skipped == 1
+
+    db_session.refresh(product)
+    assert product.yahoo_price is None
+
+
+def test_fetch_yahoo_prices_rejects_accessory_match(db_session, monkeypatch):
+    product = _make_product(db_session, initial_price=60000)
+
+    monkeypatch.setattr(
+        yahoo, "search_lowest_price", lambda keyword: _FakeResult(58000, item_name="PING G430用 ヘッドカバー")
+    )
+
+    updated, skipped = pipeline.fetch_yahoo_prices(db_session)
+    assert updated == 0
+    assert skipped == 1
+
+    db_session.refresh(product)
+    assert product.yahoo_price is None
+
+
+def test_fetch_yahoo_prices_clears_stale_price_when_no_longer_matched(db_session, monkeypatch):
+    """A product that had a Yahoo price on a previous fetch but no longer
+    matches (delisted, price no longer plausible) must have it cleared, not
+    left showing an old price as if it were current."""
+    product = _make_product(db_session, initial_price=60000)
+    product.yahoo_price = 59000
+    product.yahoo_url = "https://store.shopping.yahoo.co.jp/example/old.html"
+    db_session.commit()
+
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: None)
+
+    updated, skipped = pipeline.fetch_yahoo_prices(db_session)
+    assert updated == 0
+    assert skipped == 1
+
+    db_session.refresh(product)
+    assert product.yahoo_price is None
+    assert product.yahoo_url is None
+
+
+def test_fetch_yahoo_prices_never_touches_rakuten_sourced_fields(db_session, monkeypatch):
+    """Yahoo is a second, independent price source - it must never disturb
+    current_price/buy_score/price_history, which stay anchored to the
+    Rakuten-sourced series."""
+    product = _make_product(db_session, initial_price=60000)
+    original_buy_score = product.buy_score
+    original_current_price = product.current_price
+    history_before = len(crud.get_price_history(db_session, product.id))
+
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: _FakeResult(55000))
+
+    pipeline.fetch_yahoo_prices(db_session)
+
+    db_session.refresh(product)
+    assert product.current_price == original_current_price
+    assert product.buy_score == original_buy_score
+    assert len(crud.get_price_history(db_session, product.id)) == history_before
+
+
+def test_fetch_yahoo_prices_wraps_affiliate_url_when_configured(db_session, monkeypatch):
+    monkeypatch.setenv("YAHOO_AFFILIATE_ID", "test-sid-123")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=60000)
+
+        monkeypatch.setattr(
+            yahoo,
+            "search_lowest_price",
+            lambda keyword: _FakeResult(55000, item_url="https://store.shopping.yahoo.co.jp/example/g430.html"),
+        )
+
+        pipeline.fetch_yahoo_prices(db_session)
+
+        db_session.refresh(product)
+        assert product.yahoo_url.startswith("https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=test-sid-123")
+    finally:
+        get_settings.cache_clear()
 
 
 def test_find_and_fix_price_anomalies_cleans_up_preexisting_bad_row(db_session):

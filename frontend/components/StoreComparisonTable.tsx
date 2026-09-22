@@ -33,38 +33,56 @@ export default function StoreComparisonTable({
   product: Product;
   lastUpdatedAt: string | null;
 }) {
-  const rows: { label: string; price: number | null; url: string; isPriceSource: boolean }[] = [];
+  const rows: { label: string; price: number | null; url: string; isPriceSource: boolean; updatedAt: string | null }[] =
+    [];
   if (product.affiliate_url) {
     rows.push({
       label: storeLabel(product.affiliate_url),
       price: product.current_price,
       url: product.affiliate_url,
       isPriceSource: true,
+      updatedAt: lastUpdatedAt,
+    });
+  }
+  // Yahoo!ショッピング商品検索API - a real, independently-fetched second
+  // price source (see app/yahoo.py), only shown when a match was actually
+  // found for this specific product; never a fabricated row.
+  if (product.yahoo_price !== null && product.yahoo_url) {
+    rows.push({
+      label: "Yahoo!ショッピング",
+      price: product.yahoo_price,
+      url: product.yahoo_url,
+      isPriceSource: true,
+      updatedAt: product.yahoo_updated_at,
     });
   }
   if (product.product_url && product.product_url !== product.affiliate_url) {
-    rows.push({ label: "メーカー公式サイト", price: null, url: product.product_url, isPriceSource: false });
+    rows.push({
+      label: "メーカー公式サイト",
+      price: null,
+      url: product.product_url,
+      isPriceSource: false,
+      updatedAt: null,
+    });
   }
 
   if (rows.length === 0) return null;
+
+  const remainingStores = ["Amazon", "ゴルフ専門店"];
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
       <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Store Comparison</span>
       <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">販売価格を比較</h2>
-      {lastUpdatedAt && (
-        <p className="mt-1 text-xs text-foreground/40">
-          最終更新：{new Date(lastUpdatedAt).toLocaleString("ja-JP")}
-        </p>
-      )}
 
       <div className="mt-5 overflow-x-auto">
-        <table className="w-full min-w-[480px] border-collapse text-sm">
+        <table className="w-full min-w-[560px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-left text-[11px] uppercase tracking-widest text-foreground/40">
               <th className="pb-2 pr-4 font-medium">ショップ</th>
               <th className="pb-2 pr-4 font-medium">価格</th>
               <th className="pb-2 pr-4 font-medium">送料・ポイント・在庫</th>
+              <th className="pb-2 pr-4 font-medium">更新日時</th>
               <th className="pb-2 font-medium"></th>
             </tr>
           </thead>
@@ -76,6 +94,9 @@ export default function StoreComparisonTable({
                   {row.isPriceSource ? yen(row.price) : "要確認"}
                 </td>
                 <td className="py-3 pr-4 text-xs text-foreground/40">販売ページでご確認ください</td>
+                <td className="py-3 pr-4 text-xs text-foreground/40">
+                  {row.updatedAt ? new Date(row.updatedAt).toLocaleString("ja-JP") : "-"}
+                </td>
                 <td className="py-3 text-right">
                   <TrackedCta
                     href={row.url}
@@ -101,7 +122,7 @@ export default function StoreComparisonTable({
       </div>
 
       <p className="mt-4 text-xs text-foreground/35">
-        Amazon・Yahoo!ショッピング・ゴルフ専門店の価格比較は現在準備中です。
+        {remainingStores.length > 0 && `${remainingStores.join("・")}の価格比較は現在準備中です。`}
         {product.affiliate_url && (
           <>
             {" "}

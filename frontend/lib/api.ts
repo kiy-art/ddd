@@ -21,6 +21,9 @@ export interface Product {
   is_current_generation: boolean | null;
   popularity_rank: number | null;
   popularity_updated_at: string | null;
+  yahoo_price: number | null;
+  yahoo_url: string | null;
+  yahoo_updated_at: string | null;
   current_price: number | null;
   previous_price: number | null;
   lowest_price: number | null;

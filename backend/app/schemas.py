@@ -67,6 +67,9 @@ class ProductOut(ProductBase):
     pending_review: bool
     popularity_rank: int | None
     popularity_updated_at: datetime.datetime | None
+    yahoo_price: int | None
+    yahoo_url: str | None
+    yahoo_updated_at: datetime.datetime | None
     forecast_confidence: str | None
     forecast_center_price: int | None
     forecast_low_price: int | None

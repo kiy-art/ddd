@@ -9,10 +9,11 @@ import time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ai, analysis, crud, forecast, models, rakuten
+from app import ai, analysis, crud, forecast, models, rakuten, yahoo
 from app.rakuten import search_lowest_price
 
 RAKUTEN_REQUEST_INTERVAL_SECONDS = 1.1  # stay under the API's ~1 req/sec free-tier limit
+YAHOO_REQUEST_INTERVAL_SECONDS = 1.1  # same conservative pacing as Rakuten - no documented higher limit
 
 # A freshly-fetched price outside this ratio of the product's known average
 # is treated as a probable mismatch (wrong item matched, accessory/part
@@ -186,6 +187,50 @@ def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
             db.rollback()
             crud.create_error_log(
                 db, source="price_fetch", message=f"{product.name}: {exc}", product_id=product.id
+            )
+            skipped += 1
+    return updated, skipped
+
+
+def fetch_yahoo_prices(db: Session) -> tuple[int, int]:
+    """Same shape as fetch_rakuten_prices, for a second independent price
+    source (Yahoo!ショッピング). Writes to yahoo_price/yahoo_url/
+    yahoo_updated_at only - never touches current_price/price_history/
+    buy_score/forecast_*, which stay anchored to the single Rakuten-sourced
+    series. When no match is found (or the match looks implausible/like an
+    accessory), yahoo_price is cleared to None rather than left stale, so
+    the store comparison table never shows an old price as current.
+
+    Returns (updated_count, skipped_count).
+    """
+    products = list(db.execute(select(models.Product)).scalars().all())
+    updated = 0
+    skipped = 0
+    for i, product in enumerate(products):
+        if i > 0:
+            time.sleep(YAHOO_REQUEST_INTERVAL_SECONDS)
+        try:
+            keyword = f"{product.brand} {product.name}".strip()
+            result = yahoo.search_lowest_price(keyword)
+            if result is None or _looks_like_accessory(result.item_name) or not _is_plausible_price(
+                product, result.price
+            ):
+                if product.yahoo_price is not None:
+                    product.yahoo_price = None
+                    product.yahoo_url = None
+                    product.yahoo_updated_at = None
+                    db.commit()
+                skipped += 1
+                continue
+            product.yahoo_price = result.price
+            product.yahoo_url = yahoo.to_affiliate_url(result.item_url) or result.item_url
+            product.yahoo_updated_at = datetime.datetime.utcnow()
+            db.commit()
+            updated += 1
+        except Exception as exc:  # noqa: BLE001 - keep the batch alive
+            db.rollback()
+            crud.create_error_log(
+                db, source="price_fetch", message=f"Yahoo: {product.name}: {exc}", product_id=product.id
             )
             skipped += 1
     return updated, skipped
