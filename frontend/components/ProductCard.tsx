@@ -159,7 +159,9 @@ export default function ProductCard({ product, listSource }: { product: Product;
                   <div className="mt-0.5 text-xs text-foreground/45">30日平均 {yen(product.average_price)}</div>
                 ) : (
                   <div className="mt-0.5 text-xs text-foreground/35">
-                    データ蓄積中（{product.history_span_days}日分）
+                    {product.history_span_days > 0
+                      ? `データ蓄積中（${product.history_span_days}日分）`
+                      : "登録されたばかりの商品です"}
                   </div>
                 )}
               </>

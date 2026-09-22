@@ -104,10 +104,27 @@ export default function StoreComparisonTable({
   const hasSponsoredRow = rows.some((row) => row.sponsored);
   const remainingStores = ["ゴルフ専門店"];
 
+  // Highlight the cheapest real price among actually-tracked sources
+  // (Rakuten/Yahoo!) - only meaningful with 2+ real prices to compare, and
+  // never involving the Amazon/official rows above, which have no price.
+  const pricedRows = rows.filter((row): row is Row & { price: number } => row.isPriceSource && row.price !== null);
+  const cheapestRow =
+    pricedRows.length >= 2 ? pricedRows.reduce((min, row) => (row.price < min.price ? row : min)) : null;
+  const priceDiff =
+    cheapestRow && pricedRows.length >= 2
+      ? Math.max(...pricedRows.map((row) => row.price)) - cheapestRow.price
+      : null;
+
   return (
     <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
       <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Store Comparison</span>
       <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">販売価格を比較</h2>
+
+      {cheapestRow && priceDiff !== null && priceDiff > 0 && (
+        <p className="mt-3 rounded-xl bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">
+          現在は{cheapestRow.label}が最安です（他店との差額 {yen(priceDiff)}）
+        </p>
+      )}
 
       <div className="mt-5 overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-sm">
@@ -123,7 +140,14 @@ export default function StoreComparisonTable({
           <tbody>
             {rows.map((row) => (
               <tr key={row.url} className="border-b border-border last:border-0">
-                <td className="py-3 pr-4 font-medium text-foreground">{row.label}</td>
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  {row.label}
+                  {row === cheapestRow && (
+                    <span className="ml-2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-bold text-white">
+                      最安
+                    </span>
+                  )}
+                </td>
                 <td className="py-3 pr-4 font-display font-semibold text-foreground">
                   {row.priceDisplay ?? (row.isPriceSource ? yen(row.price) : "要確認")}
                 </td>

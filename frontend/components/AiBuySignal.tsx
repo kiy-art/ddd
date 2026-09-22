@@ -6,7 +6,12 @@ const SIGNAL_LABELS: Record<string, string> = {
   buy: "BUY NOW",
   neutral: "HOLD",
   not_buy: "WAIT",
-  insufficient_data: "ANALYZING",
+  // Reached only when there's neither enough price history nor an MSRP to
+  // fall back on (see FALLBACK_LABEL below) - the true "nothing to show
+  // yet" case. "ANALYZING" used to sit here, but it reads as a stuck
+  // process rather than an honest "this is a newly-tracked listing", which
+  // is what's actually true.
+  insufficient_data: "NEW LISTING",
 };
 
 // A separate, deliberately different-sounding label from the real

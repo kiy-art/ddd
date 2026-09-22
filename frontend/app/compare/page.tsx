@@ -128,7 +128,11 @@ export default async function ComparePage({
                       const reliable = p.buy_score !== "insufficient_data" && p.history_span_days >= THIN_DATA_DAYS;
                       return (
                         <td key={p.id} className="px-3 py-4 text-foreground/70">
-                          {reliable ? yen(p.average_price) : `蓄積中（${p.history_span_days}日分）`}
+                          {reliable
+                            ? yen(p.average_price)
+                            : p.history_span_days > 0
+                              ? `蓄積中（${p.history_span_days}日分）`
+                              : "登録されたばかり"}
                         </td>
                       );
                     })}

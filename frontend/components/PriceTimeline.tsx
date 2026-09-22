@@ -1,6 +1,7 @@
 import SeasonalTrend from "@/components/SeasonalTrend";
 import { Product } from "@/lib/api";
 import { forecastMonthLabel } from "@/lib/forecast";
+import { MODEL_CYCLE_DISCLAIMER, MODEL_CYCLE_FACT_NOTE, getModelCycleInsight } from "@/lib/modelCycle";
 
 function yen(value: number): string {
   return `¥${value.toLocaleString("ja-JP")}`;
@@ -25,6 +26,13 @@ const TREND_TIMELINE_LABEL: Record<string, string> = {
 export default function PriceTimeline({ product }: { product: Product }) {
   const hasForecast =
     product.forecast_trend !== null && product.forecast_target_date !== null && product.forecast_low_price !== null && product.forecast_high_price !== null;
+
+  // Only consulted when there's no real per-product forecast yet - a
+  // release-date/generation-based read is strictly weaker evidence than an
+  // actual price-history trend, so it never overrides one.
+  const cycleInsight = hasForecast
+    ? null
+    : getModelCycleInsight({ release_date: product.release_date, is_current_generation: product.is_current_generation });
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
@@ -57,6 +65,25 @@ export default function PriceTimeline({ product }: { product: Product }) {
               )}
               <p className="mt-1 text-xs text-foreground/40">
                 ※この商品自身の価格データに基づくAI予測です。将来価格を保証するものではありません。
+              </p>
+            </div>
+          </div>
+        ) : cycleInsight ? (
+          <div
+            className="flex items-start gap-3 rounded-xl border border-dashed p-4"
+            style={{ borderColor: cycleInsight.tier === "fact" ? "var(--ink)" : "var(--accent-dark)" }}
+          >
+            <span
+              className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white"
+              style={{ backgroundColor: cycleInsight.tier === "fact" ? "var(--ink)" : "var(--accent-dark)" }}
+            >
+              {cycleInsight.tier === "fact" ? "FACT" : "AI推測"}
+            </span>
+            <div className="text-sm leading-relaxed text-foreground/70">
+              <span className="font-semibold text-foreground">{cycleInsight.stageLabel}</span>
+              　{cycleInsight.message}
+              <p className="mt-1 text-xs text-foreground/40">
+                {cycleInsight.tier === "fact" ? MODEL_CYCLE_FACT_NOTE : MODEL_CYCLE_DISCLAIMER}
               </p>
             </div>
           </div>

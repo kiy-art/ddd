@@ -23,6 +23,7 @@ import TrackViewed from "@/components/TrackViewed";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
 import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
+import { MODEL_CYCLE_DISCLAIMER, MODEL_CYCLE_FACT_NOTE, getModelCycleInsight } from "@/lib/modelCycle";
 
 export const revalidate = 0;
 
@@ -121,6 +122,13 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   const fallbackScore = hasReliableTrend
     ? null
     : getFallbackValueScore({ msrp: product.msrp, current_price: product.current_price, release_date: product.release_date });
+  // Only consulted once the MSRP-based fallback above has nothing to say
+  // (no msrp on file) - a weaker, text-only read from release date/
+  // generation status, never overriding a real price-based figure.
+  const cycleInsight =
+    hasReliableTrend || fallbackScore
+      ? null
+      : getModelCycleInsight({ release_date: product.release_date, is_current_generation: product.is_current_generation });
   const badge = getProductBadge(product);
   const popularityBadge = getPopularityBadge(product);
   const positioningFacts = getPositioningFacts(product);
@@ -325,7 +333,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 ) : (
                   msrpPct === null && (
                     <span className="text-sm font-medium text-foreground/40">
-                      価格データ蓄積中（{product.history_span_days}日分）
+                      {product.history_span_days > 0
+                        ? `価格データ蓄積中（${product.history_span_days}日分）`
+                        : "登録されたばかりの商品です"}
                     </span>
                   )
                 )}
@@ -341,14 +351,20 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     ? fallbackScore.msrpPct < 0
                       ? `定価より${fallbackScore.msrpPct}%（参考値）`
                       : "定価とほぼ同水準です（参考値）"
-                    : VERDICT_HEADLINE.insufficient_data}
+                    : cycleInsight
+                      ? cycleInsight.stageLabel
+                      : VERDICT_HEADLINE.insufficient_data}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-foreground/60">
                 {hasReliableTrend
                   ? product.buy_reason
                   : fallbackScore
                     ? `メーカー希望小売価格（定価）と比べて${fallbackScore.msrpPct > 0 ? "+" : ""}${fallbackScore.msrpPct}%の価格です。価格推移データが蓄積されるまでの参考情報としてご覧ください。`
-                    : `現在${product.history_span_days}日分の価格データを蓄積しています。判定の精度を高めるため、もう少しデータが必要です。`}
+                    : cycleInsight
+                      ? cycleInsight.message
+                      : product.history_span_days > 0
+                        ? `現在${product.history_span_days}日分の価格データを蓄積しています。判定の精度を高めるため、もう少しデータが必要です。`
+                        : "登録されたばかりの商品のため、価格データを蓄積しています。判定が可能になり次第お伝えします。"}
               </p>
               {!hasReliableTrend && fallbackScore && (
                 <p
@@ -356,6 +372,14 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   style={{ borderColor: "var(--accent-dark)" }}
                 >
                   ※価格推移データがまだ少ないため、メーカー希望小売価格との比較に基づく参考値です
+                </p>
+              )}
+              {!hasReliableTrend && !fallbackScore && cycleInsight && (
+                <p
+                  className="mt-3 rounded-xl border border-dashed px-3 py-2 text-xs leading-relaxed text-foreground/50"
+                  style={{ borderColor: cycleInsight.tier === "fact" ? "var(--ink)" : "var(--accent-dark)" }}
+                >
+                  {cycleInsight.tier === "fact" ? MODEL_CYCLE_FACT_NOTE : MODEL_CYCLE_DISCLAIMER}
                 </p>
               )}
               {needsPriceCaution && (
