@@ -20,6 +20,7 @@ _looks_like_accessory/MIN_DISCOVERY_PRICE/_match_brand, unchanged below).
 """
 
 import time
+from typing import Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -167,7 +168,9 @@ def _is_safe_to_auto_publish(item_name: str, category: str, price: int) -> bool:
     return price >= threshold
 
 
-def discover_new_products(db: Session) -> tuple[int, int]:
+def discover_new_products(
+    db: Session, on_progress: Callable[[int, int], None] | None = None
+) -> tuple[int, int]:
     """Searches each category's keyword(s) on Rakuten and creates a
     product for every candidate that passes every filter: not an
     accessory-looking listing, not implausibly cheap, a recognizable
@@ -177,66 +180,78 @@ def discover_new_products(db: Session) -> tuple[int, int]:
     slice that also passes _is_safe_to_auto_publish is created live
     instead (see module docstring).
 
+    `on_progress(current, total)`, when given, is called once per keyword
+    search (1-indexed) - purely an optional progress report for the
+    caller (see routers/admin.py + app/progress.py's live dashboard);
+    omitting it changes nothing about this function's own behavior.
+
     Returns (discovered_count, considered_count)."""
     existing_products = list(db.execute(select(models.Product)).scalars().all())
     existing_urls = {p.affiliate_url for p in existing_products if p.affiliate_url}
     existing_urls |= {p.product_url for p in existing_products if p.product_url}
     existing_names = {p.name.strip().lower() for p in existing_products}
 
+    total_keywords = sum(len(keywords) for keywords in CATEGORY_SEARCH_KEYWORDS.values())
     discovered = 0
     considered = 0
     request_index = 0
     for category, keywords in CATEGORY_SEARCH_KEYWORDS.items():
         added_this_category = 0
         for keyword in keywords:
-            if added_this_category >= MAX_NEW_PER_CATEGORY:
-                break
-            if request_index > 0:
-                time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
+            # Once a category's cap is reached, its remaining keywords are
+            # skipped entirely (no request made) - but still counted
+            # toward on_progress's total, so a live progress bar built
+            # from (request_index, total_keywords) always reaches 100%.
+            if added_this_category < MAX_NEW_PER_CATEGORY:
+                if request_index > 0:
+                    time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
+                try:
+                    items = rakuten.search_items(keyword, hits=DISCOVERY_SEARCH_HITS)
+                except Exception as exc:  # noqa: BLE001 - keep discovering other keywords/categories
+                    crud.create_error_log(db, source="discovery", message=f"{keyword}: {exc}")
+                    items = []
+
+                for item in items:
+                    if added_this_category >= MAX_NEW_PER_CATEGORY:
+                        break
+                    considered += 1
+
+                    if _looks_like_accessory(item.item_name):
+                        continue
+                    if item.price < MIN_DISCOVERY_PRICE:
+                        continue
+                    if item.item_url in existing_urls:
+                        continue
+                    name_key = item.item_name.strip().lower()
+                    if name_key in existing_names:
+                        continue
+                    brand = _match_brand(item.item_name)
+                    if brand is None:
+                        continue
+
+                    pending_review = not _is_safe_to_auto_publish(item.item_name, category, item.price)
+                    product = crud.create_product(
+                        db,
+                        schemas.ProductCreate(
+                            name=item.item_name,
+                            brand=brand,
+                            category=category,
+                            image_url=item.image_url,
+                            product_url=item.item_url,
+                            affiliate_url=rakuten.to_affiliate_url(item.item_url) or item.item_url,
+                            initial_price=item.price,
+                        ),
+                        pending_review=pending_review,
+                    )
+                    sync_product_analysis(db, product)
+
+                    existing_urls.add(item.item_url)
+                    existing_names.add(name_key)
+                    discovered += 1
+                    added_this_category += 1
+
             request_index += 1
-            try:
-                items = rakuten.search_items(keyword, hits=DISCOVERY_SEARCH_HITS)
-            except Exception as exc:  # noqa: BLE001 - keep discovering other keywords/categories
-                crud.create_error_log(db, source="discovery", message=f"{keyword}: {exc}")
-                continue
-
-            for item in items:
-                if added_this_category >= MAX_NEW_PER_CATEGORY:
-                    break
-                considered += 1
-
-                if _looks_like_accessory(item.item_name):
-                    continue
-                if item.price < MIN_DISCOVERY_PRICE:
-                    continue
-                if item.item_url in existing_urls:
-                    continue
-                name_key = item.item_name.strip().lower()
-                if name_key in existing_names:
-                    continue
-                brand = _match_brand(item.item_name)
-                if brand is None:
-                    continue
-
-                pending_review = not _is_safe_to_auto_publish(item.item_name, category, item.price)
-                product = crud.create_product(
-                    db,
-                    schemas.ProductCreate(
-                        name=item.item_name,
-                        brand=brand,
-                        category=category,
-                        image_url=item.image_url,
-                        product_url=item.item_url,
-                        affiliate_url=rakuten.to_affiliate_url(item.item_url) or item.item_url,
-                        initial_price=item.price,
-                    ),
-                    pending_review=pending_review,
-                )
-                sync_product_analysis(db, product)
-
-                existing_urls.add(item.item_url)
-                existing_names.add(name_key)
-                discovered += 1
-                added_this_category += 1
+            if on_progress is not None:
+                on_progress(request_index, total_keywords)
 
     return discovered, considered

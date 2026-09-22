@@ -1,14 +1,22 @@
 import dataclasses
+import queue
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, discovery, models, pipeline, popularity, schemas, x_post
+from app import crud, discovery, models, pipeline, popularity, progress, schemas, x_post
 from app.auth import require_admin
 from app.database import get_db
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
+
+# How often (in products) the analysis stage reports live progress - every
+# product would flood the live dashboard once the catalog reaches
+# hundreds of products (see STEP12); this still updates several times a
+# second on a fast machine and always reports the true final count.
+_ANALYSIS_PROGRESS_EVERY = 5
 
 
 @router.get("/products", response_model=list[schemas.ProductOut])
@@ -159,12 +167,21 @@ def get_logs(limit: int = 100, offset: int = 0, db: Session = Depends(get_db)):
 
 @router.post("/run-update")
 def run_update(db: Session = Depends(get_db)):
-    updated = 0
-    regenerated = 0
-    for product in db.execute(select(models.Product)).scalars().all():
-        updated += 1
-        if pipeline.sync_product_analysis(db, product):
-            regenerated += 1
+    progress.start_run("run_update", "分析・AI説明文の再生成")
+    try:
+        progress.start_stage("analysis")
+        all_products = db.execute(select(models.Product)).scalars().all()
+        updated = 0
+        regenerated = 0
+        for i, product in enumerate(all_products, start=1):
+            updated += 1
+            if pipeline.sync_product_analysis(db, product):
+                regenerated += 1
+            if i % _ANALYSIS_PROGRESS_EVERY == 0 or i == len(all_products):
+                progress.update_stage_progress("analysis", i, len(all_products))
+        progress.finish_stage("analysis", f"対象{updated}件 / AI再生成{regenerated}件")
+    finally:
+        progress.finish_run()
     return {"products_checked": updated, "ai_regenerated": regenerated}
 
 
@@ -183,79 +200,106 @@ def fetch_rakuten(db: Session = Depends(get_db)):
             ),
         )
 
-    # Every step below runs in its own try/except with a rollback on
-    # failure: this endpoint is the one thing the daily cron job calls, so
-    # one step blowing up (a network error, a malformed listing, Rakuten
-    # rate-limiting mid-run) must never take the later steps down with it -
-    # price-alert emails in particular are the most user-facing part of
-    # this job and run last, so they're the ones a partial failure earlier
-    # would otherwise silently cost. A bare rollback() is required, not
-    # optional, before the next step's queries: on Postgres, any query
-    # after an unhandled exception on the same session fails with
-    # "current transaction is aborted" until the session is rolled back.
-    price_updated, price_skipped = 0, 0
+    progress.start_run("fetch_rakuten", "日次バッチ処理")
     try:
-        price_updated, price_skipped = pipeline.fetch_rakuten_prices(db)
-    except Exception as exc:  # noqa: BLE001 - keep the rest of the job alive
-        db.rollback()
-        crud.create_error_log(db, source="price_fetch", message=f"Rakuten fetch failed: {exc}")
-
-    # Yahoo is a second, optional price source (unlike Rakuten above, which
-    # this endpoint already requires) - only attempted when configured.
-    yahoo_updated, yahoo_skipped = 0, 0
-    if settings.yahoo_client_id:
+        # Every step below runs in its own try/except with a rollback on
+        # failure: this endpoint is the one thing the daily cron job calls, so
+        # one step blowing up (a network error, a malformed listing, Rakuten
+        # rate-limiting mid-run) must never take the later steps down with it -
+        # price-alert emails in particular are the most user-facing part of
+        # this job and run last, so they're the ones a partial failure earlier
+        # would otherwise silently cost. A bare rollback() is required, not
+        # optional, before the next step's queries: on Postgres, any query
+        # after an unhandled exception on the same session fails with
+        # "current transaction is aborted" until the session is rolled back.
+        progress.start_stage("rakuten_prices")
+        price_updated, price_skipped = 0, 0
         try:
-            yahoo_updated, yahoo_skipped = pipeline.fetch_yahoo_prices(db)
-        except Exception as exc:  # noqa: BLE001 - Yahoo failing shouldn't fail the whole job
-            db.rollback()
-            crud.create_error_log(db, source="price_fetch", message=f"Yahoo fetch failed: {exc}")
-
-    products_discovered, candidates_considered = 0, 0
-    try:
-        products_discovered, candidates_considered = discovery.discover_new_products(db)
-    except Exception as exc:  # noqa: BLE001 - discovery failing shouldn't fail the whole job
-        db.rollback()
-        crud.create_error_log(db, source="discovery", message=f"Discovery failed: {exc}")
-
-    products_ranked, popularity_categories_checked = 0, 0
-    try:
-        products_ranked, popularity_categories_checked = popularity.sync_popularity_rankings(db)
-    except Exception as exc:  # noqa: BLE001 - popularity sync failing shouldn't fail the whole job
-        db.rollback()
-        crud.create_error_log(db, source="popularity", message=f"Popularity sync failed: {exc}")
-
-    analyzed = 0
-    regenerated = 0
-    for product in db.execute(select(models.Product)).scalars().all():
-        analyzed += 1
-        try:
-            if pipeline.sync_product_analysis(db, product):
-                regenerated += 1
-        except Exception as exc:  # noqa: BLE001 - one product's analysis failing shouldn't stop the rest
-            db.rollback()
-            crud.create_error_log(
-                db, source="analysis", message=f"{product.name}: {exc}", product_id=product.id
+            price_updated, price_skipped = pipeline.fetch_rakuten_prices(
+                db, on_progress=lambda cur, total: progress.update_stage_progress("rakuten_prices", cur, total)
             )
+        except Exception as exc:  # noqa: BLE001 - keep the rest of the job alive
+            db.rollback()
+            crud.create_error_log(db, source="price_fetch", message=f"Rakuten fetch failed: {exc}")
+        progress.finish_stage("rakuten_prices", f"更新{price_updated}件 / スキップ{price_skipped}件")
 
-    # Runs after every product's current_price is fresh for this cycle -
-    # a no-op when RESEND_API_KEY isn't configured.
-    alerts_sent, alerts_skipped = 0, 0
-    try:
-        alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
-    except Exception as exc:  # noqa: BLE001 - alert delivery failing shouldn't fail the whole job
-        db.rollback()
-        crud.create_error_log(db, source="price_alert_email", message=f"Price alert batch failed: {exc}")
+        # Yahoo is a second, optional price source (unlike Rakuten above, which
+        # this endpoint already requires) - only attempted when configured.
+        yahoo_updated, yahoo_skipped = 0, 0
+        if settings.yahoo_client_id:
+            progress.start_stage("yahoo_prices")
+            try:
+                yahoo_updated, yahoo_skipped = pipeline.fetch_yahoo_prices(
+                    db, on_progress=lambda cur, total: progress.update_stage_progress("yahoo_prices", cur, total)
+                )
+            except Exception as exc:  # noqa: BLE001 - Yahoo failing shouldn't fail the whole job
+                db.rollback()
+                crud.create_error_log(db, source="price_fetch", message=f"Yahoo fetch failed: {exc}")
+            progress.finish_stage("yahoo_prices", f"更新{yahoo_updated}件 / スキップ{yahoo_skipped}件")
 
-    # Runs last: an X post about a stale-priced product would be worse than
-    # skipping a day, so this only ever runs once everything above (prices,
-    # analysis) is as fresh as this cycle can make it. A no-op when the
-    # X_* env vars aren't configured.
-    x_posts_sent, x_posts_skipped = 0, 0
-    try:
-        x_posts_sent, x_posts_skipped = x_post.post_daily_deals(db)
-    except Exception as exc:  # noqa: BLE001 - X posting failing shouldn't fail the whole job
-        db.rollback()
-        crud.create_error_log(db, source="x_post", message=f"X post batch failed: {exc}")
+        progress.start_stage("discovery")
+        products_discovered, candidates_considered = 0, 0
+        try:
+            products_discovered, candidates_considered = discovery.discover_new_products(
+                db, on_progress=lambda cur, total: progress.update_stage_progress("discovery", cur, total)
+            )
+        except Exception as exc:  # noqa: BLE001 - discovery failing shouldn't fail the whole job
+            db.rollback()
+            crud.create_error_log(db, source="discovery", message=f"Discovery failed: {exc}")
+        progress.finish_stage("discovery", f"新規{products_discovered}件（候補{candidates_considered}件中）")
+
+        progress.start_stage("popularity")
+        products_ranked, popularity_categories_checked = 0, 0
+        try:
+            products_ranked, popularity_categories_checked = popularity.sync_popularity_rankings(db)
+        except Exception as exc:  # noqa: BLE001 - popularity sync failing shouldn't fail the whole job
+            db.rollback()
+            crud.create_error_log(db, source="popularity", message=f"Popularity sync failed: {exc}")
+        progress.finish_stage("popularity", f"反映{products_ranked}件")
+
+        progress.start_stage("analysis")
+        all_products = db.execute(select(models.Product)).scalars().all()
+        analyzed = 0
+        regenerated = 0
+        for i, product in enumerate(all_products, start=1):
+            analyzed += 1
+            try:
+                if pipeline.sync_product_analysis(db, product):
+                    regenerated += 1
+            except Exception as exc:  # noqa: BLE001 - one product's analysis failing shouldn't stop the rest
+                db.rollback()
+                crud.create_error_log(
+                    db, source="analysis", message=f"{product.name}: {exc}", product_id=product.id
+                )
+            if i % _ANALYSIS_PROGRESS_EVERY == 0 or i == len(all_products):
+                progress.update_stage_progress("analysis", i, len(all_products))
+        progress.finish_stage("analysis", f"分析{analyzed}件中AI再生成{regenerated}件")
+
+        # Runs after every product's current_price is fresh for this cycle -
+        # a no-op when RESEND_API_KEY isn't configured.
+        progress.start_stage("price_alerts")
+        alerts_sent, alerts_skipped = 0, 0
+        try:
+            alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
+        except Exception as exc:  # noqa: BLE001 - alert delivery failing shouldn't fail the whole job
+            db.rollback()
+            crud.create_error_log(db, source="price_alert_email", message=f"Price alert batch failed: {exc}")
+        progress.finish_stage("price_alerts", f"送信{alerts_sent}件 / スキップ{alerts_skipped}件")
+
+        # Runs last: an X post about a stale-priced product would be worse than
+        # skipping a day, so this only ever runs once everything above (prices,
+        # analysis) is as fresh as this cycle can make it. A no-op when the
+        # X_* env vars aren't configured.
+        progress.start_stage("x_post")
+        x_posts_sent, x_posts_skipped = 0, 0
+        try:
+            x_posts_sent, x_posts_skipped = x_post.post_daily_deals(db)
+        except Exception as exc:  # noqa: BLE001 - X posting failing shouldn't fail the whole job
+            db.rollback()
+            crud.create_error_log(db, source="x_post", message=f"X post batch failed: {exc}")
+        progress.finish_stage("x_post", f"投稿{x_posts_sent}件 / スキップ{x_posts_skipped}件")
+    finally:
+        progress.finish_run()
 
     result = {
         "prices_updated": price_updated,
@@ -307,7 +351,15 @@ def fetch_yahoo(db: Session = Depends(get_db)):
     if not settings.yahoo_client_id:
         raise HTTPException(status_code=400, detail="YAHOO_CLIENT_ID is not configured")
 
-    updated, skipped = pipeline.fetch_yahoo_prices(db)
+    progress.start_run("fetch_yahoo", "Yahoo!価格取得（手動実行）")
+    try:
+        progress.start_stage("yahoo_prices")
+        updated, skipped = pipeline.fetch_yahoo_prices(
+            db, on_progress=lambda cur, total: progress.update_stage_progress("yahoo_prices", cur, total)
+        )
+        progress.finish_stage("yahoo_prices", f"更新{updated}件 / スキップ{skipped}件")
+    finally:
+        progress.finish_run()
     return {"yahoo_prices_updated": updated, "yahoo_prices_skipped": skipped}
 
 
@@ -321,7 +373,13 @@ def send_price_alerts(db: Session = Depends(get_db)):
     if not settings.resend_api_key:
         raise HTTPException(status_code=400, detail="RESEND_API_KEY is not configured")
 
-    sent, skipped = pipeline.send_price_alert_notifications(db)
+    progress.start_run("send_price_alerts", "値下がり通知メール送信（手動実行）")
+    try:
+        progress.start_stage("price_alerts")
+        sent, skipped = pipeline.send_price_alert_notifications(db)
+        progress.finish_stage("price_alerts", f"送信{sent}件 / スキップ{skipped}件")
+    finally:
+        progress.finish_run()
     return {"price_alerts_sent": sent, "price_alerts_skipped": skipped}
 
 
@@ -336,7 +394,13 @@ def post_to_x(db: Session = Depends(get_db)):
     if not (settings.x_api_key and settings.x_api_secret and settings.x_access_token and settings.x_access_token_secret):
         raise HTTPException(status_code=400, detail="X_API_KEY/X_API_SECRET/X_ACCESS_TOKEN/X_ACCESS_TOKEN_SECRET is not fully configured")
 
-    sent, skipped = x_post.post_daily_deals(db)
+    progress.start_run("post_to_x", "SNS投稿（手動実行）")
+    try:
+        progress.start_stage("x_post")
+        sent, skipped = x_post.post_daily_deals(db)
+        progress.finish_stage("x_post", f"投稿{sent}件 / スキップ{skipped}件")
+    finally:
+        progress.finish_run()
     return {"x_posts_sent": sent, "x_posts_skipped": skipped}
 
 
@@ -350,7 +414,13 @@ def sync_popularity(db: Session = Depends(get_db)):
     if not settings.rakuten_app_id:
         raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID is not configured")
 
-    ranked, checked = popularity.sync_popularity_rankings(db)
+    progress.start_run("sync_popularity", "人気ランキング同期（手動実行）")
+    try:
+        progress.start_stage("popularity")
+        ranked, checked = popularity.sync_popularity_rankings(db)
+        progress.finish_stage("popularity", f"反映{ranked}件（{checked}カテゴリ確認）")
+    finally:
+        progress.finish_run()
     return {"products_ranked": ranked, "categories_checked": checked}
 
 
@@ -365,8 +435,53 @@ def discover_products(db: Session = Depends(get_db)):
     if not settings.rakuten_app_id or not settings.rakuten_access_key:
         raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID / RAKUTEN_ACCESS_KEY is not configured")
 
-    discovered, considered = discovery.discover_new_products(db)
+    progress.start_run("discover_products", "商品自動検出（手動実行）")
+    try:
+        progress.start_stage("discovery")
+        discovered, considered = discovery.discover_new_products(
+            db, on_progress=lambda cur, total: progress.update_stage_progress("discovery", cur, total)
+        )
+        progress.finish_stage("discovery", f"新規{discovered}件（候補{considered}件中）")
+    finally:
+        progress.finish_run()
     return {"products_discovered": discovered, "candidates_considered": considered}
+
+
+@router.get("/live")
+def live_updates():
+    """Server-Sent Events stream of the current (or most recently
+    finished) job's progress - see app/progress.py. A plain `fetch()` +
+    ReadableStream reader on the frontend, not the browser's native
+    EventSource: EventSource can't send the Authorization header this
+    admin API requires, and this project doesn't use cookies for admin
+    auth (see app/auth.py)."""
+
+    def event_stream():
+        sub_id, q = progress.subscribe()
+        try:
+            snapshot = progress.get_snapshot_sse_line()
+            if snapshot is not None:
+                yield snapshot
+            while True:
+                try:
+                    yield q.get(timeout=15)
+                except queue.Empty:
+                    yield ": keepalive\n\n"
+        finally:
+            progress.unsubscribe(sub_id)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            # Render's edge proxy (and any other intermediary nginx-style
+            # buffering proxy) would otherwise hold the whole response
+            # until it closes, defeating the point of a live stream.
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @router.get("/analytics/top-pages", response_model=list[schemas.PageStatOut])

@@ -79,7 +79,7 @@ export interface PriceAnomaly {
   ratio: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const CATEGORIES = ["driver", "iron", "wedge", "putter", "ball"] as const;
 export type Category = (typeof CATEGORIES)[number];
@@ -219,7 +219,7 @@ export function submitContactMessage(data: { name?: string; email: string; messa
 
 // --- Admin API (client-side, Bearer token from localStorage) ------------
 
-function adminHeaders(token: string): HeadersInit {
+export function adminHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 

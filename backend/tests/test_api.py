@@ -1,3 +1,6 @@
+import json
+
+
 def test_health(client):
     resp = client.get("/api/health")
     assert resp.status_code == 200
@@ -176,10 +179,10 @@ def test_fetch_rakuten_survives_a_step_blowing_up(client, admin_headers, monkeyp
 
     get_settings.cache_clear()
 
-    def _boom(db):
+    def _boom(db, on_progress=None):
         raise RuntimeError("boom: discovery is down")
 
-    monkeypatch.setattr(admin_router.pipeline, "fetch_rakuten_prices", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.pipeline, "fetch_rakuten_prices", lambda db, on_progress=None: (0, 0))
     monkeypatch.setattr(admin_router.popularity, "sync_popularity_rankings", lambda db: (0, 0))
     monkeypatch.setattr(admin_router.discovery, "discover_new_products", _boom)
 
@@ -194,12 +197,17 @@ def test_fetch_rakuten_survives_a_step_blowing_up(client, admin_headers, monkeyp
         assert body["price_alerts_skipped"] == 0
 
         logs = client.get("/api/admin/logs", headers=admin_headers).json()
-        sources = [log["source"] for log in logs]
-        assert "discovery" in sources
+        by_source = {log["source"]: log["message"] for log in logs}
+        assert "discovery" in by_source
+        # Confirms discover_new_products is actually the thing that raised
+        # (rather than, say, an unrelated TypeError from a mismatched mock
+        # signature elsewhere being silently caught and mistaken for this).
+        assert "boom: discovery is down" in by_source["discovery"]
+        assert "price_fetch" not in by_source
         # The summary row is only ever written at the very end of the
         # function, so its presence proves the job reached completion
         # despite the discovery step failing partway through.
-        assert "daily_job" in sources
+        assert "daily_job" in by_source
     finally:
         get_settings.cache_clear()
 
@@ -215,9 +223,9 @@ def test_fetch_rakuten_survives_x_post_blowing_up(client, admin_headers, monkeyp
 
     get_settings.cache_clear()
 
-    monkeypatch.setattr(admin_router.pipeline, "fetch_rakuten_prices", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.pipeline, "fetch_rakuten_prices", lambda db, on_progress=None: (0, 0))
     monkeypatch.setattr(admin_router.popularity, "sync_popularity_rankings", lambda db: (0, 0))
-    monkeypatch.setattr(admin_router.discovery, "discover_new_products", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.discovery, "discover_new_products", lambda db, on_progress=None: (0, 0))
 
     def _boom(db):
         raise RuntimeError("boom: X API is down")
@@ -232,11 +240,61 @@ def test_fetch_rakuten_survives_x_post_blowing_up(client, admin_headers, monkeyp
         assert body["x_posts_skipped"] == 0
 
         logs = client.get("/api/admin/logs", headers=admin_headers).json()
-        sources = [log["source"] for log in logs]
-        assert "x_post" in sources
-        assert "daily_job" in sources
+        by_source = {log["source"]: log["message"] for log in logs}
+        assert "x_post" in by_source
+        assert "boom: X API is down" in by_source["x_post"]
+        assert "price_fetch" not in by_source
+        assert "discovery" not in by_source
+        assert "daily_job" in by_source
     finally:
         get_settings.cache_clear()
+
+
+def test_fetch_rakuten_reports_live_progress_stages(client, admin_headers, monkeypatch):
+    """fetch_rakuten drives app/progress.py's live dashboard (STEP13) -
+    a full run should leave behind a "completed" snapshot naming every
+    stage it actually ran, in order, each marked done."""
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
+    from app.config import get_settings
+    from app.routers import admin as admin_router
+
+    get_settings.cache_clear()
+    monkeypatch.setattr(admin_router.pipeline, "fetch_rakuten_prices", lambda db, on_progress=None: (2, 0))
+    monkeypatch.setattr(admin_router.popularity, "sync_popularity_rankings", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.discovery, "discover_new_products", lambda db, on_progress=None: (0, 0))
+
+    try:
+        resp = client.post("/api/admin/fetch-rakuten", headers=admin_headers)
+        assert resp.status_code == 200
+
+        from app import progress
+
+        line = progress.get_snapshot_sse_line()
+        assert line is not None
+        event = json.loads(line[len("data: ") :].rstrip("\n"))
+        assert event["job"] == "fetch_rakuten"
+        assert event["status"] == "completed"
+        assert event["stage"] is None  # no stage left "running" once finished
+        stage_ids = [s["stage"] for s in event["stages"]]
+        # yahoo_prices is absent (YAHOO_CLIENT_ID unset in tests) - every
+        # other stage always runs.
+        assert stage_ids == ["rakuten_prices", "discovery", "popularity", "analysis", "price_alerts", "x_post"]
+        assert all(s["status"] == "done" for s in event["stages"])
+    finally:
+        get_settings.cache_clear()
+
+
+def test_live_updates_requires_admin_auth(client):
+    # /admin/live is a StreamingResponse whose body never ends on its own
+    # (an open SSE connection) - only the auth-rejection path (401, a
+    # normal non-streaming response returned before the stream is ever
+    # created) can safely be exercised through TestClient's synchronous
+    # request/response cycle; see app/progress.py's own tests plus
+    # test_fetch_rakuten_reports_live_progress_stages above for coverage
+    # of what actually gets streamed.
+    resp = client.get("/api/admin/live")
+    assert resp.status_code == 401
 
 
 def test_delete_price_removes_bad_entry_and_recomputes(client, admin_headers):

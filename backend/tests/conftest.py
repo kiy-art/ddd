@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
+from app import progress  # noqa: E402
 from app.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 
@@ -26,6 +27,18 @@ def _fresh_db():
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_progress_state():
+    # app/progress.py is a module-level singleton (see its own docstring)
+    # so any test hitting an admin job endpoint (fetch-rakuten, run-update,
+    # etc.) leaves state behind for the next test unless it's reset here.
+    progress._subscribers.clear()
+    progress._current_run = None
+    yield
+    progress._subscribers.clear()
+    progress._current_run = None
 
 
 def _override_get_db():

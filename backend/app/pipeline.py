@@ -5,6 +5,7 @@ two never drift apart."""
 import datetime
 import statistics
 import time
+from typing import Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -114,9 +115,17 @@ def sync_product_analysis(db: Session, product: models.Product) -> bool:
     return True
 
 
-def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
+def fetch_rakuten_prices(
+    db: Session, on_progress: Callable[[int, int], None] | None = None
+) -> tuple[int, int]:
     """Looks up each product's current price on Rakuten Ichiba by
     "brand + name" keyword search and records it as a new PriceHistory row.
+
+    `on_progress(current, total)`, when given, is called once per product
+    (after it's been processed, 1-indexed) - purely an optional progress
+    report for the caller (see routers/admin.py + app/progress.py's live
+    dashboard); omitting it changes nothing about this function's own
+    behavior.
 
     Returns (updated_count, skipped_count).
     """
@@ -190,10 +199,14 @@ def fetch_rakuten_prices(db: Session) -> tuple[int, int]:
                 db, source="price_fetch", message=f"{product.name}: {exc}", product_id=product.id
             )
             skipped += 1
+        if on_progress is not None:
+            on_progress(i + 1, len(products))
     return updated, skipped
 
 
-def fetch_yahoo_prices(db: Session) -> tuple[int, int]:
+def fetch_yahoo_prices(
+    db: Session, on_progress: Callable[[int, int], None] | None = None
+) -> tuple[int, int]:
     """Same shape as fetch_rakuten_prices, for a second independent price
     source (Yahoo!ショッピング). Writes to yahoo_price/yahoo_url/
     yahoo_updated_at only - never touches current_price/price_history/
@@ -234,6 +247,8 @@ def fetch_yahoo_prices(db: Session) -> tuple[int, int]:
                 db, source="price_fetch", message=f"Yahoo: {product.name}: {exc}", product_id=product.id
             )
             skipped += 1
+        if on_progress is not None:
+            on_progress(i + 1, len(products))
     return updated, skipped
 
 

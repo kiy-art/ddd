@@ -13,6 +13,7 @@ import {
   Product,
 } from "@/lib/api";
 import { useAdminAuth } from "@/lib/adminAuth";
+import LiveJobDashboard from "@/components/LiveJobDashboard";
 
 export default function AdminDashboard() {
   const { token } = useAdminAuth();
@@ -170,6 +171,8 @@ export default function AdminDashboard() {
         <StatCard label="様子見" value={byScore.neutral ?? 0} />
         <StatCard label="判定不能" value={byScore.insufficient_data ?? 0} />
       </div>
+
+      <LiveJobDashboard token={token} />
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
         <h2 className="font-display font-medium text-foreground">価格CSVインポート</h2>
