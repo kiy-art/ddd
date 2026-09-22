@@ -86,7 +86,7 @@ export default function AdminDashboard() {
       const result = await adminFetchRakuten(token);
       setMessage(
         `楽天価格取得完了: 更新${result.prices_updated}件 / 見つからず${result.prices_skipped}件 / ` +
-          `新規候補${result.products_discovered}件（承認待ちに追加） / AI再生成${result.ai_regenerated}件`
+          `新規発見${result.products_discovered}件（安全な商品は自動公開、それ以外は承認待ちに追加） / AI再生成${result.ai_regenerated}件`
       );
       await load();
     } catch (err) {
@@ -141,8 +141,8 @@ export default function AdminDashboard() {
     try {
       const result = await adminDiscoverProducts(token);
       setMessage(
-        `商品自動検出完了: 候補${result.candidates_considered}件を確認 / 新規${result.products_discovered}件を承認待ちに追加` +
-          "（商品管理ページで内容を確認して承認してください）"
+        `商品自動検出完了: 候補${result.candidates_considered}件を確認 / 新規${result.products_discovered}件を追加` +
+          "（安全な商品は自動公開、際どい商品は承認待ちとして追加 - 商品管理ページで内容を確認してください）"
       );
       await load();
     } catch (err) {
@@ -197,9 +197,10 @@ export default function AdminDashboard() {
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
         <h2 className="font-display font-medium text-foreground">商品の自動検出</h2>
         <p className="text-sm text-foreground/50">
-          楽天市場をカテゴリ別に検索し、まだ登録されていない商品の候補を「承認待ち」として追加します。
-          自動検出された商品は承認するまでサイトには公開されません。誤った商品が混ざることがあるため、
-          商品管理ページで内容を確認してから承認してください。毎日の自動更新でも実行されます。
+          楽天市場をカテゴリ別に検索し、まだ登録されていない商品の候補を追加します。中古・付属品等のNGワードを含まず、
+          価格も妥当な範囲（クラブ類は1万円以上、ボールは3千円以上）の商品は自動的に公開されます。それ以外（際どい商品）は
+          従来通り「承認待ち」として追加され、サイトには公開されません。誤った商品が混ざることがあるため、
+          商品管理ページで内容を定期的に確認してください。毎日の自動更新でも実行されます。
         </p>
         <button
           onClick={handleDiscover}

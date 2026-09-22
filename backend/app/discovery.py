@@ -2,13 +2,21 @@
 so the catalog can grow without every product being hand-researched and
 CSV-imported first.
 
-Every discovered product is created with pending_review=True and is hidden
-from all public endpoints (see crud.list_products / get_product_by_slug)
-until an admin approves it via POST /admin/products/{id}/approve. Nothing
-here is ever shown to a site visitor un-reviewed — a search result can be
-a used item, an accessory, an unrelated product, or simply misclassified,
-and this pipeline has no human checking that, unlike a manually-entered or
+Most discovered products are still created with pending_review=True and
+hidden from all public endpoints (see crud.list_products /
+get_product_by_slug) until an admin approves it via POST
+/admin/products/{id}/approve — a search result can be a used item, an
+accessory, an unrelated product, or simply misclassified, and this
+pipeline has no human checking that, unlike a manually-entered or
 CSV-imported product.
+
+A narrow, conservative slice is instead created with pending_review=False
+(live immediately) - see _is_safe_to_auto_publish - so the catalog can
+scale toward the volume a consumables-led strategy (dozens of golf balls,
+not one driver) needs without every single item waiting on a human. This
+only ever loosens which pending items skip the review queue; it never
+loosens which candidates get discarded entirely (that's still
+_looks_like_accessory/MIN_DISCOVERY_PRICE/_match_brand, unchanged below).
 """
 
 import time
@@ -19,15 +27,25 @@ from sqlalchemy.orm import Session
 from app import crud, models, rakuten, schemas
 from app.pipeline import RAKUTEN_REQUEST_INTERVAL_SECONDS, _looks_like_accessory, sync_product_analysis
 
-# One representative search per category. Deliberately generic ("新品" =
-# new, not used) rather than per-brand/per-model, since the goal is finding
-# products we don't have yet, not tracking a known one.
+# One or more searches per category. Deliberately generic ("新品" = new,
+# not used) rather than per-model for driver/iron/wedge/putter, since the
+# goal there is finding products we don't have yet, not tracking a known
+# one. Golf balls are the exception: a generic "ゴルフボール" search skews
+# toward cheap no-name multi-packs, so specific perennial-bestseller model
+# names are searched directly to reliably surface the models a golfer
+# would actually search this site for (consumables strategy — see
+# docs/ai_company_guidelines.md 3.5.5).
 CATEGORY_SEARCH_KEYWORDS = {
-    "driver": "ゴルフ ドライバー 新品",
-    "iron": "ゴルフ アイアン セット 新品",
-    "wedge": "ゴルフ ウェッジ 新品",
-    "putter": "ゴルフ パター 新品",
-    "ball": "ゴルフボール 1ダース",
+    "driver": ["ゴルフ ドライバー 新品"],
+    "iron": ["ゴルフ アイアン セット 新品"],
+    "wedge": ["ゴルフ ウェッジ 新品"],
+    "putter": ["ゴルフ パター 新品"],
+    "ball": [
+        "ゴルフボール 1ダース 新品",
+        "Titleist Pro V1 ゴルフボール",
+        "スリクソン Z-STAR ゴルフボール",
+        "ブリヂストン TOUR B ゴルフボール",
+    ],
 }
 
 # A real, currently-sold golf club or a dozen balls essentially never costs
@@ -35,11 +53,14 @@ CATEGORY_SEARCH_KEYWORDS = {
 # matches that _looks_like_accessory's keyword list doesn't happen to name.
 MIN_DISCOVERY_PRICE = 3000
 
-# Cap new products added per category per run: keeps the pending-review
-# queue reviewable and bounds Rakuten API usage (this runs alongside the
-# existing per-product price fetch, which already uses one request per
-# product under the API's ~1 req/sec free-tier limit).
-MAX_NEW_PER_CATEGORY = 3
+# Rakuten Ichiba Item Search API's own per-request maximum.
+DISCOVERY_SEARCH_HITS = 30
+
+# Cap new products added per category (summed across all of that
+# category's keywords) per run: bounds Rakuten API usage and keeps a
+# single run's growth reviewable-in-aggregate even though most of it no
+# longer sits in the pending-review queue (see _is_safe_to_auto_publish).
+MAX_NEW_PER_CATEGORY = 20
 
 # Maps a keyword that might appear in a Rakuten item name (English brand
 # name or a common Japanese rendering) to this site's canonical brand name
@@ -109,11 +130,52 @@ def _match_brand(item_name: str) -> str | None:
     return None
 
 
+# Item-name substrings that make a candidate too likely to be a used item,
+# a bare accessory, or a listing described relative to another product
+# ("〇〇用") rather than being the product itself — checked in addition to
+# (not instead of) _looks_like_accessory's own reject list above, since
+# this one only decides whether an already-accepted candidate is safe to
+# show a visitor immediately, not whether it's added at all. A match here
+# never discards the candidate — it's still added, just as
+# pending_review=True (the same "wait for a human" behavior every
+# discovered product used to have) instead of live.
+AUTO_PUBLISH_NG_KEYWORDS = [
+    "中古",
+    "ヘッドカバー",
+    "シャフトのみ",
+    "スリーブ",
+    "用",
+]
+
+# Auto-publish price floor. Deliberately higher than MIN_DISCOVERY_PRICE
+# (which only guards against being added at all) for clubs specifically:
+# a driver/iron/wedge/putter priced under five figures is far more likely
+# to be a mismatched/bundle-remainder listing than a genuinely cheap real
+# club, so clubs get a stricter bar than balls before skipping review.
+AUTO_PUBLISH_MIN_PRICE_BALL = 3000
+AUTO_PUBLISH_MIN_PRICE_CLUB = 10000
+
+
+def _is_safe_to_auto_publish(item_name: str, category: str, price: int) -> bool:
+    """True only for a candidate safe enough to publish immediately,
+    without a human checking it first. Everything else is still added to
+    the catalog (as pending_review=True) — this only decides which
+    already-accepted candidates skip that queue."""
+    if any(keyword in item_name for keyword in AUTO_PUBLISH_NG_KEYWORDS):
+        return False
+    threshold = AUTO_PUBLISH_MIN_PRICE_BALL if category == "ball" else AUTO_PUBLISH_MIN_PRICE_CLUB
+    return price >= threshold
+
+
 def discover_new_products(db: Session) -> tuple[int, int]:
-    """Searches each category's keyword on Rakuten and creates a pending
-    (unpublished) product for candidates that pass every filter: not an
-    accessory-looking listing, not implausibly cheap, a recognizable brand,
-    and not already in the catalog (by listing URL or exact name).
+    """Searches each category's keyword(s) on Rakuten and creates a
+    product for every candidate that passes every filter: not an
+    accessory-looking listing, not implausibly cheap, a recognizable
+    brand, and not already in the catalog (by listing URL or exact name).
+    Most such candidates are created pending review (hidden from every
+    public endpoint until an admin approves them); a narrow, conservative
+    slice that also passes _is_safe_to_auto_publish is created live
+    instead (see module docstring).
 
     Returns (discovered_count, considered_count)."""
     existing_products = list(db.execute(select(models.Product)).scalars().all())
@@ -123,52 +185,58 @@ def discover_new_products(db: Session) -> tuple[int, int]:
 
     discovered = 0
     considered = 0
-    for i, (category, keyword) in enumerate(CATEGORY_SEARCH_KEYWORDS.items()):
-        if i > 0:
-            time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
-        try:
-            items = rakuten.search_items(keyword, hits=10)
-        except Exception as exc:  # noqa: BLE001 - keep discovering other categories
-            crud.create_error_log(db, source="discovery", message=f"{keyword}: {exc}")
-            continue
-
+    request_index = 0
+    for category, keywords in CATEGORY_SEARCH_KEYWORDS.items():
         added_this_category = 0
-        for item in items:
+        for keyword in keywords:
             if added_this_category >= MAX_NEW_PER_CATEGORY:
                 break
-            considered += 1
-
-            if _looks_like_accessory(item.item_name):
-                continue
-            if item.price < MIN_DISCOVERY_PRICE:
-                continue
-            if item.item_url in existing_urls:
-                continue
-            name_key = item.item_name.strip().lower()
-            if name_key in existing_names:
-                continue
-            brand = _match_brand(item.item_name)
-            if brand is None:
+            if request_index > 0:
+                time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
+            request_index += 1
+            try:
+                items = rakuten.search_items(keyword, hits=DISCOVERY_SEARCH_HITS)
+            except Exception as exc:  # noqa: BLE001 - keep discovering other keywords/categories
+                crud.create_error_log(db, source="discovery", message=f"{keyword}: {exc}")
                 continue
 
-            product = crud.create_product(
-                db,
-                schemas.ProductCreate(
-                    name=item.item_name,
-                    brand=brand,
-                    category=category,
-                    image_url=item.image_url,
-                    product_url=item.item_url,
-                    affiliate_url=rakuten.to_affiliate_url(item.item_url) or item.item_url,
-                    initial_price=item.price,
-                ),
-                pending_review=True,
-            )
-            sync_product_analysis(db, product)
+            for item in items:
+                if added_this_category >= MAX_NEW_PER_CATEGORY:
+                    break
+                considered += 1
 
-            existing_urls.add(item.item_url)
-            existing_names.add(name_key)
-            discovered += 1
-            added_this_category += 1
+                if _looks_like_accessory(item.item_name):
+                    continue
+                if item.price < MIN_DISCOVERY_PRICE:
+                    continue
+                if item.item_url in existing_urls:
+                    continue
+                name_key = item.item_name.strip().lower()
+                if name_key in existing_names:
+                    continue
+                brand = _match_brand(item.item_name)
+                if brand is None:
+                    continue
+
+                pending_review = not _is_safe_to_auto_publish(item.item_name, category, item.price)
+                product = crud.create_product(
+                    db,
+                    schemas.ProductCreate(
+                        name=item.item_name,
+                        brand=brand,
+                        category=category,
+                        image_url=item.image_url,
+                        product_url=item.item_url,
+                        affiliate_url=rakuten.to_affiliate_url(item.item_url) or item.item_url,
+                        initial_price=item.price,
+                    ),
+                    pending_review=pending_review,
+                )
+                sync_product_analysis(db, product)
+
+                existing_urls.add(item.item_url)
+                existing_names.add(name_key)
+                discovered += 1
+                added_this_category += 1
 
     return discovered, considered
