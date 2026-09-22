@@ -74,6 +74,62 @@ def list_products(
     return list(db.execute(query).scalars().all())
 
 
+# Same bar the frontend uses (THIN_DATA_DAYS in ProductCard.tsx/product
+# page) before treating a product's price_change_percent as a real trend
+# rather than noise from a handful of data points - reused here so a
+# brand's aggregate stats don't overstate what thin per-product data
+# actually supports.
+RELIABLE_TREND_MIN_HISTORY_DAYS = 7
+
+
+def get_brand_price_stats(db: Session, brand: str) -> schemas.BrandPriceStats:
+    """Aggregates real price movement across a brand's own tracked products
+    - never an editorial claim about "the brand" from outside data. Every
+    number here is computed straight from each product's own PriceHistory/
+    msrp, the same fields already shown on its own page."""
+    products = list_products(db, brand=brand, published_only=True, limit=1000)
+    reliable = [
+        p
+        for p in products
+        if p.buy_score != "insufficient_data" and p.history_span_days >= RELIABLE_TREND_MIN_HISTORY_DAYS
+    ]
+
+    declining = [p for p in reliable if p.price_change_percent is not None and p.price_change_percent < 0]
+    rising = [p for p in reliable if p.price_change_percent is not None and p.price_change_percent > 0]
+    flat = [p for p in reliable if p.price_change_percent == 0]
+
+    changes = [p.price_change_percent for p in reliable if p.price_change_percent is not None]
+    average_change_percent = round(sum(changes) / len(changes), 1) if changes else None
+
+    msrp_discounts = [
+        ((p.current_price - p.msrp) / p.msrp) * 100
+        for p in products
+        if p.msrp and p.current_price is not None
+    ]
+    average_msrp_discount_percent = (
+        round(sum(msrp_discounts) / len(msrp_discounts), 1) if msrp_discounts else None
+    )
+
+    biggest_decline = None
+    if declining:
+        worst = min(declining, key=lambda p: p.price_change_percent)
+        biggest_decline = schemas.BrandPriceMover(
+            product_slug=worst.slug, product_name=worst.name, change_percent=worst.price_change_percent
+        )
+
+    return schemas.BrandPriceStats(
+        brand=brand,
+        tracked_count=len(products),
+        reliable_count=len(reliable),
+        declining_count=len(declining),
+        rising_count=len(rising),
+        flat_count=len(flat),
+        average_change_percent=average_change_percent,
+        average_msrp_discount_percent=average_msrp_discount_percent,
+        biggest_decline=biggest_decline,
+    )
+
+
 def list_brands(db: Session, published_only: bool = True) -> list[tuple[str, int]]:
     """Distinct brands with a product count, sorted by count desc then name."""
     query = select(models.Product.brand, func.count(models.Product.id)).group_by(models.Product.brand)

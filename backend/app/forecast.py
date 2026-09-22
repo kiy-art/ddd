@@ -5,12 +5,17 @@ support today: a linear trend fit over a product's own recorded price
 history (analysis.py's "Phase 1" from the redesign brief - moving
 average/trend). The brief also describes forecasting from release-cycle
 data, past-generation price curves and per-brand seasonal patterns
-(Phases 2-5), but this system has no release_date/series/model-lineage
-data for any product, and no product yet has multiple
-generations of price history to learn a real cycle from - so those
-factors are intentionally left out rather than faking them with
-plausible-looking numbers. See SeasonalTrend.tsx for the same "not
-enough data yet" stance applied to seasonal analysis.
+(Phases 2-5). We now do have a real, researched release_date for many
+products (see the comment on Product.msrp), but still no product has
+multiple generations of price history to learn an actual post-launch
+decay *curve* from - so a numeric "expect -X% by month Y" projection
+from release_date would still be fabricated. What release_date can
+honestly support instead is epistemic caution: a product's price in its
+first weeks on the market is usually still anchored near MSRP and
+hasn't found its real market level yet, so a trend line fit over only
+that window is extrapolating from an unrepresentative sample - see
+_cap_confidence_for_recent_release below. See SeasonalTrend.tsx for the
+same "not enough data yet" stance applied to seasonal analysis.
 
 Nothing here is AI-generated: same input always produces the same
 output, same as analysis.py's buy_score.
@@ -50,6 +55,15 @@ FORECAST_CLAMP_MAX_RATIO = 1.4
 # exact number, so the range never collapses to a point.
 MIN_BAND_RATIO = 0.04
 
+# Below this many days since release, recorded prices are still likely
+# anchored near MSRP/launch pricing rather than reflecting where the
+# market actually settles - a real, well-known pattern for newly-launched
+# consumer goods, not a per-product guess. A trend fit entirely within
+# this window is extrapolating from an unrepresentative sample, so
+# confidence is capped regardless of how many points/days of history back
+# it (see _cap_confidence_for_recent_release).
+RECENT_RELEASE_DAYS = 60
+
 
 @dataclasses.dataclass
 class ForecastResult:
@@ -73,6 +87,15 @@ def _confidence(points: int, span_days: int) -> str | None:
     return None
 
 
+def _days_since_release(release_date, now: datetime.datetime) -> int | None:
+    if release_date is None:
+        return None
+    released_at = release_date if isinstance(release_date, datetime.datetime) else datetime.datetime.combine(
+        release_date, datetime.time.min
+    )
+    return (now - released_at).days
+
+
 def _linear_fit(xs: list[float], ys: list[float]) -> tuple[float, float]:
     """Ordinary least-squares slope/intercept for y = slope*x + intercept."""
     n = len(xs)
@@ -90,10 +113,13 @@ def forecast_price(
     history_prices: list[tuple[int, datetime.datetime]],
     current_price: int,
     now: datetime.datetime | None = None,
+    release_date=None,
 ) -> ForecastResult | None:
     """history_prices: (price, recorded_at) pairs, any order, may include the
-    current price. Returns None when there isn't enough real data to say
-    anything - never a placeholder or guessed forecast."""
+    current price. release_date, when known, is used only to cap confidence
+    for freshly-launched products (see RECENT_RELEASE_DAYS) - never to shift
+    the projected number itself. Returns None when there isn't enough real
+    data to say anything - never a placeholder or guessed forecast."""
     now = now or datetime.datetime.utcnow()
     if not history_prices:
         return None
@@ -103,6 +129,11 @@ def forecast_price(
     confidence = _confidence(len(points), span_days)
     if confidence is None:
         return None
+
+    days_since_release = _days_since_release(release_date, now)
+    recent_release = days_since_release is not None and 0 <= days_since_release < RECENT_RELEASE_DAYS
+    if recent_release and confidence != "low":
+        confidence = "low"
 
     xs = [(t - points[0][1]).total_seconds() / 86400 for _, t in points]
     ys = [float(p) for p, _ in points]
@@ -149,6 +180,12 @@ def forecast_price(
             reasons.append(f"直近7日間の値動き（{recent_change:+.1f}%）も同じ方向で、傾向と整合しています。")
         elif abs(recent_change) >= 1:
             reasons.append(f"直近7日間の値動き（{recent_change:+.1f}%）は全体の傾向と逆方向で、不確実性が高い状態です。")
+
+    if recent_release:
+        reasons.append(
+            f"発売から{days_since_release}日と日が浅く、価格がメーカー希望小売価格付近に留まっている"
+            "可能性があります。市場価格が落ち着くまでは参考程度にご覧ください。"
+        )
 
     target_date = points[0][1] + datetime.timedelta(days=target_x)
 

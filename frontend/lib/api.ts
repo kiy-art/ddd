@@ -153,6 +153,28 @@ export function getBrandProducts(brand: string) {
   return apiFetch<Product[]>(`/api/brands/${encodeURIComponent(brand)}`);
 }
 
+export interface BrandPriceMover {
+  product_slug: string;
+  product_name: string;
+  change_percent: number;
+}
+
+export interface BrandPriceStats {
+  brand: string;
+  tracked_count: number;
+  reliable_count: number;
+  declining_count: number;
+  rising_count: number;
+  flat_count: number;
+  average_change_percent: number | null;
+  average_msrp_discount_percent: number | null;
+  biggest_decline: BrandPriceMover | null;
+}
+
+export function getBrandPriceStats(brand: string) {
+  return apiFetch<BrandPriceStats>(`/api/brands/${encodeURIComponent(brand)}/price-stats`);
+}
+
 export interface PriceAlert {
   id: number;
   product_id: number;

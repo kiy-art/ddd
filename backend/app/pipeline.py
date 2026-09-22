@@ -75,7 +75,7 @@ def sync_product_analysis(db: Session, product: models.Product) -> bool:
     product.history_span_days = result.history_span_days
     product.buy_reason = analysis.rule_based_reason(result)
 
-    forecast_result = forecast.forecast_price(pairs, product.current_price)
+    forecast_result = forecast.forecast_price(pairs, product.current_price, release_date=product.release_date)
     if forecast_result is None:
         product.forecast_confidence = None
         product.forecast_center_price = None

@@ -43,6 +43,11 @@ def list_by_brand(brand: str, limit: int = 50, offset: int = 0, db: Session = De
     return crud.list_products(db, brand=brand, published_only=True, limit=limit, offset=offset)
 
 
+@router.get("/brands/{brand}/price-stats", response_model=schemas.BrandPriceStats)
+def get_brand_price_stats(brand: str, db: Session = Depends(get_db)):
+    return crud.get_brand_price_stats(db, brand)
+
+
 @router.get("/products/{slug}", response_model=schemas.ProductDetailOut)
 def get_product(slug: str, db: Session = Depends(get_db)):
     product = crud.get_product_by_slug(db, slug, exclude_pending=True)

@@ -103,6 +103,19 @@ def test_list_brands_and_brand_filter(client, admin_headers):
     assert len(filtered) == 1
     assert filtered[0]["brand"] == "Titleist"
 
+    stats = client.get("/api/brands/PING/price-stats").json()
+    assert stats["brand"] == "PING"
+    assert stats["tracked_count"] == 2
+    # All three prices were recorded back-to-back with no real time gap, so
+    # span is too short to count as a "reliable" trend (see
+    # RELIABLE_TREND_MIN_HISTORY_DAYS) - test_crud.py covers the declining/
+    # rising counting logic itself with realistic recorded_at spacing.
+    assert stats["reliable_count"] == 0
+
+    empty_stats = client.get("/api/brands/NoSuchBrand/price-stats").json()
+    assert empty_stats["tracked_count"] == 0
+    assert empty_stats["average_change_percent"] is None
+
     assert client.get("/api/brands/Nonexistent").json() == []
 
 

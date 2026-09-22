@@ -106,6 +106,29 @@ class BrandSummary(BaseModel):
     product_count: int
 
 
+class BrandPriceMover(BaseModel):
+    product_slug: str
+    product_name: str
+    change_percent: float
+
+
+class BrandPriceStats(BaseModel):
+    """Real, aggregate price-movement stats for one brand, computed from its
+    products' own recorded PriceHistory (see crud.get_brand_price_stats) -
+    never a per-brand editorial claim. None fields mean "not enough data",
+    not zero."""
+
+    brand: str
+    tracked_count: int
+    reliable_count: int
+    declining_count: int
+    rising_count: int
+    flat_count: int
+    average_change_percent: float | None
+    average_msrp_discount_percent: float | None
+    biggest_decline: BrandPriceMover | None
+
+
 class PriceAnomalyOut(BaseModel):
     price_history_id: int
     product_id: int

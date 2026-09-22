@@ -82,3 +82,38 @@ def test_range_never_collapses_to_a_point():
     result = forecast.forecast_price(history, 10000)
     assert result is not None
     assert result.high_price > result.low_price
+
+
+def test_recent_release_caps_confidence_at_low():
+    # Enough points/span for "high" on its own, but the product only
+    # launched 10 days ago - early post-launch prices are still likely
+    # MSRP-anchored, so confidence should be capped regardless.
+    history = [(10000 - i * 30, _days_ago(9 - i)) for i in range(10)]
+    release_date = (datetime.datetime.utcnow() - datetime.timedelta(days=10)).date()
+    result = forecast.forecast_price(history, history[-1][0], release_date=release_date)
+    assert result is None  # not even enough span/points for "low" yet at day 10
+
+
+def test_recent_release_caps_an_otherwise_high_confidence_forecast():
+    history = [(10000 - i * 30, _days_ago(59 - i * 4)) for i in range(15)]
+    release_date = (datetime.datetime.utcnow() - datetime.timedelta(days=59)).date()
+    result = forecast.forecast_price(history, history[-1][0], release_date=release_date)
+    assert result is not None
+    assert result.confidence == "low"
+    assert any("発売から" in r for r in result.reasons)
+
+
+def test_old_release_date_does_not_cap_confidence():
+    history = [(10000 - i * 30, _days_ago(95 - i * 6)) for i in range(16)]
+    release_date = (datetime.datetime.utcnow() - datetime.timedelta(days=400)).date()
+    result = forecast.forecast_price(history, history[-1][0], release_date=release_date)
+    assert result is not None
+    assert result.confidence == "high"
+    assert not any("発売から" in r for r in result.reasons)
+
+
+def test_no_release_date_behaves_as_before():
+    history = [(10000 - i * 30, _days_ago(95 - i * 6)) for i in range(16)]
+    result = forecast.forecast_price(history, history[-1][0], release_date=None)
+    assert result is not None
+    assert result.confidence == "high"
