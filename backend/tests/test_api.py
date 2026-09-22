@@ -204,6 +204,41 @@ def test_fetch_rakuten_survives_a_step_blowing_up(client, admin_headers, monkeyp
         get_settings.cache_clear()
 
 
+def test_fetch_rakuten_survives_x_post_blowing_up(client, admin_headers, monkeypatch):
+    """The X post step runs last, after price alerts - it failing must
+    still let the job reach its final summary log rather than leaving the
+    whole request half-done."""
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
+    from app.config import get_settings
+    from app.routers import admin as admin_router
+
+    get_settings.cache_clear()
+
+    monkeypatch.setattr(admin_router.pipeline, "fetch_rakuten_prices", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.popularity, "sync_popularity_rankings", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.discovery, "discover_new_products", lambda db: (0, 0))
+
+    def _boom(db):
+        raise RuntimeError("boom: X API is down")
+
+    monkeypatch.setattr(admin_router.x_post, "post_daily_deals", _boom)
+
+    try:
+        resp = client.post("/api/admin/fetch-rakuten", headers=admin_headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["x_posts_sent"] == 0
+        assert body["x_posts_skipped"] == 0
+
+        logs = client.get("/api/admin/logs", headers=admin_headers).json()
+        sources = [log["source"] for log in logs]
+        assert "x_post" in sources
+        assert "daily_job" in sources
+    finally:
+        get_settings.cache_clear()
+
+
 def test_delete_price_removes_bad_entry_and_recomputes(client, admin_headers):
     created = client.post(
         "/api/admin/products",

@@ -7,6 +7,7 @@ import {
   adminFetchRakuten,
   adminImportCsv,
   adminListProducts,
+  adminPostToX,
   adminRunUpdate,
   adminSendPriceAlerts,
   Product,
@@ -115,6 +116,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const handlePostToX = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await adminPostToX(token);
+      setMessage(
+        `X投稿完了: 投稿${result.x_posts_sent}件 / スキップ${result.x_posts_skipped}件`
+      );
+    } catch (err) {
+      setMessage(
+        `投稿失敗: ${err instanceof Error ? err.message : String(err)}（X_API_KEY等が設定されているか確認してください）`
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleDiscover = async () => {
     if (!token) return;
     setBusy(true);
@@ -217,6 +236,22 @@ export default function AdminDashboard() {
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ送信
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">今日のお買い得情報をXに投稿</h2>
+        <p className="text-sm text-foreground/50">
+          買い時スコアが高い商品（データ不足の場合は定価からの割引率）を1〜2点選び、AIが紹介文を生成してX
+          (旧Twitter) に投稿します。毎日の自動更新の最後にも実行されます。X_API_KEY 等4つの環境変数が
+          設定されている必要があります。
+        </p>
+        <button
+          onClick={handlePostToX}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          今すぐ投稿
         </button>
       </div>
 

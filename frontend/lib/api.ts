@@ -383,6 +383,8 @@ export function adminFetchRakuten(token: string) {
     ai_regenerated: number;
     price_alerts_sent: number;
     price_alerts_skipped: number;
+    x_posts_sent: number;
+    x_posts_skipped: number;
   }>(`/api/admin/fetch-rakuten`, {
     method: "POST",
     headers: adminHeaders(token),
@@ -391,6 +393,13 @@ export function adminFetchRakuten(token: string) {
 
 export function adminSendPriceAlerts(token: string) {
   return apiFetch<{ price_alerts_sent: number; price_alerts_skipped: number }>(`/api/admin/send-price-alerts`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
+export function adminPostToX(token: string) {
+  return apiFetch<{ x_posts_sent: number; x_posts_skipped: number }>(`/api/admin/post-to-x`, {
     method: "POST",
     headers: adminHeaders(token),
   });

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, discovery, models, pipeline, popularity, schemas
+from app import crud, discovery, models, pipeline, popularity, schemas, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -237,14 +237,25 @@ def fetch_rakuten(db: Session = Depends(get_db)):
                 db, source="analysis", message=f"{product.name}: {exc}", product_id=product.id
             )
 
-    # Runs last, after every product's current_price is fresh for this
-    # cycle - a no-op when RESEND_API_KEY isn't configured.
+    # Runs after every product's current_price is fresh for this cycle -
+    # a no-op when RESEND_API_KEY isn't configured.
     alerts_sent, alerts_skipped = 0, 0
     try:
         alerts_sent, alerts_skipped = pipeline.send_price_alert_notifications(db)
     except Exception as exc:  # noqa: BLE001 - alert delivery failing shouldn't fail the whole job
         db.rollback()
         crud.create_error_log(db, source="price_alert_email", message=f"Price alert batch failed: {exc}")
+
+    # Runs last: an X post about a stale-priced product would be worse than
+    # skipping a day, so this only ever runs once everything above (prices,
+    # analysis) is as fresh as this cycle can make it. A no-op when the
+    # X_* env vars aren't configured.
+    x_posts_sent, x_posts_skipped = 0, 0
+    try:
+        x_posts_sent, x_posts_skipped = x_post.post_daily_deals(db)
+    except Exception as exc:  # noqa: BLE001 - X posting failing shouldn't fail the whole job
+        db.rollback()
+        crud.create_error_log(db, source="x_post", message=f"X post batch failed: {exc}")
 
     result = {
         "prices_updated": price_updated,
@@ -259,6 +270,8 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         "ai_regenerated": regenerated,
         "price_alerts_sent": alerts_sent,
         "price_alerts_skipped": alerts_skipped,
+        "x_posts_sent": x_posts_sent,
+        "x_posts_skipped": x_posts_skipped,
     }
 
     # A single, always-added "job finished" summary - the most recent
@@ -276,7 +289,8 @@ def fetch_rakuten(db: Session = Depends(get_db)):
             f"新商品発見{products_discovered}件, "
             f"人気ランキング反映{products_ranked}件, "
             f"分析{analyzed}件中AI再生成{regenerated}件, "
-            f"値下がり通知送信{alerts_sent}件/スキップ{alerts_skipped}件"
+            f"値下がり通知送信{alerts_sent}件/スキップ{alerts_skipped}件, "
+            f"X投稿{x_posts_sent}件/スキップ{x_posts_skipped}件"
         ),
     )
 
@@ -309,6 +323,21 @@ def send_price_alerts(db: Session = Depends(get_db)):
 
     sent, skipped = pipeline.send_price_alert_notifications(db)
     return {"price_alerts_sent": sent, "price_alerts_skipped": skipped}
+
+
+@router.post("/post-to-x")
+def post_to_x(db: Session = Depends(get_db)):
+    """Manual trigger for the same X post that also runs as part of the
+    daily /fetch-rakuten job, useful for testing without waiting for the
+    next scheduled run."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not (settings.x_api_key and settings.x_api_secret and settings.x_access_token and settings.x_access_token_secret):
+        raise HTTPException(status_code=400, detail="X_API_KEY/X_API_SECRET/X_ACCESS_TOKEN/X_ACCESS_TOKEN_SECRET is not fully configured")
+
+    sent, skipped = x_post.post_daily_deals(db)
+    return {"x_posts_sent": sent, "x_posts_skipped": skipped}
 
 
 @router.post("/sync-popularity")

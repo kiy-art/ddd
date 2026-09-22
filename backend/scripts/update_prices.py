@@ -10,7 +10,8 @@ Pipeline (spec section 9):
   6. generate AI wording (only when facts changed - cost control)
   7. email any price alert whose target price has now been reached
      (Resend, when RESEND_API_KEY is configured)
-  8. (site reflects DB state directly via the public API)
+  8. post today's best deal(s) to X (when the X_* env vars are configured)
+  9. (site reflects DB state directly via the public API)
 
 Any per-product failure is logged to ErrorLog and skipped, the batch keeps going.
 
@@ -27,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select  # noqa: E402
 
-from app import crud, models, pipeline  # noqa: E402
+from app import crud, models, pipeline, x_post  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.csv_import import import_csv  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
@@ -100,6 +101,15 @@ def main():
                 db.rollback()
                 print(f"Price alert batch failed: {exc}", file=sys.stderr)
                 crud.create_error_log(db, source="price_alert_email", message=f"Price alert batch failed: {exc}")
+
+        if settings.x_api_key and settings.x_api_secret and settings.x_access_token and settings.x_access_token_secret:
+            try:
+                x_sent, x_skipped = x_post.post_daily_deals(db)
+                print(f"X post: sent={x_sent} skipped={x_skipped}")
+            except Exception as exc:  # noqa: BLE001 - don't let this crash the script's exit code
+                db.rollback()
+                print(f"X post batch failed: {exc}", file=sys.stderr)
+                crud.create_error_log(db, source="x_post", message=f"X post batch failed: {exc}")
     finally:
         db.close()
 

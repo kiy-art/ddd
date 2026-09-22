@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     site_url: str = "https://golf-deals-frontend.onrender.com"
     ga4_property_id: str = ""
     ga4_service_account_json: str = ""
+    # X (Twitter) API v2 - OAuth 1.0a user-context credentials for the site's
+    # own posting account (see app/x_post.py). All four are required together;
+    # posting is skipped entirely (not an error) when any is unset, matching
+    # how yahoo_client_id/resend_api_key are treated as optional integrations.
+    x_api_key: str = ""
+    x_api_secret: str = ""
+    x_access_token: str = ""
+    x_access_token_secret: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

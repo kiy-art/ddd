@@ -44,6 +44,14 @@ services:
         value: "PAR. <onboarding@resend.dev>"
       - key: SITE_URL
         value: https://golf-deals-frontend.onrender.com
+      - key: X_API_KEY
+        sync: false
+      - key: X_API_SECRET
+        sync: false
+      - key: X_ACCESS_TOKEN
+        sync: false
+      - key: X_ACCESS_TOKEN_SECRET
+        sync: false
 
   - type: web
     name: golf-deals-frontend
