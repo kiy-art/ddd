@@ -1,6 +1,9 @@
 """CSV price import.
 
 Expected columns: product_name,brand,category,model_number,price,product_url,image_url
+Optional columns: msrp,release_date (YYYY-MM-DD) - manually-researched facts,
+only ever set on a newly-created product (see note on Product.msrp), never
+used to overwrite an existing row's value.
 
 Any row that fails validation is skipped (not the whole file) and recorded
 both in ErrorLog and in the returned CsvImportResult.errors list, per the
@@ -8,6 +11,7 @@ both in ErrorLog and in the returned CsvImportResult.errors list, per the
 """
 
 import csv
+import datetime
 import io
 
 from sqlalchemy.orm import Session
@@ -42,6 +46,10 @@ def import_csv(db: Session, content: bytes) -> schemas.CsvImportResult:
             price_raw = (row.get("price") or "").strip()
             product_url = (row.get("product_url") or "").strip() or None
             image_url = (row.get("image_url") or "").strip() or None
+            msrp_raw = (row.get("msrp") or "").strip()
+            msrp = int(float(msrp_raw)) if msrp_raw else None
+            release_date_raw = (row.get("release_date") or "").strip()
+            release_date = datetime.date.fromisoformat(release_date_raw) if release_date_raw else None
 
             if not name or not brand:
                 raise ValueError("product_name / brand は必須です")
@@ -68,6 +76,8 @@ def import_csv(db: Session, content: bytes) -> schemas.CsvImportResult:
                         image_url=image_url,
                         product_url=product_url,
                         initial_price=price,
+                        msrp=msrp,
+                        release_date=release_date,
                     ),
                 )
                 created += 1

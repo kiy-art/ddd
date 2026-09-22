@@ -23,6 +23,8 @@ class ProductBase(BaseModel):
     image_url: str | None = None
     product_url: str | None = None
     affiliate_url: str | None = None
+    msrp: int | None = None
+    release_date: datetime.date | None = None
 
 
 class ProductCreate(ProductBase):
@@ -38,6 +40,8 @@ class ProductUpdate(BaseModel):
     image_url: str | None = None
     product_url: str | None = None
     affiliate_url: str | None = None
+    msrp: int | None = None
+    release_date: datetime.date | None = None
 
 
 class ProductOut(ProductBase):

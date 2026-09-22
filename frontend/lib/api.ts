@@ -14,6 +14,8 @@ export interface Product {
   image_url: string | null;
   product_url: string | null;
   affiliate_url: string | null;
+  msrp: number | null;
+  release_date: string | null;
   current_price: number | null;
   previous_price: number | null;
   lowest_price: number | null;
@@ -206,6 +208,8 @@ export function adminCreateProduct(
     product_url?: string;
     affiliate_url?: string;
     initial_price?: number;
+    msrp?: number;
+    release_date?: string;
   }
 ) {
   return apiFetch<Product>(`/api/admin/products`, {

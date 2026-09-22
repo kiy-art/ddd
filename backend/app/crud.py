@@ -99,6 +99,8 @@ def create_product(db: Session, data: schemas.ProductCreate, pending_review: boo
         image_url=data.image_url,
         product_url=data.product_url,
         affiliate_url=data.affiliate_url,
+        msrp=data.msrp,
+        release_date=data.release_date,
         buy_score="insufficient_data",
         pending_review=pending_review,
     )

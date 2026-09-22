@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -22,6 +22,15 @@ class Product(Base):
     image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     product_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     affiliate_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
+    # Manually-curated facts, not touched by the daily price-fetch pipeline
+    # (unlike current_price/average_price/etc below, which sync_product_analysis
+    # recomputes from price history every run). msrp is the manufacturer's
+    # suggested retail price at launch - a fixed reference point so "XX% off"
+    # can mean something concrete, not just "below its own rolling average"
+    # (which can itself already be a discounted price).
+    msrp: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    release_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
 
     current_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     previous_price: Mapped[int | None] = mapped_column(Integer, nullable=True)

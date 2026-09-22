@@ -103,6 +103,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
   const badge = getProductBadge(product);
+  const msrpPct =
+    product.msrp !== null && product.current_price !== null
+      ? Math.round(((product.current_price - product.msrp) / product.msrp) * 1000) / 10
+      : null;
   const needsPriceCaution =
     hasReliableTrend &&
     product.price_change_percent !== null &&
@@ -216,6 +220,11 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
                   {product.name}
                 </h1>
+                {product.release_date && (
+                  <p className="mt-1 text-xs text-foreground/40">
+                    発売日 {new Date(product.release_date).toLocaleDateString("ja-JP")}
+                  </p>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <CompareButton slug={product.slug} />
@@ -237,19 +246,23 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 <span className="font-display text-4xl font-semibold text-foreground">
                   {yen(product.current_price)}
                 </span>
+                {msrpPct !== null && (
+                  <span className={`text-sm font-semibold ${msrpPct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50"}`}>
+                    {msrpPct > 0 ? "+" : ""}
+                    {msrpPct}% 定価より
+                  </span>
+                )}
                 {hasReliableTrend && product.price_change_percent !== null ? (
-                  <span
-                    className={`text-sm font-semibold ${
-                      product.price_change_percent < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50"
-                    }`}
-                  >
+                  <span className={msrpPct !== null ? "text-xs text-foreground/40" : "text-sm font-semibold " + (product.price_change_percent < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50")}>
                     {product.price_change_percent > 0 ? "+" : ""}
                     {product.price_change_percent}% vs 30日平均
                   </span>
                 ) : (
-                  <span className="text-sm font-medium text-foreground/40">
-                    価格データ蓄積中（{product.history_span_days}日分）
-                  </span>
+                  msrpPct === null && (
+                    <span className="text-sm font-medium text-foreground/40">
+                      価格データ蓄積中（{product.history_span_days}日分）
+                    </span>
+                  )
                 )}
               </div>
             </div>
@@ -274,7 +287,13 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               )}
             </div>
 
-            <dl className="grid grid-cols-3 gap-4 text-xs text-foreground/45">
+            <dl className={`grid gap-4 text-xs text-foreground/45 ${product.msrp !== null ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+              {product.msrp !== null && (
+                <div>
+                  <dt>メーカー希望小売価格</dt>
+                  <dd className="mt-1 font-display text-base font-medium text-foreground">{yen(product.msrp)}</dd>
+                </div>
+              )}
               <div>
                 <dt>過去30日平均</dt>
                 {hasReliableTrend ? (

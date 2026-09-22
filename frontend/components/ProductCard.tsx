@@ -29,6 +29,16 @@ export default function ProductCard({ product, listSource }: { product: Product;
   const pct = hasReliableTrend ? product.price_change_percent : null;
   const badge = getProductBadge(product);
 
+  // A real, fixed reference point (the manufacturer's own launch price) beats
+  // "below its own rolling 30-day average" - that average can itself already
+  // be a discounted price, which makes a "-X%" badge against it ambiguous.
+  // Prefer MSRP whenever we have it; fall back to the average-based figure
+  // only for products we haven't researched an MSRP for yet.
+  const msrpPct =
+    product.msrp !== null && product.current_price !== null
+      ? Math.round(((product.current_price - product.msrp) / product.msrp) * 1000) / 10
+      : null;
+
   return (
     <Link
       href={`/products/${product.slug}`}
@@ -87,7 +97,14 @@ export default function ProductCard({ product, listSource }: { product: Product;
 
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-4">
           <div>
-            {hasReliableTrend && pct !== null && pct < 0 && product.average_price !== null ? (
+            {msrpPct !== null && msrpPct < 0 ? (
+              <>
+                <div className="text-xs text-foreground/35 line-through">定価 {yen(product.msrp)}</div>
+                <div className="font-display text-2xl font-semibold text-foreground">
+                  {yen(product.current_price)}
+                </div>
+              </>
+            ) : hasReliableTrend && pct !== null && pct < 0 && product.average_price !== null ? (
               <>
                 <div className="text-xs text-foreground/35 line-through">
                   30日平均 {yen(product.average_price)}
@@ -111,20 +128,32 @@ export default function ProductCard({ product, listSource }: { product: Product;
               </>
             )}
           </div>
-          {pct !== null && (
+          {msrpPct !== null ? (
             <div className="text-right">
-              <div
-                className={`font-display text-lg font-semibold ${
-                  pct < 0 ? "text-sale" : "text-foreground/60"
-                }`}
-              >
-                {pct > 0 ? "+" : ""}
-                {pct}%
+              <div className={`font-display text-lg font-semibold ${msrpPct < 0 ? "text-sale" : "text-foreground/60"}`}>
+                {msrpPct > 0 ? "+" : ""}
+                {msrpPct}%
               </div>
               <div className="text-[10px] uppercase tracking-widest text-foreground/35">
-                {pct <= CAUTION_DISCOUNT_PERCENT ? "要確認" : pct < 0 ? "OFF" : "vs 30d avg"}
+                {msrpPct < 0 ? "定価よりOFF" : "vs 定価"}
               </div>
             </div>
+          ) : (
+            pct !== null && (
+              <div className="text-right">
+                <div
+                  className={`font-display text-lg font-semibold ${
+                    pct < 0 ? "text-sale" : "text-foreground/60"
+                  }`}
+                >
+                  {pct > 0 ? "+" : ""}
+                  {pct}%
+                </div>
+                <div className="text-[10px] uppercase tracking-widest text-foreground/35">
+                  {pct <= CAUTION_DISCOUNT_PERCENT ? "要確認" : pct < 0 ? "OFF" : "vs 30d avg"}
+                </div>
+              </div>
+            )
           )}
         </div>
 

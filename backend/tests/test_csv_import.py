@@ -28,6 +28,19 @@ def test_bad_rows_are_logged_and_skipped(db_session):
     assert any("category" in log.message for log in logs)
 
 
+def test_msrp_and_release_date_are_optional_and_set_on_create(db_session):
+    csv_with_facts = b"""product_name,brand,category,model_number,price,product_url,image_url,msrp,release_date
+Qi35 Driver,TaylorMade,driver,Qi35,85000,https://example.com/qi35,,99000,2025-02-07
+"""
+    result = import_csv(db_session, csv_with_facts)
+    assert result.created_products == 1
+
+    product = crud.find_product_by_identity(db_session, "Qi35 Driver", "TaylorMade", "Qi35")
+    assert product is not None
+    assert product.msrp == 99000
+    assert product.release_date.isoformat() == "2025-02-07"
+
+
 def test_missing_required_columns_returns_error():
     class _FakeDb:
         def add(self, *a, **k):

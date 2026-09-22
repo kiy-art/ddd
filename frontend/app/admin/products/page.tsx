@@ -28,6 +28,8 @@ const emptyForm = {
   product_url: "",
   affiliate_url: "",
   initial_price: "",
+  msrp: "",
+  release_date: "",
 };
 
 export default function AdminProductsPage() {
@@ -121,6 +123,8 @@ export default function AdminProductsPage() {
         product_url: form.product_url || undefined,
         affiliate_url: form.affiliate_url || undefined,
         initial_price: form.initial_price ? Number(form.initial_price) : undefined,
+        msrp: form.msrp ? Number(form.msrp) : undefined,
+        release_date: form.release_date || undefined,
       });
       setForm(emptyForm);
       await load();
@@ -171,6 +175,18 @@ export default function AdminProductsPage() {
           label="アフィリエイトURL"
           value={form.affiliate_url}
           onChange={(v) => setForm({ ...form, affiliate_url: v })}
+        />
+        <Field
+          label="メーカー希望小売価格 (円)"
+          type="number"
+          value={form.msrp}
+          onChange={(v) => setForm({ ...form, msrp: v })}
+        />
+        <Field
+          label="発売日"
+          type="date"
+          value={form.release_date}
+          onChange={(v) => setForm({ ...form, release_date: v })}
         />
         {error && <p className="col-span-full text-sm text-red-600">{error}</p>}
         <button
@@ -310,6 +326,8 @@ function ProductRow({
     image_url: product.image_url ?? "",
     product_url: product.product_url ?? "",
     affiliate_url: product.affiliate_url ?? "",
+    msrp: product.msrp !== null ? String(product.msrp) : "",
+    release_date: product.release_date ?? "",
   });
 
   useEffect(() => {
@@ -328,6 +346,8 @@ function ProductRow({
       image_url: edit.image_url || undefined,
       product_url: edit.product_url || undefined,
       affiliate_url: edit.affiliate_url || undefined,
+      msrp: edit.msrp ? Number(edit.msrp) : null,
+      release_date: edit.release_date || null,
     });
     onChanged();
   };
@@ -424,6 +444,18 @@ function ProductRow({
               label="アフィリエイトURL"
               value={edit.affiliate_url}
               onChange={(v) => setEdit({ ...edit, affiliate_url: v })}
+            />
+            <Field
+              label="メーカー希望小売価格 (円)"
+              type="number"
+              value={edit.msrp}
+              onChange={(v) => setEdit({ ...edit, msrp: v })}
+            />
+            <Field
+              label="発売日"
+              type="date"
+              value={edit.release_date}
+              onChange={(v) => setEdit({ ...edit, release_date: v })}
             />
           </div>
           <div className="flex gap-2">

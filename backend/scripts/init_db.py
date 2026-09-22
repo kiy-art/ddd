@@ -38,6 +38,8 @@ ADDED_COLUMNS = [
     ("products", "forecast_target_date", "TIMESTAMP"),
     ("products", "forecast_trend", "VARCHAR(10)"),
     ("products", "forecast_reason", "TEXT"),
+    ("products", "msrp", "INTEGER"),
+    ("products", "release_date", "DATE"),
 ]
 
 
