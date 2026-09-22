@@ -33,6 +33,16 @@
   --signal-high: #c1521a;
   --signal-mid: #8a7e6e;
   --signal-low: #9b9789;
+
+  /* Fixed black surface for hero/section headers that pair with literal
+     white text. Deliberately NOT redefined under prefers-color-scheme:
+     dark below - unlike --foreground (which inverts to a light color so
+     body text stays readable on a dark page), these sections are always
+     meant to read as a black panel with white text, so the background
+     must never flip to match. Using --foreground here was the bug: in
+     dark mode it became a near-white cream, leaving white text on a
+     near-white background. */
+  --ink: #14130f;
 }
 
 @theme inline {
@@ -50,6 +60,7 @@
   --color-signal-high: var(--signal-high);
   --color-signal-mid: var(--signal-mid);
   --color-signal-low: var(--signal-low);
+  --color-ink: var(--ink);
   --font-sans: var(--font-geist-sans);
   --font-display: var(--font-fraunces);
   --font-mono: var(--font-geist-mono);

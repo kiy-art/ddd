@@ -10,7 +10,7 @@ export default function Hero({
   avgDiscount: number | null;
 }) {
   return (
-    <section className="relative overflow-hidden bg-foreground text-white">
+    <section className="relative overflow-hidden bg-ink text-white">
       {/* Abstract arc motif echoing the AI Buy Signal gauge — no stock photography needed */}
       <svg
         className="pointer-events-none absolute -right-40 -top-40 h-[640px] w-[640px] opacity-[0.16] sm:-right-20"

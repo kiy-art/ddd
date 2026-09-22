@@ -44,7 +44,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
         {badge && (
           <span
             className={`absolute left-3 top-3 z-10 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest shadow-sm ${
-              badge.tone === "strong" ? "bg-brand text-white" : "bg-foreground text-white"
+              badge.tone === "strong" ? "bg-brand text-white" : "bg-ink text-white"
             }`}
           >
             {badge.label}

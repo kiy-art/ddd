@@ -86,7 +86,7 @@ export default async function CategoryPage({
 
   return (
     <div>
-      <section className="bg-foreground px-6 py-20 text-white sm:py-28">
+      <section className="bg-ink px-6 py-20 text-white sm:py-28">
         <div className="mx-auto max-w-7xl">
           <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Category</span>
           <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">

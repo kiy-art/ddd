@@ -12,7 +12,7 @@ export default function Newsletter() {
   };
 
   return (
-    <section className="border-t border-border bg-foreground px-6 py-20 text-white sm:py-28">
+    <section className="border-t border-border bg-ink px-6 py-20 text-white sm:py-28">
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 text-center">
         <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Coming Soon</span>
         <h2 className="font-display text-3xl font-semibold leading-tight sm:text-4xl">

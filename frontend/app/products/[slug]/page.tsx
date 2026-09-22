@@ -204,7 +204,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   {badge && (
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
-                        badge.tone === "strong" ? "bg-brand text-white" : "bg-foreground text-white"
+                        badge.tone === "strong" ? "bg-brand text-white" : "bg-ink text-white"
                       }`}
                     >
                       {badge.label}
@@ -371,7 +371,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         </FadeIn>
 
         {product.ai_summary && product.ai_summary !== product.buy_reason && (
-          <FadeIn className="mt-10 rounded-2xl bg-foreground p-6 text-white sm:p-10">
+          <FadeIn className="mt-10 rounded-2xl bg-ink p-6 text-white sm:p-10">
             <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">More Detail</span>
             <h2 className="mt-2 font-display text-2xl font-semibold">価格データからわかること</h2>
             <div className="mt-5 flex flex-col gap-4 text-sm leading-relaxed text-white/80">
