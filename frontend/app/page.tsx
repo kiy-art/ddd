@@ -215,8 +215,28 @@ export default async function Home({
         </section>
       )}
 
+      <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
+        <div className="mx-auto flex max-w-7xl flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Golf Club Finder</span>
+            <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+              あなたに合うクラブを診断
+            </h2>
+            <p className="mt-3 max-w-md text-sm text-foreground/55">
+              カテゴリと予算を選ぶだけで、今チェックすべき商品を価格データから絞り込みます。
+            </p>
+          </div>
+          <Link
+            href="/finder"
+            className="shrink-0 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+          >
+            診断してみる →
+          </Link>
+        </div>
+      </section>
+
       {!error && (
-        <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
+        <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div>
