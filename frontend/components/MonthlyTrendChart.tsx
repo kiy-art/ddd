@@ -40,7 +40,8 @@ export default function MonthlyTrendChart({ history }: { history: PriceHistoryIt
   const height = 200;
   const padTop = 24;
   const padBottom = 32;
-  const padX = 8;
+  const padLeft = 60; // room for the y-axis price labels
+  const padRight = 8;
 
   const values = monthlyAverages.map((m) => m.avg);
   const min = Math.min(...values);
@@ -48,8 +49,13 @@ export default function MonthlyTrendChart({ history }: { history: PriceHistoryIt
   const range = max - min || 1;
 
   const points = monthlyAverages.map((m, i) => ({
-    x: padX + (i / (monthlyAverages.length - 1)) * (width - padX * 2),
+    x: padLeft + (i / (monthlyAverages.length - 1)) * (width - padLeft - padRight),
     y: padTop + (1 - (m.avg - min) / range) * (height - padTop - padBottom),
+  }));
+
+  const yAxisTicks = [0, 0.5, 1].map((f) => ({
+    y: padTop + f * (height - padTop - padBottom),
+    price: Math.round(max - f * range),
   }));
 
   const linePath = smoothPath(points);
@@ -59,16 +65,30 @@ export default function MonthlyTrendChart({ history }: { history: PriceHistoryIt
     <div className="w-full">
       <div className="w-full overflow-x-auto">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-48 w-full min-w-[420px]">
-          {[0.25, 0.5, 0.75].map((f) => (
+          {yAxisTicks.map((tick) => (
             <line
-              key={f}
-              x1={padX}
-              x2={width - padX}
-              y1={padTop + f * (height - padTop - padBottom)}
-              y2={padTop + f * (height - padTop - padBottom)}
+              key={tick.y}
+              x1={padLeft}
+              x2={width - padRight}
+              y1={tick.y}
+              y2={tick.y}
               stroke="var(--border)"
               strokeWidth={1}
             />
+          ))}
+          {yAxisTicks.map((tick) => (
+            <text
+              key={tick.y}
+              x={padLeft - 8}
+              y={tick.y}
+              dy={tick.y <= padTop + 2 ? 8 : tick.y >= height - padBottom - 2 ? -2 : 3}
+              textAnchor="end"
+              fontSize={10}
+              fill="var(--foreground)"
+              opacity={0.45}
+            >
+              ¥{tick.price.toLocaleString("ja-JP")}
+            </text>
           ))}
           <path
             d={linePath}

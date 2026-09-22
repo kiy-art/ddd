@@ -27,13 +27,14 @@ export default function PriceHistoryChart({
   const height = 220;
   const padTop = 28;
   const padBottom = 36;
-  const padX = 8;
+  const padLeft = 60; // room for the y-axis price labels (see below)
+  const padRight = 8;
 
   const firstTime = new Date(history[0].recorded_at).getTime();
   const lastTime = new Date(history[history.length - 1].recorded_at).getTime();
   const forecastTime = forecast ? new Date(forecast.targetDate).getTime() : lastTime;
   const totalTime = Math.max(forecastTime - firstTime, 1);
-  const xAt = (t: number) => padX + ((t - firstTime) / totalTime) * (width - padX * 2);
+  const xAt = (t: number) => padLeft + ((t - firstTime) / totalTime) * (width - padLeft - padRight);
 
   const prices = history.map((h) => h.price);
   const rangeValues = forecast ? [...prices, forecast.lowPrice, forecast.highPrice] : prices;
@@ -41,6 +42,14 @@ export default function PriceHistoryChart({
   const max = Math.max(...rangeValues);
   const range = max - min || 1;
   const yAt = (p: number) => padTop + (1 - (p - min) / range) * (height - padTop - padBottom);
+
+  // Y-axis labels at the top/middle/bottom gridlines - without these the
+  // chart's shape has no unit, so a reader can't tell whether it's showing
+  // a \1,000 wobble or a \50,000 swing (see the report that prompted this).
+  const yAxisTicks = [0, 0.5, 1].map((f) => ({
+    y: padTop + f * (height - padTop - padBottom),
+    price: Math.round(max - f * range),
+  }));
 
   const points = history.map((h) => ({ x: xAt(new Date(h.recorded_at).getTime()), y: yAt(h.price) }));
 
@@ -69,16 +78,30 @@ export default function PriceHistoryChart({
             </linearGradient>
           </defs>
 
-          {[0.25, 0.5, 0.75].map((f) => (
+          {yAxisTicks.map((tick) => (
             <line
-              key={f}
-              x1={padX}
-              x2={forecastX ?? width - padX}
-              y1={padTop + f * (height - padTop - padBottom)}
-              y2={padTop + f * (height - padTop - padBottom)}
+              key={tick.y}
+              x1={padLeft}
+              x2={forecastX ?? width - padRight}
+              y1={tick.y}
+              y2={tick.y}
               stroke="var(--border)"
               strokeWidth={1}
             />
+          ))}
+          {yAxisTicks.map((tick) => (
+            <text
+              key={tick.y}
+              x={padLeft - 8}
+              y={tick.y}
+              dy={tick.y <= padTop + 2 ? 8 : tick.y >= height - padBottom - 2 ? -2 : 3}
+              textAnchor="end"
+              fontSize={10}
+              fill="var(--foreground)"
+              opacity={0.45}
+            >
+              ¥{tick.price.toLocaleString("ja-JP")}
+            </text>
           ))}
 
           <path d={areaPath} fill="url(#price-area)" stroke="none" />
@@ -117,7 +140,7 @@ export default function PriceHistoryChart({
                 strokeDasharray="3 3"
               />
               <circle cx={forecastX!} cy={forecastCenterY!} r={4} fill="var(--card)" stroke="var(--accent-dark)" strokeWidth={2} />
-              <text x={padX} y={16} fontSize={10} fontWeight={600} letterSpacing="0.08em" fill="var(--foreground)" opacity={0.4}>
+              <text x={padLeft} y={16} fontSize={10} fontWeight={600} letterSpacing="0.08em" fill="var(--foreground)" opacity={0.4}>
                 実績
               </text>
               <text
