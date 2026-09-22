@@ -125,6 +125,9 @@ export default function ProductCard({ product, listSource }: { product: Product;
             buyScore={product.buy_score}
             buySignalScore={product.buy_signal_score}
             historySpanDays={product.history_span_days}
+            msrp={product.msrp}
+            currentPrice={product.current_price}
+            releaseDate={product.release_date}
             size="sm"
           />
         </div>

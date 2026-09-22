@@ -22,6 +22,7 @@ import TrackedCta from "@/components/TrackedCta";
 import TrackViewed from "@/components/TrackViewed";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
 import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
+import { getFallbackValueScore } from "@/lib/fallbackScore";
 
 export const revalidate = 0;
 
@@ -117,6 +118,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   if (!product) notFound();
 
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
+  const fallbackScore = hasReliableTrend
+    ? null
+    : getFallbackValueScore({ msrp: product.msrp, current_price: product.current_price, release_date: product.release_date });
   const badge = getProductBadge(product);
   const popularityBadge = getPopularityBadge(product);
   const positioningFacts = getPositioningFacts(product);
@@ -292,6 +296,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 buyScore={product.buy_score}
                 buySignalScore={product.buy_signal_score}
                 historySpanDays={product.history_span_days}
+                msrp={product.msrp}
+                currentPrice={product.current_price}
+                releaseDate={product.release_date}
                 size="lg"
               />
               <div className="flex flex-col gap-1 border-l border-border pl-6">
@@ -330,13 +337,27 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               <p className="mt-2 font-display text-xl font-semibold text-foreground">
                 {hasReliableTrend
                   ? VERDICT_HEADLINE[product.buy_score] ?? VERDICT_HEADLINE.neutral
-                  : VERDICT_HEADLINE.insufficient_data}
+                  : fallbackScore
+                    ? fallbackScore.msrpPct < 0
+                      ? `定価より${fallbackScore.msrpPct}%（参考値）`
+                      : "定価とほぼ同水準です（参考値）"
+                    : VERDICT_HEADLINE.insufficient_data}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-foreground/60">
                 {hasReliableTrend
                   ? product.buy_reason
-                  : `現在${product.history_span_days}日分の価格データを蓄積しています。判定の精度を高めるため、もう少しデータが必要です。`}
+                  : fallbackScore
+                    ? `メーカー希望小売価格（定価）と比べて${fallbackScore.msrpPct > 0 ? "+" : ""}${fallbackScore.msrpPct}%の価格です。価格推移データが蓄積されるまでの参考情報としてご覧ください。`
+                    : `現在${product.history_span_days}日分の価格データを蓄積しています。判定の精度を高めるため、もう少しデータが必要です。`}
               </p>
+              {!hasReliableTrend && fallbackScore && (
+                <p
+                  className="mt-3 rounded-xl border border-dashed px-3 py-2 text-xs leading-relaxed text-foreground/50"
+                  style={{ borderColor: "var(--accent-dark)" }}
+                >
+                  ※価格推移データがまだ少ないため、メーカー希望小売価格との比較に基づく参考値です
+                </p>
+              )}
               {needsPriceCaution && (
                 <p className="mt-3 rounded-xl border border-border bg-card px-3 py-2 text-xs leading-relaxed text-foreground/50">
                   ⚠ 価格要確認：通常価格帯から大きく外れた値下がりです。掲載元での価格反映のタイムラグや、

@@ -51,6 +51,9 @@ export default function CompareStrip({ products, currentId }: { products: Produc
             buyScore={p.buy_score}
             buySignalScore={p.buy_signal_score}
             historySpanDays={p.history_span_days}
+            msrp={p.msrp}
+            currentPrice={p.current_price}
+            releaseDate={p.release_date}
             size="sm"
           />
         </div>
