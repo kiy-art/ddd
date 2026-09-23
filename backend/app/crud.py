@@ -217,7 +217,7 @@ def add_price(
     ).scalars().all()
     pairs = [(h.price, h.recorded_at) for h in history]
 
-    result = analysis.analyze_prices(price, pairs, now=recorded_at)
+    result = analysis.analyze_prices(price, pairs, now=recorded_at, msrp=product.msrp)
 
     product.previous_price = product.current_price
     product.current_price = price

@@ -19,6 +19,22 @@ MIN_HISTORY_POINTS = 2
 LOOKBACK_DAYS = 30
 MOMENTUM_DAYS = 7
 
+# STEP21: MSRP-based fallback/blend thresholds, used only when real price
+# history is too thin to trust on its own (see _msrp_discount_tier and its
+# two call sites in analyze_prices below). Deliberately its own, slightly
+# wider set of ratios than STRONG_BUY_RATIO/BUY_RATIO above - those compare
+# against a real 30-day average, a much more stable reference point than a
+# single static MSRP figure, so a shallower discount is enough to trust.
+MSRP_STRONG_BUY_RATIO = 0.80
+MSRP_BUY_RATIO = 0.90
+# With 2-3 real points, the 30-day average is itself barely more than the
+# current price, so it rarely swings far enough to earn strong_buy/buy even
+# for a genuinely well-discounted product - above this many points there's
+# enough real trend data to trust it alone, so the MSRP blend stops
+# applying (never overrides an already-informed real-trend verdict).
+THIN_HISTORY_MSRP_BLEND_MAX_POINTS = 3
+_BUY_SCORE_RANK = {"not_buy": 0, "neutral": 1, "buy": 2, "strong_buy": 3}
+
 # PAR. BUY SIGNAL component weights (must sum to 1.0)
 WEIGHT_VS_AVERAGE = 0.35
 WEIGHT_VS_LOW = 0.25
@@ -37,6 +53,19 @@ class AnalysisResult:
     history_points_30d: int
     history_span_days: int
     buy_signal_score: int | None
+    # STEP21: "price_history" (default - buy_score came from real trend
+    # data, exactly as before this STEP) or "msrp_estimate" (buy_score was
+    # set or upgraded from a static MSRP-vs-current-price comparison
+    # because real history was too thin to trust alone). Callers use this
+    # to word the explanation honestly (see rule_based_reason) and to skip
+    # spending on a live AI call for a verdict that isn't backed by real
+    # trend data (see app/ai.py).
+    data_basis: str = "price_history"
+    # % below/above MSRP, set only when data_basis == "msrp_estimate".
+    # Deliberately a separate field from price_change_percent (which always
+    # means "vs the real 30-day average") rather than overloading it, so a
+    # caller can never confuse the two different bases for a percentage.
+    msrp_discount_percent: float | None = None
 
 
 def _clamp(value: float, lo: float, hi: float) -> float:
@@ -92,12 +121,37 @@ def _recent_momentum_percent(
     return round(((current_price - price_7d_ago) / price_7d_ago) * 100, 1)
 
 
+def _msrp_discount_tier(current_price: int, msrp: int) -> tuple[str, float]:
+    """Classifies current_price purely against MSRP - real information
+    (MSRP is a manually-curated fact, never fabricated - see
+    docs/ai_company_guidelines.md), but a much weaker signal than a real
+    30-day trend: it says nothing about whether this is unusually cheap
+    FOR THIS PRODUCT, only that it's cheap relative to list price."""
+    discount_percent = round(((current_price - msrp) / msrp) * 100, 1)
+    if current_price < msrp * MSRP_STRONG_BUY_RATIO:
+        tier = "strong_buy"
+    elif current_price < msrp * MSRP_BUY_RATIO:
+        tier = "buy"
+    elif current_price >= msrp:
+        tier = "not_buy"
+    else:
+        tier = "neutral"
+    return tier, discount_percent
+
+
 def analyze_prices(
     current_price: int,
     history_prices: list[tuple[int, datetime.datetime]],
     now: datetime.datetime | None = None,
+    msrp: int | None = None,
 ) -> AnalysisResult:
-    """history_prices: list of (price, recorded_at), any order, may include current."""
+    """history_prices: list of (price, recorded_at), any order, may include current.
+
+    msrp: optional, real manually-curated fact (Product.msrp) - when given
+    and real price history is too thin to trust on its own, used as a
+    fallback/blend signal (see the MSRP_* constants and data_basis on
+    AnalysisResult above). Omitting it (the default) reproduces the exact
+    pre-STEP21 behavior."""
     now = now or datetime.datetime.utcnow()
     cutoff = now - datetime.timedelta(days=LOOKBACK_DAYS)
 
@@ -109,6 +163,31 @@ def analyze_prices(
     span_days = (now - min(t for _, t in recent)).days if recent else 0
 
     if len(recent) < MIN_HISTORY_POINTS:
+        # STEP21: real trend data doesn't exist yet (0 or 1 points), but
+        # MSRP - a real, already-known fact - lets a genuinely well-priced
+        # new listing show a tentative positive signal instead of sitting
+        # in insufficient_data until tomorrow's second price snapshot.
+        # Deliberately one-directional: only ever produces "buy"/
+        # "strong_buy", never "not_buy"/"neutral" - with no trend evidence
+        # at all, asserting a NEGATIVE judgment this confidently would be
+        # presuming more than the single data point actually supports;
+        # staying at insufficient_data is the honest call there.
+        if msrp and msrp > 0:
+            tier, discount_percent = _msrp_discount_tier(current_price, msrp)
+            if tier in ("buy", "strong_buy"):
+                return AnalysisResult(
+                    current_price=current_price,
+                    average_price=None,
+                    lowest_price=lowest_price,
+                    highest_price_30d=None,
+                    price_change_percent=None,
+                    buy_score=tier,
+                    history_points_30d=len(recent),
+                    history_span_days=span_days,
+                    buy_signal_score=None,
+                    data_basis="msrp_estimate",
+                    msrp_discount_percent=discount_percent,
+                )
         return AnalysisResult(
             current_price=current_price,
             average_price=None,
@@ -134,6 +213,27 @@ def analyze_prices(
     else:
         buy_score = "neutral"
 
+    # STEP21: with only 2-3 real points, the 30-day average above is
+    # barely more than the current price itself, so it rarely swings far
+    # enough to earn strong_buy/buy even for a product genuinely priced
+    # well below MSRP - let a clearly positive MSRP signal (buy/strong_buy
+    # only - never merely upgrade into "neutral", which isn't a buy signal
+    # and would leave rule_based_reason's msrp_estimate wording, below,
+    # with nothing to say) upgrade a neutral/not_buy verdict in that thin
+    # regime. Never downgrades an already-positive real-trend verdict (the
+    # more-informed signal always wins), and never applies once there's
+    # enough real history to trust the trend alone (see
+    # THIN_HISTORY_MSRP_BLEND_MAX_POINTS).
+    data_basis = "price_history"
+    msrp_discount_percent = None
+    if msrp and msrp > 0 and len(recent) <= THIN_HISTORY_MSRP_BLEND_MAX_POINTS:
+        msrp_tier, msrp_discount_percent = _msrp_discount_tier(current_price, msrp)
+        if msrp_tier in ("buy", "strong_buy") and _BUY_SCORE_RANK[msrp_tier] > _BUY_SCORE_RANK[buy_score]:
+            buy_score = msrp_tier
+            data_basis = "msrp_estimate"
+        else:
+            msrp_discount_percent = None
+
     momentum_percent = _recent_momentum_percent(current_price, recent, now)
     buy_signal_score = _buy_signal_score(
         current_price, average_price, lowest_price, recent_prices, momentum_percent
@@ -149,6 +249,8 @@ def analyze_prices(
         history_points_30d=len(recent),
         history_span_days=span_days,
         buy_signal_score=buy_signal_score,
+        data_basis=data_basis,
+        msrp_discount_percent=msrp_discount_percent,
     )
 
 
@@ -159,6 +261,21 @@ def rule_based_reason(result: AnalysisResult) -> str:
         if result.history_span_days > 0:
             return f"価格データを蓄積中です（現在{result.history_span_days}日分）。判定にはもう少しデータが必要です。"
         return "価格データが不足しているため判定できません。"
+
+    # STEP21: this verdict came from a static MSRP comparison, not a real
+    # price trend (see AnalysisResult.data_basis) - say so plainly rather
+    # than reusing the "過去30日平均より安く" wording below, which would
+    # claim a real trend comparison that doesn't actually exist yet.
+    if result.data_basis == "msrp_estimate":
+        pct = abs(result.msrp_discount_percent)
+        if result.buy_score == "strong_buy":
+            text = f"価格推移データがまだ少ないための暫定判定ですが、定価より{pct}%安く、強い買い時候補です。"
+        else:
+            text = f"価格推移データがまだ少ないための暫定判定ですが、定価より{pct}%安く、買い時候補です。"
+        near_low = result.lowest_price is not None and result.current_price <= result.lowest_price * NEAR_LOW_RATIO
+        if near_low:
+            text += "過去30日間でも最安値水準です。"
+        return text
 
     pct = result.price_change_percent
     if result.buy_score == "strong_buy":

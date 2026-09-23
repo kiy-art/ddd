@@ -44,3 +44,36 @@ def test_fallback_title_for_insufficient_data_is_also_a_short_headline(monkeypat
     assert content.title == "New Ballの価格推移・買い時情報"
 
     get_settings.cache_clear()
+
+
+def test_msrp_estimate_basis_skips_the_live_api_call_even_when_configured(monkeypatch):
+    """STEP21: a buy_score derived from analysis.AnalysisResult.data_basis
+    == "msrp_estimate" (see app/analysis.py) isn't backed by real trend
+    data, so generate_ai_content must fall back to rule-based wording
+    without ever calling the real Claude API - even with an API key
+    configured - so this STEP doesn't silently start spending more on AI
+    calls. Proven here by making a real call raise, not just by asserting
+    on the output."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        import anthropic
+
+        class _ClientThatMustNotBeCalled:
+            def __init__(self, **kwargs):
+                raise AssertionError("anthropic.Anthropic() must not be constructed for an msrp_estimate verdict")
+
+        monkeypatch.setattr(anthropic, "Anthropic", _ClientThatMustNotBeCalled)
+
+        result = analysis.analyze_prices(7500, [(10000, _days_ago(5))], msrp=10000)
+        assert result.data_basis == "msrp_estimate"
+
+        content, error = ai.generate_ai_content_safe("New Ball", "Titleist", result)
+
+        assert error is None
+        assert content.source == "rule_based"
+        assert "暫定" in content.summary
+    finally:
+        get_settings.cache_clear()

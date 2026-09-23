@@ -132,3 +132,118 @@ def test_rule_based_reason_for_thin_data_mentions_accumulation():
     assert result.buy_score == "insufficient_data"
     reason = analysis.rule_based_reason(result)
     assert "蓄積" in reason
+
+
+# --- STEP21: MSRP-based fallback/blend for thin price history ---
+
+
+def test_msrp_fallback_gives_strong_buy_with_a_single_history_point():
+    history = [(10000, _days_ago(5))]
+    result = analysis.analyze_prices(7500, history, msrp=10000)  # 75% of MSRP
+    assert result.buy_score == "strong_buy"
+    assert result.data_basis == "msrp_estimate"
+    assert result.msrp_discount_percent == -25.0
+    # Still honest about there being no real trend data behind this.
+    assert result.average_price is None
+    assert result.buy_signal_score is None
+
+
+def test_msrp_fallback_gives_buy_tier_for_a_smaller_discount():
+    history = [(10000, _days_ago(5))]
+    result = analysis.analyze_prices(8800, history, msrp=10000)  # 88% of MSRP
+    assert result.buy_score == "buy"
+    assert result.data_basis == "msrp_estimate"
+
+
+def test_msrp_fallback_stays_insufficient_data_when_discount_too_small():
+    # 95% of MSRP isn't enough of a discount to earn even a tentative "buy" -
+    # asserting a negative verdict from one data point isn't warranted
+    # either, so this must stay insufficient_data, not flip to not_buy.
+    history = [(10000, _days_ago(5))]
+    result = analysis.analyze_prices(9500, history, msrp=10000)
+    assert result.buy_score == "insufficient_data"
+    assert result.data_basis == "price_history"
+
+
+def test_msrp_fallback_applies_with_zero_history_points_too():
+    result = analysis.analyze_prices(7500, [], msrp=10000)
+    assert result.buy_score == "strong_buy"
+    assert result.data_basis == "msrp_estimate"
+
+
+def test_msrp_fallback_ignored_when_msrp_not_given():
+    history = [(10000, _days_ago(5))]
+    result = analysis.analyze_prices(7500, history)
+    assert result.buy_score == "insufficient_data"
+
+
+def test_msrp_fallback_ignored_when_msrp_is_zero_or_negative():
+    history = [(10000, _days_ago(5))]
+    assert analysis.analyze_prices(7500, history, msrp=0).buy_score == "insufficient_data"
+    assert analysis.analyze_prices(7500, history, msrp=-1).buy_score == "insufficient_data"
+
+
+def test_msrp_blend_upgrades_a_neutral_or_not_buy_verdict_with_thin_history():
+    # Only 2 real points -> average (9000) barely differs from current
+    # price, so the real-trend verdict alone is "not_buy" (near the 30d
+    # high) even though the price is a genuinely deep discount off MSRP.
+    history = [(9000, _days_ago(20)), (9000, _days_ago(10))]
+    without_msrp = analysis.analyze_prices(8800, history)
+    assert without_msrp.buy_score == "not_buy"
+
+    with_msrp = analysis.analyze_prices(8800, history, msrp=15000)  # ~41% off MSRP
+    assert with_msrp.buy_score == "strong_buy"
+    assert with_msrp.data_basis == "msrp_estimate"
+    assert with_msrp.msrp_discount_percent == -41.3
+    # The real-data buy_signal_score is untouched by the MSRP blend.
+    assert with_msrp.buy_signal_score == without_msrp.buy_signal_score
+
+
+def test_msrp_blend_never_upgrades_not_buy_into_a_mere_neutral():
+    # Regression test: an earlier version of this blend upgraded any
+    # strictly-higher-ranked MSRP tier, including "not_buy" -> "neutral" -
+    # but "neutral" isn't a buy signal, and rule_based_reason's
+    # msrp_estimate wording only has text for buy/strong_buy, so that
+    # combination produced a badge/text mismatch. The blend must only ever
+    # upgrade INTO buy or strong_buy.
+    history = [(55000, _days_ago(2)), (54000, _days_ago(0))]
+    without_msrp = analysis.analyze_prices(54000, history)
+    assert without_msrp.buy_score == "not_buy"  # near the 30d high (55000)
+
+    with_msrp = analysis.analyze_prices(54000, history, msrp=60000)  # exactly 10% off -> msrp tier "neutral"
+    assert with_msrp.buy_score == "not_buy"
+    assert with_msrp.data_basis == "price_history"
+    assert with_msrp.msrp_discount_percent is None
+
+
+def test_msrp_blend_never_downgrades_an_already_positive_real_trend_verdict():
+    history = [(10000, _days_ago(20)), (10000, _days_ago(10))]
+    result = analysis.analyze_prices(8000, history, msrp=8000)  # strong_buy vs average, zero discount vs MSRP
+    assert result.buy_score == "strong_buy"
+    assert result.data_basis == "price_history"
+    assert result.msrp_discount_percent is None
+
+
+def test_msrp_blend_stops_applying_once_history_has_enough_real_points():
+    # Same shape as the upgrade test above, but with one more point (4
+    # total) - past THIN_HISTORY_MSRP_BLEND_MAX_POINTS, so the real-trend
+    # "not_buy" verdict must stand even though the MSRP discount is huge.
+    history = [
+        (9000, _days_ago(25)),
+        (9000, _days_ago(20)),
+        (9000, _days_ago(15)),
+        (9000, _days_ago(10)),
+    ]
+    result = analysis.analyze_prices(8800, history, msrp=15000)
+    assert result.buy_score == "not_buy"
+    assert result.data_basis == "price_history"
+
+
+def test_rule_based_reason_for_msrp_estimate_discloses_the_basis():
+    history = [(10000, _days_ago(5))]
+    result = analysis.analyze_prices(7500, history, msrp=10000)
+    reason = analysis.rule_based_reason(result)
+    assert "暫定" in reason
+    assert "定価" in reason
+    assert "25.0%" in reason
+    assert "強い買い時" in reason

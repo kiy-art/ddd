@@ -90,7 +90,7 @@ def sync_product_analysis(db: Session, product: models.Product) -> bool:
 
     history = crud.get_price_history(db, product.id)
     pairs = [(h.price, h.recorded_at) for h in history]
-    result = analysis.analyze_prices(product.current_price, pairs)
+    result = analysis.analyze_prices(product.current_price, pairs, msrp=product.msrp)
 
     product.average_price = result.average_price
     product.lowest_price = result.lowest_price

@@ -64,7 +64,19 @@ def generate_ai_content(product_name: str, brand: str, result: analysis.Analysis
     whether to fall back to _rule_based_content."""
     settings = get_settings()
 
-    if not settings.anthropic_api_key or result.buy_score == "insufficient_data":
+    # STEP21: an "msrp_estimate"-basis verdict isn't backed by a real price
+    # trend (see analysis.AnalysisResult.data_basis) - skip the live API
+    # call for it too, same as insufficient_data, so introducing this
+    # fallback tier doesn't silently start spending on more Claude calls
+    # for a wider set of products than before (docs/ai_company_guidelines.md
+    # absolute rule 1: no cost-incurring change without explicit go-ahead).
+    # The deterministic rule_based_reason() wording already says plainly
+    # that it's a provisional, MSRP-based call.
+    if (
+        not settings.anthropic_api_key
+        or result.buy_score == "insufficient_data"
+        or result.data_basis != "price_history"
+    ):
         return _rule_based_content(product_name, result)
 
     import anthropic
