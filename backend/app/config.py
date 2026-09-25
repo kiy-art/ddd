@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     x_api_secret: str = ""
     x_access_token: str = ""
     x_access_token_secret: str = ""
+    # Recipient for the daily "AI会議" report email (see app/daily_report.py).
+    # Left blank by default (no-op) rather than hardcoded - a personal
+    # email address doesn't belong in committed source, unlike a public
+    # affiliate tag - set via Render's dashboard, same as RESEND_API_KEY.
+    daily_report_email: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

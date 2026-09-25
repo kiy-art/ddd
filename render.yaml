@@ -47,6 +47,11 @@ services:
         sync: false
       - key: RESEND_FROM_EMAIL
         value: "PAR. <onboarding@resend.dev>"
+      # Recipient for the daily "AI会議" report email (app/daily_report.py).
+      # A personal address, so - unlike RESEND_FROM_EMAIL above - it's never
+      # a committed value; set the real address in the Render dashboard.
+      - key: DAILY_REPORT_EMAIL
+        sync: false
       - key: SITE_URL
         value: https://par-gear.com
       - key: X_API_KEY

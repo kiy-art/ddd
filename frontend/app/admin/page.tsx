@@ -10,6 +10,7 @@ import {
   adminPostToX,
   adminRunMigrationCleanTitles,
   adminRunUpdate,
+  adminSendDailyReport,
   adminSendPriceAlerts,
   Product,
 } from "@/lib/api";
@@ -113,6 +114,22 @@ export default function AdminDashboard() {
     } catch (err) {
       setMessage(
         `送信失敗: ${err instanceof Error ? err.message : String(err)}（RESEND_API_KEYが設定されているか確認してください）`
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSendDailyReport = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await adminSendDailyReport(token);
+      setMessage("本日のAI会議レポートを送信しました。");
+    } catch (err) {
+      setMessage(
+        `送信失敗: ${err instanceof Error ? err.message : String(err)}（DAILY_REPORT_EMAILが設定されているか確認してください）`
       );
     } finally {
       setBusy(false);
@@ -282,6 +299,21 @@ export default function AdminDashboard() {
         </p>
         <button
           onClick={handleSendPriceAlerts}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          今すぐ送信
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">本日のAI会議レポートを送信</h2>
+        <p className="text-sm text-foreground/50">
+          直近24時間の新商品・価格取得結果、アフィリエイトクリック数の前日比、エラー・警告状況、検索流入を実データのみでまとめた日本語レポートをメール送信します（Resend経由）。
+          毎日の自動更新の最後にも実行されます。DAILY_REPORT_EMAIL・RESEND_API_KEY が設定されている必要があります。
+        </p>
+        <button
+          onClick={handleSendDailyReport}
           disabled={busy}
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >

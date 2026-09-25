@@ -458,6 +458,13 @@ export function adminSendPriceAlerts(token: string) {
   });
 }
 
+export function adminSendDailyReport(token: string) {
+  return apiFetch<{ sent: boolean }>(`/api/admin/send-daily-report`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
 export function adminPostToX(token: string) {
   return apiFetch<{ x_posts_sent: number; x_posts_skipped: number }>(`/api/admin/post-to-x`, {
     method: "POST",

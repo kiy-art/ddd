@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, discovery, models, pipeline, popularity, progress, schemas, title_migration, x_post
+from app import crud, daily_report, discovery, models, pipeline, popularity, progress, schemas, title_migration, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -366,6 +366,17 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         ),
     )
 
+    # Daily "AI会議" report email (see app/daily_report.py) - runs last so
+    # it reports on the daily_job summary row just written above. A no-op
+    # (raises DailyReportNotConfigured) when DAILY_REPORT_EMAIL isn't set,
+    # same optional-integration pattern as price alerts/X posting.
+    try:
+        daily_report.send_daily_report(db)
+    except daily_report.DailyReportNotConfigured:
+        pass
+    except Exception as exc:  # noqa: BLE001 - report failing must never fail the daily job itself
+        crud.create_error_log(db, source="daily_report", message=f"Daily report email failed: {exc}")
+
     return result
 
 
@@ -409,6 +420,19 @@ def send_price_alerts(db: Session = Depends(get_db)):
     finally:
         progress.finish_run()
     return {"price_alerts_sent": sent, "price_alerts_skipped": skipped}
+
+
+@router.post("/send-daily-report")
+def send_daily_report_now(db: Session = Depends(get_db)):
+    """Manual trigger for the daily AI会議 report email alone, useful for
+    testing without waiting for the next scheduled /fetch-rakuten run."""
+    try:
+        daily_report.send_daily_report(db)
+    except daily_report.DailyReportNotConfigured as exc:
+        raise HTTPException(status_code=400, detail="DAILY_REPORT_EMAIL is not configured") from exc
+    except Exception as exc:  # noqa: BLE001 - surface the real failure to the admin button
+        raise HTTPException(status_code=502, detail=f"Failed to send daily report: {exc}") from exc
+    return {"sent": True}
 
 
 @router.post("/post-to-x")
