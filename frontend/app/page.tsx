@@ -10,6 +10,7 @@ import ProductCard from "@/components/ProductCard";
 import { BUY_SCORE_LABELS, Product, getProducts } from "@/lib/api";
 import { computeDeals } from "@/lib/deals";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
+import { GUIDES } from "@/lib/guides";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -110,10 +111,51 @@ export default async function Home({
     .slice(0, 5);
 
   const heroImages = [...bestBuy, ...allProducts].map((p) => p.image_url).filter(Boolean).slice(0, 6);
+  const featuredGuides = GUIDES.filter((g) => g.featured);
 
   return (
     <div className="flex flex-col">
       <Hero productCount={allProducts.length} avgDiscount={avgDiscount} collageImages={heroImages} />
+
+      {featuredGuides.length > 0 && (
+        <section className="border-t border-border bg-background px-6 py-12 sm:py-16">
+          <div className="mx-auto max-w-7xl">
+            <FadeIn className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Featured Guides</span>
+                <h2 className="mt-2 font-display text-xl font-semibold text-foreground sm:text-2xl">
+                  注目の特集ガイド
+                </h2>
+                <p className="mt-1 text-sm text-foreground/55">実際の価格データに基づいた、今チェックしたい商品の特集です。</p>
+              </div>
+              <Link
+                href="/guides"
+                className="shrink-0 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground/70 transition-colors hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
+              >
+                購入ガイド一覧を見る →
+              </Link>
+            </FadeIn>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {featuredGuides.map((guide, i) => (
+                <FadeIn key={guide.slug} delay={i * 80}>
+                  <Link
+                    href={`/guides/${guide.slug}`}
+                    className="block h-full rounded-2xl border border-brand/30 bg-card p-5 transition-colors hover:border-brand/60 sm:p-6"
+                  >
+                    <h3 className="font-display text-base font-semibold leading-snug text-foreground">
+                      {guide.title}
+                    </h3>
+                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-foreground/55">
+                      {guide.description}
+                    </p>
+                  </Link>
+                </FadeIn>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {error && (
         <div className="mx-auto max-w-7xl px-6 py-16">
