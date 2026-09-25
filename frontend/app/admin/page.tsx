@@ -14,6 +14,7 @@ import {
   Product,
 } from "@/lib/api";
 import { useAdminAuth } from "@/lib/adminAuth";
+import AiTeamDashboard from "@/components/AiTeamDashboard";
 import LiveJobDashboard from "@/components/LiveJobDashboard";
 
 export default function AdminDashboard() {
@@ -196,6 +197,8 @@ export default function AdminDashboard() {
         <StatCard label="様子見" value={byScore.neutral ?? 0} />
         <StatCard label="判定不能" value={byScore.insufficient_data ?? 0} />
       </div>
+
+      <AiTeamDashboard token={token} />
 
       <LiveJobDashboard token={token} />
 
