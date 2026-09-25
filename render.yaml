@@ -65,6 +65,20 @@ services:
     rootDir: frontend
     buildCommand: "npm install && npm run build"
     startCommand: "npm run start"
+    # Render's Blueprint field for this is `domains` (not `customDomains`
+    # - verified against Render's own docs/render-domains reference, since
+    # an incorrect key here would be silently ignored by Render's
+    # blueprint parser rather than erroring). This only DECLARES the
+    # association on Render's side; it does not configure DNS. The domain
+    # must also be added under this service in the Render dashboard (or
+    # confirmed there once the blueprint syncs) and its DNS records (a
+    # CNAME/ALIAS per Render's own instructions once the domain is added)
+    # set with the registrar before it actually resolves - see
+    # docs/ai_company_guidelines.md 3.5.15 for the full remaining
+    # checklist (env vars, DNS, redeploy).
+    domains:
+      - par-gear.com
+      - www.par-gear.com
     envVars:
       # sync: false - set manually in the Render dashboard, not by this
       # blueprint. NEXT_PUBLIC_* vars are baked in at Next.js BUILD time,
