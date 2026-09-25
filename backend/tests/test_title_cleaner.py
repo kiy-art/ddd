@@ -166,14 +166,16 @@ def test_strip_promotional_noise_removes_empty_bracket_residue():
     assert result == "タイトリスト Pro V1"
 
 
-def test_strip_promotional_noise_removes_year_model_label_but_keeps_bare_year():
-    # "2026年モデル" is marketing filler ("this year's model"); a bare year
-    # with no "年モデル" suffix is left alone - see module docstring's
-    # known limitation for why folding it into the name (e.g. "Pro V1
-    # (2025)") is left to the AI-assisted layer only.
+def test_strip_promotional_noise_removes_year_model_label_wording_but_keeps_the_year():
+    # STEP23: "年モデル" is marketing-label wording ("this year's model"),
+    # but the year itself often isn't filler - for a product with a real
+    # multi-year release cycle (a golf ball, most clubs) it's a genuine
+    # distinguishing generation, so only the "年モデル" suffix is removed,
+    # not the digits. This also means "2026年モデル" and "2026" (no
+    # suffix) now clean down to the identical bare-year form.
     result = title_cleaner.strip_promotional_noise("フォーティーン FR-3 ウェッジ 2026年モデル")
     assert "年モデル" not in result
-    assert result == "フォーティーン FR-3 ウェッジ"
+    assert result == "フォーティーン FR-3 ウェッジ 2026"
 
     result_with_bare_year = title_cleaner.strip_promotional_noise("タイトリスト Pro V1 2025")
     assert "2025" in result_with_bare_year
@@ -208,13 +210,16 @@ def test_strip_promotional_noise_handles_wedge_spec_and_duplicate_model_example(
     "FR3" (missing the hyphen "FR-3" carries) is a MODEL-number spelling
     variant, not a brand name, so - like STEP18's phonetic model dupes -
     it's left for the AI-tightened path (see
-    test_clean_product_title_ai_tightened_step19_examples below)."""
+    test_clean_product_title_ai_tightened_step19_examples below). The
+    year itself ("2026") now survives as a bare year (STEP23) rather than
+    being deleted along with "年モデル" - see
+    test_strip_promotional_noise_removes_year_model_label_wording_but_keeps_the_year."""
     raw = (
         "最大10%OFFクーポン発行中 フォーティーン FR-3 ウェッジ パールサテン "
         "N.S.PRO TS-114w Ver2 右利き用 2026年モデル フォーティン FR3 ウェッジ"
     )
     result = title_cleaner.strip_promotional_noise(raw, brand="Fourteen")
-    assert result == "フォーティーン FR-3 ウェッジ FR3 ウェッジ"
+    assert result == "フォーティーン FR-3 ウェッジ 2026 FR3 ウェッジ"
     for noise in ["クーポン", "OFF", "パールサテン", "N.S.PRO", "TS-114w", "Ver2", "右利き用", "年モデル", "フォーティン"]:
         assert noise not in result
 
@@ -277,3 +282,63 @@ def test_clean_product_title_ai_tightened_step19_examples(monkeypatch):
         assert title_cleaner.clean_product_title(raw2, "Titleist", "ball") == "タイトリスト Pro V1 (2025)"
     finally:
         get_settings.cache_clear()
+
+
+# --- STEP23: Titleist Pro V1 duplicate-card investigation ---
+
+
+def test_strip_promotional_noise_removes_bare_ball_count_in_half_width_parens():
+    # "(12球)" - no "入り" suffix, and half-width parens aren't part of the
+    # blanket bracket-tag strip (see _BRACKET_TAG_PATTERN's own comment) -
+    # previously survived as leftover noise.
+    result = title_cleaner.strip_promotional_noise("タイトリスト Pro V1 ゴルフボール 1ダース(12球)", brand="Titleist")
+    assert "12球" not in result
+    assert result == "タイトリスト Pro V1"
+
+
+def test_strip_promotional_noise_removes_pearl_colorway_without_a_dangling_prefix():
+    # "パールホワイト" - only the "ホワイト" portion used to match the bare
+    # color-word list, leaving a dangling "パール" behind.
+    result = title_cleaner.strip_promotional_noise("タイトリスト Pro V1 ゴルフボール パールホワイト", brand="Titleist")
+    assert "パール" not in result
+    assert result == "タイトリスト Pro V1"
+
+
+def test_strip_promotional_noise_same_year_pro_v1_listings_converge_to_the_same_name():
+    """The actual root cause behind duplicate 'タイトリスト Pro V1' cards
+    (STEP23 investigation): two shops list the exact same 2023 ball with
+    different set-count/color/spacing boilerplate - after cleaning, both
+    must land on the identical string so app/title_migration.py's
+    (brand, cleaned_name) grouping merges them into one card."""
+    shop_a = "送料無料 タイトリスト Titleist Pro V1 ゴルフボール 1ダース(12球) 2023年モデル"
+    shop_b = "あす楽 タイトリスト Pro V1 ゴルフボール 1ダース パールホワイト 2023年モデル"
+    result_a = title_cleaner.strip_promotional_noise(shop_a, brand="Titleist")
+    result_b = title_cleaner.strip_promotional_noise(shop_b, brand="Titleist")
+    assert result_a == result_b == "タイトリスト Pro V1 2023"
+
+
+def test_strip_promotional_noise_keeps_different_year_pro_v1_listings_apart():
+    """A genuine generation difference (2023 vs 2025) must NOT collapse to
+    the same name, per the explicit requirement: same-year duplicates
+    merge, different-year editions stay separate cards."""
+    result_2023 = title_cleaner.strip_promotional_noise(
+        "タイトリスト Pro V1 ゴルフボール 1ダース 2023年モデル", brand="Titleist"
+    )
+    result_2025 = title_cleaner.strip_promotional_noise(
+        "タイトリスト Pro V1 ゴルフボール 1ダース 2025年モデル", brand="Titleist"
+    )
+    assert result_2023 == "タイトリスト Pro V1 2023"
+    assert result_2025 == "タイトリスト Pro V1 2025"
+    assert result_2023 != result_2025
+
+
+def test_strip_promotional_noise_keeps_pro_v1_and_pro_v1x_apart():
+    # Pro V1 and Pro V1x are different real models (not a set-count/promo
+    # variant of each other) - already correctly kept apart before STEP23,
+    # verified here as a regression guard since it's easy to accidentally
+    # over-generalize a model-number pattern into eating the "x" suffix.
+    result_v1 = title_cleaner.strip_promotional_noise("タイトリスト Pro V1 ゴルフボール 1ダース", brand="Titleist")
+    result_v1x = title_cleaner.strip_promotional_noise("タイトリスト Pro V1x ゴルフボール 1ダース", brand="Titleist")
+    assert result_v1 == "タイトリスト Pro V1"
+    assert result_v1x == "タイトリスト Pro V1x"
+    assert result_v1 != result_v1x

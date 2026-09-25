@@ -61,30 +61,44 @@ _BRACKET_TAG_PATTERN = re.compile(r"[【\[（][^】\]）]*[】\]）]")
 # copy. A fixed calendar cutoff has no place in a product's own name.
 _DATE_LIMIT_PATTERN = re.compile(r"\d{1,2}/\d{1,2}まで|\d{1,2}月\d{1,2}日まで|本日限定|今だけ")
 
-# "2026年モデル" - a "this year's model" marketing label, not a real
-# distinguishing spec (unlike, say, a ball's own release-year edition -
-# see the module docstring's known limitation for how a bare year like
-# "2025" with no "年モデル" suffix is deliberately left alone here and
-# left to the AI-assisted layer to fold into the name when meaningful).
-_YEAR_MODEL_PATTERN = re.compile(r"\d{4}年モデル")
+# "2026年モデル" - strips only the "年モデル" marketing-label wording,
+# keeping the year digits themselves (STEP23; was a blanket strip of the
+# whole match through STEP19-22, which meant "2023年モデル" and "2025年
+# モデル" both collapsed to nothing and merged as if they were the same
+# product - wrong for something like a golf ball with a real ~2-year
+# release cycle, where the year genuinely is a distinguishing generation,
+# not filler). Left with a bare year, e.g. "2023", which is exactly the
+# form the module docstring's known limitation already covers: kept as-is
+# by this regex layer, and optionally folded into "モデル名 (年)" by the
+# AI-assisted layer when meaningful.
+_YEAR_MODEL_PATTERN = re.compile(r"(\d{4})年モデル")
 
 # Named shaft models ("N.S.PRO TS-114w Ver2", "NSプロ", "DS-91w") - real
 # spec info a shop lists, but a bundled shaft's own model number, not
 # part of what the CLUB itself is. Hand-picked shaft-brand prefixes
 # (rather than a generic "alphanumeric code" pattern) so this can't
 # accidentally eat a club's own model number, like "FR-3" or "G440".
+# The model-code group is "at most one" (STEP23; was "zero or more"
+# through STEP19-22) - a greedy repeated group here would keep consuming
+# any later space-separated alphanumeric run too, e.g. a bare year like
+# "2026" sitting right after "Ver2" in the same title, deleting real
+# distinguishing info far past the shaft spec itself.
 _SHAFT_SPEC_PATTERN = re.compile(
-    r"N\.?S\.?\s*PRO(?:\s*[A-Za-z0-9\-]+)*(?:\s*Ver\.?\s*\d+)?"
-    r"|NSプロ(?:\s*[A-Za-z0-9\-]+)*(?:\s*Ver\.?\s*\d+)?"
+    r"N\.?S\.?\s*PRO(?:\s*[A-Za-z0-9\-]+)?(?:\s*Ver\.?\s*\d+)?"
+    r"|NSプロ(?:\s*[A-Za-z0-9\-]+)?(?:\s*Ver\.?\s*\d+)?"
     r"|DS-91w",
     re.IGNORECASE,
 )
 
-# Quantity/packaging notes ("3ダースセット", "12球入り", "×3箱") - real
-# information about a specific listing's bundle, but not part of the
-# product's own name (the same reasoning STEP15 already applied to
+# Quantity/packaging notes ("3ダースセット", "12球入り", "(12球)", "×3箱")
+# - real information about a specific listing's bundle, but not part of
+# the product's own name (the same reasoning STEP15 already applied to
 # "送料無料" etc.: useful to a shopper, not to what the product IS).
-_QUANTITY_PATTERN = re.compile(r"\d+ダース(?:セット)?|\d+球入り|×?\d+箱")
+# "入り" is optional (STEP23) - a shop parenthetical like "(12球)" names
+# the same ball count without that suffix, and previously survived as
+# leftover noise since half-width "(...)" isn't blanket-stripped (see
+# _BRACKET_TAG_PATTERN's own comment on why).
+_QUANTITY_PATTERN = re.compile(r"\d+ダース(?:セット)?|\d+球(?:入り)?|×?\d+箱")
 
 # Common Japanese EC promotional phrases that appear even on otherwise
 # legitimate listings (unlike ACCESSORY_KEYWORDS/AUTO_PUBLISH_NG_KEYWORDS/
@@ -141,6 +155,12 @@ _PROMO_PHRASES = [
     # Bare "ボール" - not "ゴルフボール" above, but the same shop habit of
     # tacking the generic category noun onto the end (STEP19).
     "ボール",
+    # "パール" + color (STEP23) - a golf-ball colorway prefix ("パール
+    # ホワイト" etc.). Listed before the bare color words below so the
+    # whole compound is removed in one match; without this, only the
+    # "ホワイト" portion matched, leaving a dangling "パール" behind.
+    "パールホワイト",
+    "パールイエロー",
     # Common shop colorway suffixes - occasionally a genuine distinguishing
     # variant, but usually just shop-added packaging info in this domain;
     # STEP18 asked for these removed (e.g. "...3ダースセット ホワイト").
@@ -237,7 +257,7 @@ def _dedupe_brand_name_repeats(text: str, brand: str) -> str:
 def strip_promotional_noise(raw_title: str, brand: str | None = None) -> str:
     text = _BRACKET_TAG_PATTERN.sub(" ", raw_title)
     text = _DATE_LIMIT_PATTERN.sub(" ", text)
-    text = _YEAR_MODEL_PATTERN.sub(" ", text)
+    text = _YEAR_MODEL_PATTERN.sub(r"\1", text)  # keep the year, drop only "年モデル"
     text = _QUANTITY_PATTERN.sub(" ", text)
     text = _PROMO_PATTERN.sub(" ", text)
     text = _SHAFT_SPEC_PATTERN.sub(" ", text)
