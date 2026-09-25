@@ -72,6 +72,18 @@ def submit_contact_message(data: schemas.ContactMessageCreate, db: Session = Dep
     return crud.create_contact_message(db, data)
 
 
+@router.post("/track/affiliate-click", status_code=204)
+def track_affiliate_click(data: schemas.AffiliateClickCreate, db: Session = Depends(get_db)):
+    """First-party record of a real outbound click (Amazon/Rakuten/Yahoo!/
+    official) - see models.AffiliateClick. Fire-and-forget from the
+    frontend (see lib/affiliateTracking.ts): never blocks or affects the
+    actual navigation, so this endpoint stays permissive - an unknown
+    product_id is simply stored as-is rather than rejected, since the
+    click itself is still real even if a product was later deleted."""
+    crud.create_affiliate_click(db, data)
+    return None
+
+
 @router.post("/products/{slug}/alerts", response_model=schemas.PriceAlertOut, status_code=201)
 def create_price_alert(slug: str, data: schemas.PriceAlertCreate, db: Session = Depends(get_db)):
     """Records a "notify me below ¥X" request. No email is sent yet - see

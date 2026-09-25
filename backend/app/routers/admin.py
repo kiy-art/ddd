@@ -541,3 +541,12 @@ def get_top_pages(days: int = 28, limit: int = 25):
     except analytics_ga4.GA4NotConfigured as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return [schemas.PageStatOut(**dataclasses.asdict(s)) for s in stats]
+
+
+@router.get("/affiliate-clicks/summary", response_model=schemas.AffiliateClickSummary)
+def get_affiliate_click_summary(db: Session = Depends(get_db)):
+    """Real first-party click counts recorded by POST /track/affiliate-click
+    (see models.AffiliateClick) - total, per-shop breakdown, top-clicked
+    products, and a recent feed. Powers the AI Team dashboard's metrics and
+    the CRO AI persona's data-driven commentary; never estimated."""
+    return crud.get_affiliate_click_summary(db)

@@ -510,6 +510,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                       cta_type: "affiliate",
                       buy_score: product.buy_score,
                     }}
+                    productId={product.id}
+                    category={product.category}
+                    placement="product_detail_cta"
                   >
                     {ctaLabel(product.affiliate_url)}
                   </TrackedCta>

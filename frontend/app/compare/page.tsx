@@ -194,6 +194,9 @@ export default async function ComparePage({
                               className="block w-full rounded-full bg-brand px-4 py-3 text-center text-xs font-semibold text-white transition-transform hover:scale-[1.03]"
                               event="cta_click"
                               params={{ product_id: p.id, product_slug: p.slug, cta_type: "affiliate_compare" }}
+                              productId={p.id}
+                              category={p.category}
+                              placement="compare_table"
                             >
                               {ctaLabel(p.affiliate_url)}
                             </TrackedCta>
@@ -214,6 +217,9 @@ export default async function ComparePage({
                             className="block w-full rounded-full border border-border px-4 py-2.5 text-center text-xs font-semibold text-foreground/60 hover:border-brand/40 hover:text-brand"
                             event="cta_click"
                             params={{ product_id: p.id, product_slug: p.slug, cta_type: "affiliate_search" }}
+                            productId={p.id}
+                            category={p.category}
+                            placement="compare_table"
                           >
                             Amazonで探す ↗
                           </TrackedCta>

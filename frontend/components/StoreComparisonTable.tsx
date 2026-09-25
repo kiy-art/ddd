@@ -226,6 +226,9 @@ export default function StoreComparisonTable({
                             : "official",
                       buy_score: product.buy_score,
                     }}
+                    productId={product.id}
+                    category={product.category}
+                    placement="store_comparison"
                   >
                     {row.ctaLabel ?? "見る →"}
                   </TrackedCta>

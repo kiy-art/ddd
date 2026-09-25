@@ -5,6 +5,7 @@ import Link from "next/link";
 import AiBuySignal from "@/components/AiBuySignal";
 import { getAmazonSearchUrl } from "@/lib/amazon";
 import { Product } from "@/lib/api";
+import { trackAffiliateClick } from "@/lib/affiliateTracking";
 import { trackEvent } from "@/lib/analytics";
 
 function yen(value: number | null): string {
@@ -72,15 +73,16 @@ export default function CompareStrip({ products, currentId }: { products: Produc
           href={getAmazonSearchUrl(p.name)}
           target="_blank"
           rel="noopener noreferrer sponsored"
-          onClick={() =>
+          onClick={() => {
             trackEvent("cta_click", {
               product_id: p.id,
               product_slug: p.slug,
               product_name: p.name,
               cta_type: "affiliate_search",
               list_source: "compare_strip",
-            })
-          }
+            });
+            trackAffiliateClick({ productId: p.id, category: p.category, shop: "amazon", placement: "compare_strip" });
+          }}
           className="mt-1 inline-flex w-fit items-center gap-1 rounded-full border border-border px-2 py-1 text-[10px] font-semibold text-foreground/60 transition-colors hover:border-brand/40 hover:text-brand"
         >
           Amazonで探す ↗

@@ -346,6 +346,40 @@ export function adminGetTopPages(token: string, days = 28) {
   return apiFetch<PageStat[]>(`/api/admin/analytics/top-pages?days=${days}`, { headers: adminHeaders(token) });
 }
 
+export interface ShopClickCount {
+  shop: string;
+  count: number;
+}
+
+export interface ProductClickCount {
+  product_id: number;
+  product_name: string;
+  product_slug: string;
+  clicks: number;
+}
+
+export interface AffiliateClickRecent {
+  id: number;
+  product_id: number | null;
+  category: string | null;
+  shop: string;
+  placement: string;
+  created_at: string;
+  product_name: string | null;
+  product_slug: string | null;
+}
+
+export interface AffiliateClickSummary {
+  total: number;
+  by_shop: ShopClickCount[];
+  top_products: ProductClickCount[];
+  recent: AffiliateClickRecent[];
+}
+
+export function adminGetAffiliateClickSummary(token: string) {
+  return apiFetch<AffiliateClickSummary>(`/api/admin/affiliate-clicks/summary`, { headers: adminHeaders(token) });
+}
+
 export function adminGetContactMessages(token: string) {
   return apiFetch<ContactMessage[]>(`/api/admin/contact-messages`, { headers: adminHeaders(token) });
 }

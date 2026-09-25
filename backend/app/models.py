@@ -7,6 +7,11 @@ from app.database import Base
 
 CATEGORIES = ["driver", "iron", "wedge", "putter", "ball"]
 
+# Which real outbound destination a click went to - "official" covers the
+# manufacturer's own product page (no affiliate relationship, still worth
+# counting separately from a marketplace link).
+AFFILIATE_SHOPS = ["amazon", "rakuten", "yahoo", "official"]
+
 BUY_SCORES = ["strong_buy", "buy", "neutral", "not_buy", "insufficient_data"]
 
 # The manufacturer's own stated target skill level for this specific model
@@ -164,6 +169,28 @@ class ContactMessage(Base):
     message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     read_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AffiliateClick(Base):
+    """A single outbound click on a shop/affiliate link (Amazon search,
+    Rakuten, Yahoo!ショッピング, or a plain manufacturer link) from a product
+    card, product detail page, or comparison view. GA4 already receives the
+    same event client-side (see frontend/lib/analytics.ts's trackEvent), but
+    that data is only reachable through the GA4 Data API (see
+    analytics_ga4.py), which requires separate credentials that may not be
+    configured. This table is the site's own first-party record, so the
+    admin dashboard's click-count metrics never depend on GA4 being set up."""
+
+    __tablename__ = "affiliate_clicks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    shop: Mapped[str] = mapped_column(String(20), index=True)
+    placement: Mapped[str] = mapped_column(String(30))
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
 
 
 class ErrorLog(Base):

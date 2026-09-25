@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
-from app.models import BUY_SCORES, CATEGORIES, PERFORMANCE_TYPES, SKILL_LEVELS
+from app.models import AFFILIATE_SHOPS, BUY_SCORES, CATEGORIES, PERFORMANCE_TYPES, SKILL_LEVELS
 
 
 class PriceHistoryOut(BaseModel):
@@ -192,6 +192,48 @@ class ContactMessageOut(BaseModel):
     message: str
     created_at: datetime.datetime
     read_at: datetime.datetime | None
+
+
+class AffiliateClickCreate(BaseModel):
+    product_id: int | None = None
+    category: str | None = Field(default=None, pattern="^(" + "|".join(CATEGORIES) + ")$")
+    shop: str = Field(pattern="^(" + "|".join(AFFILIATE_SHOPS) + ")$")
+    placement: str = Field(min_length=1, max_length=30)
+
+
+class AffiliateClickOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    product_id: int | None
+    category: str | None
+    shop: str
+    placement: str
+    created_at: datetime.datetime
+
+
+class AffiliateClickRecentOut(AffiliateClickOut):
+    product_name: str | None
+    product_slug: str | None
+
+
+class ShopClickCount(BaseModel):
+    shop: str
+    count: int
+
+
+class ProductClickCount(BaseModel):
+    product_id: int
+    product_name: str
+    product_slug: str
+    clicks: int
+
+
+class AffiliateClickSummary(BaseModel):
+    total: int
+    by_shop: list[ShopClickCount]
+    top_products: list[ProductClickCount]
+    recent: list[AffiliateClickRecentOut]
 
 
 class PageStatOut(BaseModel):

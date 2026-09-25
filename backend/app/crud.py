@@ -319,6 +319,88 @@ def mark_contact_message_read(db: Session, message: models.ContactMessage) -> mo
     return message
 
 
+# --- Affiliate clicks -------------------------------------------------------
+
+
+def create_affiliate_click(db: Session, data: schemas.AffiliateClickCreate) -> models.AffiliateClick:
+    # A public, unauthenticated endpoint feeds this from the browser (see
+    # routers/products.py's track_affiliate_click) - a stale/tampered
+    # product_id must never turn a real click into a failed request, so an
+    # id that doesn't exist is stored as None rather than left to violate
+    # the FK constraint (Postgres enforces it; a bare INSERT would 500).
+    product_id = data.product_id
+    if product_id is not None and db.get(models.Product, product_id) is None:
+        product_id = None
+    click = models.AffiliateClick(product_id=product_id, category=data.category, shop=data.shop, placement=data.placement)
+    db.add(click)
+    db.commit()
+    db.refresh(click)
+    return click
+
+
+# Caps how many of each list the summary endpoint returns - this is a
+# dashboard snapshot, not a full export, so an ever-growing clicks table
+# never makes a single admin page load slower.
+_AFFILIATE_CLICK_TOP_PRODUCTS_LIMIT = 10
+_AFFILIATE_CLICK_RECENT_LIMIT = 30
+
+
+def get_affiliate_click_summary(db: Session) -> schemas.AffiliateClickSummary:
+    """Real, first-party click counts - never estimated or backfilled from
+    GA4 (which may not even be configured, see analytics_ga4.py). Every
+    number here is a literal COUNT(*) over rows this site itself recorded
+    at the moment of a real outbound click (see create_affiliate_click)."""
+    total = db.execute(select(func.count()).select_from(models.AffiliateClick)).scalar_one()
+
+    by_shop_rows = db.execute(
+        select(models.AffiliateClick.shop, func.count())
+        .group_by(models.AffiliateClick.shop)
+        .order_by(func.count().desc())
+    ).all()
+    by_shop = [schemas.ShopClickCount(shop=shop, count=count) for shop, count in by_shop_rows]
+
+    top_rows = db.execute(
+        select(models.AffiliateClick.product_id, func.count().label("clicks"))
+        .where(models.AffiliateClick.product_id.is_not(None))
+        .group_by(models.AffiliateClick.product_id)
+        .order_by(func.count().desc())
+        .limit(_AFFILIATE_CLICK_TOP_PRODUCTS_LIMIT)
+    ).all()
+    top_products: list[schemas.ProductClickCount] = []
+    for product_id, clicks in top_rows:
+        product = db.get(models.Product, product_id)
+        if product is None:
+            continue  # the product was deleted since these clicks were recorded
+        top_products.append(
+            schemas.ProductClickCount(
+                product_id=product_id, product_name=product.name, product_slug=product.slug, clicks=clicks
+            )
+        )
+
+    recent_rows = db.execute(
+        select(models.AffiliateClick)
+        .order_by(models.AffiliateClick.created_at.desc())
+        .limit(_AFFILIATE_CLICK_RECENT_LIMIT)
+    ).scalars().all()
+    recent: list[schemas.AffiliateClickRecentOut] = []
+    for click in recent_rows:
+        product = db.get(models.Product, click.product_id) if click.product_id is not None else None
+        recent.append(
+            schemas.AffiliateClickRecentOut(
+                id=click.id,
+                product_id=click.product_id,
+                category=click.category,
+                shop=click.shop,
+                placement=click.placement,
+                created_at=click.created_at,
+                product_name=product.name if product else None,
+                product_slug=product.slug if product else None,
+            )
+        )
+
+    return schemas.AffiliateClickSummary(total=total, by_shop=by_shop, top_products=top_products, recent=recent)
+
+
 # --- Error logs ----------------------------------------------------------------
 
 
