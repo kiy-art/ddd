@@ -39,6 +39,34 @@ function sitemapUrl(path: string): string {
   return `${SITE_URL}${path}`;
 }
 
+// Google Search Console flagged 50 <lastmod> entries as invalid dates
+// ("無効な日付：日付の値が無効です"). Root cause: the backend serializes
+// Product.updated_at as a naive UTC datetime string with no timezone
+// designator (e.g. "2026-09-25T00:48:09", not "...Z" - see
+// app/models.py's `server_default=func.now()`, always UTC on this stack,
+// but the string itself never says so). A date-TIME string that omits a
+// timezone isn't valid W3C Datetime/RFC 3339 on its own (only a bare
+// DATE, no time-of-day, is allowed to omit it) - and Next.js only
+// produces a spec-correct <lastmod> when `lastModified` is an actual
+// Date object (it calls .toISOString() on it); a raw string is written
+// into the XML completely unvalidated (see
+// node_modules/next/dist/build/webpack/loaders/metadata/resolve-route-data.js).
+// This turns every date value into a real Date first - explicitly
+// treating a timezone-less date-TIME as UTC (matching how it was
+// actually generated) rather than leaning on the JS engine's local-time
+// interpretation of a bare "YYYY-MM-DDTHH:mm:ss" string, which would
+// only coincidentally be correct on a UTC-configured server - and drops
+// anything that still fails to parse instead of ever emitting another
+// invalid <lastmod>.
+function toLastModified(value: string | null | undefined): Date | undefined {
+  if (!value) return undefined;
+  const hasTimeComponent = value.includes("T");
+  const hasTimezone = /Z$|[+-]\d{2}:\d{2}$/.test(value);
+  const normalized = hasTimeComponent && !hasTimezone ? `${value}Z` : value;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     { url: sitemapUrl(""), changeFrequency: "daily", priority: 1 },
@@ -55,7 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     ...GUIDES.map((guide) => ({
       url: sitemapUrl(`/guides/${guide.slug}`),
-      lastModified: guide.publishedAt,
+      lastModified: toLastModified(guide.publishedAt),
       changeFrequency: "monthly" as const,
       priority: 0.5,
     })),
@@ -76,7 +104,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((product) => Boolean(product.slug))
     .map((product) => ({
       url: sitemapUrl(`/products/${product.slug}`),
-      lastModified: product.updated_at,
+      lastModified: toLastModified(product.updated_at),
       changeFrequency: "daily",
       priority: 0.8,
     }));
