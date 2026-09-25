@@ -26,6 +26,11 @@ services:
         sync: false
       - key: CLAUDE_MODEL
         value: claude-sonnet-5
+      # sync: false - set manually in the Render dashboard, not by this
+      # blueprint. Custom-domain migration (par-gear.com): must include
+      # https://par-gear.com (comma-separated with any other allowed
+      # origins) or the frontend's API calls from the new domain will be
+      # rejected by CORS.
       - key: CORS_ORIGINS
         sync: false
       - key: RAKUTEN_APP_ID
@@ -43,7 +48,7 @@ services:
       - key: RESEND_FROM_EMAIL
         value: "PAR. <onboarding@resend.dev>"
       - key: SITE_URL
-        value: https://golf-deals-frontend.onrender.com
+        value: https://par-gear.com
       - key: X_API_KEY
         sync: false
       - key: X_API_SECRET
@@ -61,8 +66,17 @@ services:
     buildCommand: "npm install && npm run build"
     startCommand: "npm run start"
     envVars:
+      # sync: false - set manually in the Render dashboard, not by this
+      # blueprint. NEXT_PUBLIC_* vars are baked in at Next.js BUILD time,
+      # so changing one requires a rebuild (a new deploy), not just a
+      # restart, before it takes effect.
       - key: NEXT_PUBLIC_API_URL
         sync: false
+      # Custom-domain migration (par-gear.com): update this to
+      # https://par-gear.com once the domain is added to this service in
+      # the Render dashboard and its DNS has propagated - this value
+      # feeds sitemap.xml/robots.txt/canonical URLs/OGP metadata (see
+      # app/sitemap.ts, app/robots.ts, app/layout.tsx).
       - key: NEXT_PUBLIC_SITE_URL
         sync: false
       - key: NEXT_PUBLIC_AMAZON_AFFILIATE_TAG

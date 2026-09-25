@@ -24,10 +24,16 @@ class Settings(BaseSettings):
     # free) can be swapped in later by just changing this env var.
     resend_from_email: str = "PAR. <onboarding@resend.dev>"
     # The public frontend URL, used to build a clickable product link inside
-    # price-alert emails. Defaults to the real production URL (confirmed
-    # working during the Yahoo! Developer Network registration) rather than
+    # price-alert emails. Defaults to the real production URL rather than
     # localhost, since email links need to work outside this dev sandbox.
-    site_url: str = "https://golf-deals-frontend.onrender.com"
+    # Render's own render.yaml sets this explicitly for the deployed
+    # backend (a literal `value:`, not `sync: false`), so this class
+    # default only matters when SITE_URL isn't set at all (local dev, or
+    # this sandbox) - production always uses render.yaml's value.
+    # Custom-domain migration: was https://golf-deals-frontend.onrender.com
+    # (confirmed working during the Yahoo! Developer Network registration)
+    # until the par-gear.com migration (see render.yaml).
+    site_url: str = "https://par-gear.com"
     ga4_property_id: str = ""
     ga4_service_account_json: str = ""
     # X (Twitter) API v2 - OAuth 1.0a user-context credentials for the site's
