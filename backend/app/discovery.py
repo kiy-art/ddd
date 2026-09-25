@@ -57,9 +57,30 @@ from app.pipeline import (
 # names are searched directly to reliably surface the models a golfer
 # would actually search this site for (consumables strategy — see
 # docs/ai_company_guidelines.md 3.5.5).
+#
+# STEP30: the generic driver/iron searches above kept surfacing the same
+# few high-traffic brands (TaylorMade/Callaway) while PING/XXIO/Honma/
+# Bridgestone had zero drivers and TaylorMade had zero irons in the
+# catalog - Rakuten's relevance ranking for a bare "ゴルフ ドライバー 新品"
+# query just doesn't reliably reach every major brand's own listings
+# within the first DISCOVERY_SEARCH_HITS results. Same fix as the ball
+# keywords above: add brand-level (not model-specific, so this doesn't
+# go stale the next time a brand's flagship model changes) searches for
+# the brands that were underrepresented, so the catalog keeps rebalancing
+# itself on every daily run instead of needing another manual CSV import.
 CATEGORY_SEARCH_KEYWORDS = {
-    "driver": ["ゴルフ ドライバー 新品"],
-    "iron": ["ゴルフ アイアン セット 新品"],
+    "driver": [
+        "ゴルフ ドライバー 新品",
+        "PING ドライバー 新品",
+        "ゼクシオ ドライバー 新品",
+        "本間ゴルフ ドライバー 新品",
+        "ブリヂストン ドライバー 新品",
+    ],
+    "iron": [
+        "ゴルフ アイアン セット 新品",
+        "PING アイアン セット 新品",
+        "テーラーメイド アイアン セット 新品",
+    ],
     "wedge": ["ゴルフ ウェッジ 新品"],
     "putter": ["ゴルフ パター 新品"],
     "ball": [
