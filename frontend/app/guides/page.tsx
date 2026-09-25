@@ -9,6 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function GuidesIndexPage() {
+  const featuredGuides = GUIDES.filter((guide) => guide.featured);
+  const evergreenGuides = GUIDES.filter((guide) => !guide.featured);
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
       <p className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Buying Guides</p>
@@ -18,17 +21,39 @@ export default function GuidesIndexPage() {
         購入前に押さえておきたいポイントをまとめています。
       </p>
 
-      <div className="mt-10 flex flex-col gap-4">
-        {GUIDES.map((guide) => (
-          <Link
-            key={guide.slug}
-            href={`/guides/${guide.slug}`}
-            className="rounded-2xl border border-border bg-card p-6 transition-colors hover:border-foreground/20 sm:p-8"
-          >
-            <h2 className="font-display text-lg font-semibold text-foreground">{guide.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-foreground/60">{guide.description}</p>
-          </Link>
-        ))}
+      {featuredGuides.length > 0 && (
+        <div className="mt-12">
+          <h2 className="font-display text-lg font-semibold text-foreground">特集</h2>
+          <p className="mt-1 text-sm text-foreground/50">実際の価格データに基づいた、今チェックしたい商品の特集です。</p>
+          <div className="mt-5 flex flex-col gap-4">
+            {featuredGuides.map((guide) => (
+              <Link
+                key={guide.slug}
+                href={`/guides/${guide.slug}`}
+                className="rounded-2xl border border-brand/30 bg-card p-6 transition-colors hover:border-brand/60 sm:p-8"
+              >
+                <h3 className="font-display text-lg font-semibold text-foreground">{guide.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-foreground/60">{guide.description}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-12">
+        {featuredGuides.length > 0 && <h2 className="font-display text-lg font-semibold text-foreground">購入ガイド</h2>}
+        <div className="mt-5 flex flex-col gap-4">
+          {evergreenGuides.map((guide) => (
+            <Link
+              key={guide.slug}
+              href={`/guides/${guide.slug}`}
+              className="rounded-2xl border border-border bg-card p-6 transition-colors hover:border-foreground/20 sm:p-8"
+            >
+              <h3 className="font-display text-lg font-semibold text-foreground">{guide.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-foreground/60">{guide.description}</p>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );

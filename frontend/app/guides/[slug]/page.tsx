@@ -2,10 +2,45 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { CATEGORY_LABELS } from "@/lib/api";
+import FadeIn from "@/components/FadeIn";
+import ProductCard from "@/components/ProductCard";
+import { CATEGORY_LABELS, Product, getCategoryProducts, getProducts } from "@/lib/api";
+import { computeDeals } from "@/lib/deals";
 import { GUIDES, getGuide } from "@/lib/guides";
 
 export const revalidate = 0;
+
+const DEFAULT_FEATURED_LIMIT = 6;
+
+async function loadFeaturedProducts(
+  featured: NonNullable<ReturnType<typeof getGuide>>["featured"]
+): Promise<{ product: Product; caption?: string }[]> {
+  if (!featured) return [];
+  const limit = featured.limit ?? DEFAULT_FEATURED_LIMIT;
+
+  try {
+    if (featured.kind === "top_buy_signal" && featured.category) {
+      const products = await getCategoryProducts(featured.category);
+      return [...products]
+        .sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1))
+        .slice(0, limit)
+        .map((product) => ({ product }));
+    }
+
+    if (featured.kind === "price_drops") {
+      const products = featured.category
+        ? await getCategoryProducts(featured.category)
+        : await getProducts();
+      return computeDeals(products)
+        .slice(0, limit)
+        .map(({ product, dropPercent }) => ({ product, caption: `前回価格より ${dropPercent}% 値下がり` }));
+    }
+  } catch {
+    return [];
+  }
+
+  return [];
+}
 
 type Params = { slug: string };
 
@@ -34,6 +69,8 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
   const { slug } = await params;
   const guide = getGuide(slug);
   if (!guide) notFound();
+
+  const featuredProducts = await loadFeaturedProducts(guide.featured);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const url = `${siteUrl}/guides/${guide.slug}`;
@@ -73,6 +110,28 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
       <p className="mt-3 text-sm text-foreground/50">
         {new Date(guide.publishedAt).toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
       </p>
+
+      {guide.featured && (
+        <div className="mt-10">
+          <h2 className="font-display text-xl font-semibold text-foreground">{guide.featured.heading}</h2>
+          {featuredProducts.length === 0 ? (
+            <p className="mt-4 rounded-2xl border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-foreground/50">
+              現在、条件に合う商品がありません。しばらく時間をおいて再度ご確認ください。
+            </p>
+          ) : (
+            <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {featuredProducts.map(({ product, caption }, i) => (
+                <FadeIn key={product.id} delay={(i % 6) * 60} className="flex flex-col gap-2">
+                  {caption && (
+                    <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">{caption}</span>
+                  )}
+                  <ProductCard product={product} listSource={`guide:${guide.slug}`} />
+                </FadeIn>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-10 flex flex-col gap-10">
         {guide.sections.map((section) => (

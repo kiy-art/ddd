@@ -3,12 +3,25 @@ export interface GuideSection {
   paragraphs: string[];
 }
 
+// Describes real backend data to embed on the guide page - never fabricated
+// or hand-picked, always computed the same way the rest of the site does
+// ("top_buy_signal" reuses app/ranking/page.tsx's sort, "price_drops" reuses
+// lib/deals.ts's computeDeals()) so a "特集" guide is a curated entry point
+// into real data, not a separate source of truth.
+export interface GuideFeatured {
+  kind: "top_buy_signal" | "price_drops";
+  category?: string; // required for "top_buy_signal", ignored for "price_drops"
+  heading: string;
+  limit?: number; // defaults to 6
+}
+
 export interface Guide {
   slug: string;
   title: string;
   description: string;
   publishedAt: string; // ISO date, static (hand-authored content, not DB-backed)
   relatedCategories?: string[];
+  featured?: GuideFeatured;
   sections: GuideSection[];
 }
 
@@ -18,6 +31,54 @@ export interface Guide {
 // ("型落ち ゴルフクラブ", "ドライバー 買い替え 時期", etc.) that the site
 // otherwise has zero content for, and to link back into the catalog.
 export const GUIDES: Guide[] = [
+  {
+    slug: "driver-comparison",
+    title: "最新ドライバー比較：AI BUY SIGNALが高い順にチェック",
+    description:
+      "ドライバーの中から、AI BUY SIGNAL（買い時スコア）が高い順に商品を並べて比較できるページです。実際の価格データに基づいた順位のみを掲載しています。",
+    publishedAt: "2026-09-25",
+    relatedCategories: ["driver"],
+    featured: { kind: "top_buy_signal", category: "driver", heading: "買い時スコアが高いドライバー" },
+    sections: [
+      {
+        heading: "このページの見方",
+        paragraphs: [
+          "以下の商品カードは、当サイトに登録されているドライバーを、その時点のAI BUY SIGNAL（買い時スコア）が高い順に並べたものです。スコアは各商品の価格推移（過去の実績データ）から算出しており、順位や表示商品は価格が更新されるたびに変わります。",
+          "「比較」ボタンでチェックした商品同士は、スペックや価格を並べて見比べることもできます。気になるモデルが複数ある場合は活用してください。",
+        ],
+      },
+      {
+        heading: "スコアだけで即決しない",
+        paragraphs: [
+          "買い時スコアはあくまで「その商品自身の過去の価格と比べて今が割安か」を示す指標であり、自分のスイングやヘッドスピードに合うかどうかまでは判断できません。スコアが高いモデルの中から、まずは自分の課題（飛距離・方向性・弾道の高さなど）に合いそうなものを絞り込み、そのうえで価格タイミングの参考にスコアを使うのがおすすめです。",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "ball-price-drops",
+    title: "値下がり注目ボール：直近で値下がりしたゴルフボール一覧",
+    description:
+      "直近の価格更新で値下がりが確認されたゴルフボールをまとめました。実際に記録された価格変動のみを掲載しています。",
+    publishedAt: "2026-09-25",
+    relatedCategories: ["ball"],
+    featured: { kind: "price_drops", category: "ball", heading: "直近で値下がりしたボール" },
+    sections: [
+      {
+        heading: "このページの見方",
+        paragraphs: [
+          "以下は、直近の価格更新で「前回価格より安くなった」ことが実際に記録されている商品のみを一覧にしたものです。推測や予測ではなく、記録された2つの価格（前回・今回）を比較した実績値なので、表示されている値下がり率はすべて実際に起きた価格変動です。",
+          "ゴルフボールは消耗品としての性質上、型落ちを待つメリットがクラブほど大きくない一方、まとめ買いのタイミングで単価を抑えやすいアイテムでもあります。値下がりを確認できたタイミングでのまとめ買いも一つの選択肢です。",
+        ],
+      },
+      {
+        heading: "該当商品がない場合",
+        paragraphs: [
+          "直近で値下がりが確認された商品がない場合、このページには何も表示されません。実在しない値下がりを演出することはしない方針のため、その場合は空の状態のままご案内しています。しばらく時間をおいて再度確認してみてください。",
+        ],
+      },
+    ],
+  },
   {
     slug: "why-consider-last-years-model",
     title: "型落ちゴルフクラブは買うべき？メリットと注意点",
