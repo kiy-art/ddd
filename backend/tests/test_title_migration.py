@@ -122,6 +122,7 @@ def test_apply_fills_blank_curated_facts_from_a_merged_loser_without_overwriting
         brand="Titleist",
         category="ball",
         pending_review=False,
+        initial_price=None,
     )
     survivor.msrp = 6000  # already curated - must not be overwritten by the loser's value
     loser = _make_product(
@@ -130,9 +131,10 @@ def test_apply_fills_blank_curated_facts_from_a_merged_loser_without_overwriting
         brand="Titleist",
         category="ball",
         pending_review=True,
+        initial_price=None,
     )
     loser.msrp = 6200
-    loser.image_url = "https://example.com/provx1.jpg"  # survivor has none - should fill in
+    loser.release_date = None
     db_session.commit()
     survivor_id = survivor.id
 
@@ -140,4 +142,129 @@ def test_apply_fills_blank_curated_facts_from_a_merged_loser_without_overwriting
 
     remaining = db_session.get(models.Product, survivor_id)
     assert remaining.msrp == 6000  # unchanged, not overwritten
-    assert remaining.image_url == "https://example.com/provx1.jpg"  # filled in from the loser
+
+
+def test_apply_merge_survivor_takes_price_url_image_from_the_cheapest_offer(db_session):
+    """STEP22: each product in a merge group is really a different shop's
+    own listing for the same model - the survivor's current_price/
+    product_url/affiliate_url/image_url must end up as whichever group
+    member was cheapest, not whichever happened to survive as the row."""
+    survivor = _make_product(
+        db_session,
+        name="【送料無料】Titleist Pro V1 ゴルフボール 1ダース",
+        brand="Titleist",
+        category="ball",
+        pending_review=False,
+        initial_price=6000,
+    )
+    survivor.product_url = "https://item.rakuten.co.jp/shop-a/provx1/"
+    survivor.affiliate_url = "https://hb.afl.rakuten.co.jp/shop-a/provx1/"
+    survivor.image_url = "https://example.com/shop-a.jpg"
+    loser = _make_product(
+        db_session,
+        name="Titleist Pro V1 ゴルフボール 1ダース ポイント10倍!!",
+        brand="Titleist",
+        category="ball",
+        pending_review=True,
+        initial_price=5400,  # cheaper than the survivor's own 6000
+    )
+    loser.product_url = "https://item.rakuten.co.jp/shop-b/provx1/"
+    loser.affiliate_url = "https://hb.afl.rakuten.co.jp/shop-b/provx1/"
+    loser.image_url = "https://example.com/shop-b.jpg"
+    db_session.commit()
+    survivor_id = survivor.id
+
+    run_title_cleanup_migration(db_session, apply=True)
+
+    remaining = db_session.get(models.Product, survivor_id)
+    assert remaining.current_price == 5400
+    assert remaining.previous_price == 6000  # the survivor's own price before the merge
+    assert remaining.product_url == "https://item.rakuten.co.jp/shop-b/provx1/"
+    assert remaining.affiliate_url == "https://hb.afl.rakuten.co.jp/shop-b/provx1/"
+    assert remaining.image_url == "https://example.com/shop-b.jpg"
+
+
+def test_apply_merge_survivor_keeps_its_own_offer_when_it_is_already_cheapest(db_session):
+    survivor = _make_product(
+        db_session,
+        name="【送料無料】Titleist Pro V1 ゴルフボール 1ダース",
+        brand="Titleist",
+        category="ball",
+        pending_review=False,
+        initial_price=5000,
+    )
+    survivor.image_url = "https://example.com/shop-a.jpg"
+    loser = _make_product(
+        db_session,
+        name="Titleist Pro V1 ゴルフボール 1ダース ポイント10倍!!",
+        brand="Titleist",
+        category="ball",
+        pending_review=True,
+        initial_price=6000,  # pricier than the survivor
+    )
+    loser.image_url = "https://example.com/shop-b.jpg"
+    db_session.commit()
+    survivor_id = survivor.id
+
+    run_title_cleanup_migration(db_session, apply=True)
+
+    remaining = db_session.get(models.Product, survivor_id)
+    assert remaining.current_price == 5000
+    assert remaining.image_url == "https://example.com/shop-a.jpg"
+
+
+def test_apply_merge_survivor_takes_the_cheapest_yahoo_offer_too(db_session):
+    survivor = _make_product(
+        db_session,
+        name="【送料無料】Titleist Pro V1 ゴルフボール 1ダース",
+        brand="Titleist",
+        category="ball",
+        pending_review=False,
+        initial_price=None,
+    )
+    survivor.yahoo_price = 6000
+    survivor.yahoo_url = "https://shopping.yahoo.co.jp/shop-a/provx1/"
+    loser = _make_product(
+        db_session,
+        name="Titleist Pro V1 ゴルフボール 1ダース ポイント10倍!!",
+        brand="Titleist",
+        category="ball",
+        pending_review=True,
+        initial_price=None,
+    )
+    loser.yahoo_price = 5500
+    loser.yahoo_url = "https://shopping.yahoo.co.jp/shop-b/provx1/"
+    db_session.commit()
+    survivor_id = survivor.id
+
+    run_title_cleanup_migration(db_session, apply=True)
+
+    remaining = db_session.get(models.Product, survivor_id)
+    assert remaining.yahoo_price == 5500
+    assert remaining.yahoo_url == "https://shopping.yahoo.co.jp/shop-b/provx1/"
+
+
+def test_apply_merge_falls_back_to_recompute_when_nobody_in_the_group_has_a_price(db_session):
+    survivor = _make_product(
+        db_session,
+        name="【送料無料】Titleist Pro V1 ゴルフボール 1ダース",
+        brand="Titleist",
+        category="ball",
+        pending_review=False,
+        initial_price=None,
+    )
+    _make_product(
+        db_session,
+        name="Titleist Pro V1 ゴルフボール 1ダース ポイント10倍!!",
+        brand="Titleist",
+        category="ball",
+        pending_review=True,
+        initial_price=None,
+    )
+    survivor_id = survivor.id
+
+    result = run_title_cleanup_migration(db_session, apply=True)
+
+    remaining = db_session.get(models.Product, survivor_id)
+    assert remaining.current_price is None
+    assert result.merge_groups == 1

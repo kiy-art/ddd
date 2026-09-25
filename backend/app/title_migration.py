@@ -15,6 +15,18 @@ Two callers share this same logic, never duplicating it:
 Safe by default: apply=False only builds and returns the plan, writing
 nothing. Re-running with apply=True is idempotent - a product already
 renamed to its clean form, or already merged, has nothing left to do.
+
+STEP22: a merge group is several separate Product rows that all turned out
+to be the exact same model, discovered independently from different Rakuten
+shops - so BEFORE merging, each one's own current_price/product_url/
+affiliate_url/image_url is a real, different shop's own offer. The merged
+survivor now needs to represent "the cheapest of those shops", not
+whichever offer happens to have the most recently recorded price - see
+_pick_cheapest_offer and its use in the merge loop below. This is
+deliberately different from the msrp/release_date/etc fields just below it,
+which keep following the older "only fill in when the survivor doesn't
+already have one" rule (see their own comment) - those are manually-
+curated facts about the PRODUCT, unrelated to which shop is cheapest today.
 """
 
 import dataclasses
@@ -47,12 +59,60 @@ def _pick_survivor(group: list[models.Product]) -> tuple[models.Product, list[mo
     """Prefer an already-published (not pending_review) product, so
     merging never accidentally un-publishes something that was already
     live; then the one with the most recorded price history (the richest,
-    most-trusted series); then the oldest (longest-tracked)."""
+    most-trusted series); then the oldest (longest-tracked).
+
+    This decides which ROW (id/slug/created_at) survives, for site/SEO
+    stability - a separate question from which shop's OFFER (price/url/
+    image) the survivor should display, which _pick_cheapest_offer below
+    decides instead."""
     ordered = sorted(
         group,
         key=lambda p: (p.pending_review, -len(p.price_history), p.created_at),
     )
     return ordered[0], ordered[1:]
+
+
+@dataclasses.dataclass
+class _Offer:
+    product_id: int
+    price: int
+    product_url: str | None
+    affiliate_url: str | None
+    image_url: str | None
+
+
+def _pick_cheapest_offer(group: list[models.Product]) -> _Offer | None:
+    """The lowest current_price among every product in the merge group -
+    each one really is a different shop's own listing for the same model
+    (see module docstring) - or None if nobody in the group has a price
+    yet. Captured as plain values (not the ORM objects themselves) since
+    the caller deletes the losing rows before this offer gets applied to
+    the survivor - an ORM instance would raise on access once its row is
+    gone."""
+    priced = [p for p in group if p.current_price is not None]
+    if not priced:
+        return None
+    cheapest = min(priced, key=lambda p: p.current_price)
+    return _Offer(
+        product_id=cheapest.id,
+        price=cheapest.current_price,
+        product_url=cheapest.product_url,
+        affiliate_url=cheapest.affiliate_url,
+        image_url=cheapest.image_url,
+    )
+
+
+def _pick_cheapest_yahoo_offer(group: list[models.Product]) -> tuple[int, str | None] | None:
+    """Same "cheapest real offer among the group" rule as
+    _pick_cheapest_offer, applied to the independent Yahoo! price/url pair
+    (see models.Product.yahoo_price's own comment) so the store-comparison
+    table stays honest about the group's real cheapest Yahoo listing too,
+    not just whichever member happened to survive."""
+    priced = [p for p in group if p.yahoo_price is not None]
+    if not priced:
+        return None
+    cheapest = min(priced, key=lambda p: p.yahoo_price)
+    return cheapest.yahoo_price, cheapest.yahoo_url
 
 
 def run_title_cleanup_migration(
@@ -104,30 +164,52 @@ def run_title_cleanup_migration(
     products_merged = sum(len(group) - 1 for group in merge_groups.values())  # losers only
 
     plan_lines.append(f"\n[統合対象: {len(merge_groups)}グループ / 計{sum(len(g) for g in merge_groups.values())}件]")
+    price_synced_ids: set[int] = set()
     for key, group in merge_groups.items():
         survivor, losers = _pick_survivor(group)
-        plan_lines.append(
-            f"  {key[0]} / {key[1]}: 存続 id={survivor.id} slug={survivor.slug}"
-            f" <- 統合 id={[loser.id for loser in losers]}"
-        )
+        # STEP22: captured from the group's pre-merge state, before any
+        # loser is deleted below (see _pick_cheapest_offer's own comment on
+        # why these must be plain values, not the ORM objects themselves).
+        cheapest_offer = _pick_cheapest_offer(group)
+        cheapest_yahoo = _pick_cheapest_yahoo_offer(group)
+
+        if cheapest_offer is not None:
+            plan_lines.append(
+                f"  {key[0]} / {key[1]}: 存続 id={survivor.id} slug={survivor.slug}"
+                f" <- 統合 id={[loser.id for loser in losers]}"
+                f"（最安値: id={cheapest_offer.product_id} ¥{cheapest_offer.price:,}）"
+            )
+        else:
+            plan_lines.append(
+                f"  {key[0]} / {key[1]}: 存続 id={survivor.id} slug={survivor.slug}"
+                f" <- 統合 id={[loser.id for loser in losers]}（価格情報なし）"
+            )
         if not apply:
             continue
+
+        if cheapest_offer is not None:
+            survivor.previous_price = survivor.current_price
+            survivor.current_price = cheapest_offer.price
+            survivor.product_url = cheapest_offer.product_url
+            survivor.affiliate_url = cheapest_offer.affiliate_url
+            survivor.image_url = cheapest_offer.image_url
+            price_synced_ids.add(survivor.id)
+        if cheapest_yahoo is not None:
+            survivor.yahoo_price, survivor.yahoo_url = cheapest_yahoo
 
         for loser in losers:
             # Manually-curated facts (see Product.msrp's own comment): keep
             # the survivor's own value, only fill in from a loser when the
-            # survivor doesn't have one - the same never-overwrite-curated-
-            # data rule pipeline.fetch_rakuten_prices already applies to
-            # image_url/affiliate_url.
+            # survivor doesn't have one. Deliberately NOT current_price/
+            # product_url/affiliate_url/image_url/yahoo_price/yahoo_url
+            # anymore (STEP22) - those now always follow the group's
+            # cheapest real offer, set above, not a fill-blank rule.
             for field in (
                 "msrp",
                 "release_date",
                 "skill_level",
                 "performance_type",
                 "is_current_generation",
-                "image_url",
-                "product_url",
-                "affiliate_url",
             ):
                 if getattr(survivor, field) is None and getattr(loser, field) is not None:
                     setattr(survivor, field, getattr(loser, field))
@@ -158,20 +240,19 @@ def run_title_cleanup_migration(
     # blurb must be recomputed from its (possibly now combined) price
     # history and new name, exactly like the daily job already does after
     # any price/name change - see pipeline.sync_product_analysis. A merge
-    # survivor additionally needs current_price/previous_price refreshed
-    # first (the same crud.recompute_current_price already used after
-    # deleting a price row, admin.py's own /admin/prices/{id} DELETE
-    # endpoint) - a reassigned loser's price history can include a more
-    # recent entry than the survivor's own, and sync_product_analysis only
-    # recomputes stats AROUND the existing current_price, it never derives
-    # current_price itself.
+    # survivor's current_price/previous_price were already set above from
+    # the group's cheapest real offer (STEP22) when one existed
+    # (price_synced_ids) - crud.recompute_current_price's own "latest
+    # recorded row wins" rule is only used as a fallback for the rare group
+    # where nobody had a price at all, matching what a plain rename (no
+    # merge) or an admin deleting a single bad price row already do.
     if apply and touched_ids:
         plan_lines.append(f"\n[分析・AI説明文を再計算: {len(touched_ids)}件]")
         for product_id in touched_ids:
             product = db.get(models.Product, product_id)
             if product is None:
                 continue
-            if product_id in merged_survivor_ids:
+            if product_id in merged_survivor_ids and product_id not in price_synced_ids:
                 crud.recompute_current_price(db, product)
             pipeline.sync_product_analysis(db, product)
 
