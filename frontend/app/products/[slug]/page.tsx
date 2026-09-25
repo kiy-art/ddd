@@ -40,7 +40,7 @@ const VERDICT_HEADLINE: Record<string, string> = {
   buy: "今は「買い時」です",
   neutral: "今は「様子見」が妥当です",
   not_buy: "今は「買い時」ではありません",
-  insufficient_data: "価格データ蓄積中です",
+  insufficient_data: "価格分析の準備中です",
 };
 
 // The backend already rejects a fetched price outside 0.5x-2.0x of the
@@ -401,9 +401,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 ) : (
                   msrpPct === null && (
                     <span className="text-sm font-medium text-foreground/40">
-                      {product.history_span_days > 0
-                        ? `価格データ蓄積中（${product.history_span_days}日分）`
-                        : "登録されたばかりの商品です"}
+                      {product.history_span_days > 0 ? "価格分析準備中です" : "登録されたばかりの商品です"}
                     </span>
                   )
                 )}
@@ -431,8 +429,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     : cycleInsight
                       ? cycleInsight.message
                       : product.history_span_days > 0
-                        ? `現在${product.history_span_days}日分の価格データを蓄積しています。判定の精度を高めるため、もう少しデータが必要です。`
-                        : "登録されたばかりの商品のため、価格データを蓄積しています。判定が可能になり次第お伝えします。"}
+                        ? "価格分析の準備中です。もう少しデータが揃い次第、買い時かどうかをお伝えします。"
+                        : "登録されたばかりの商品です。判定が可能になり次第お伝えします。"}
               </p>
               {!hasReliableTrend && fallbackScore && (
                 <p
@@ -481,7 +479,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     {yen(product.average_price)}
                   </dd>
                 ) : (
-                  <dd className="mt-1 text-[11px] font-medium leading-snug text-foreground/40">蓄積中</dd>
+                  <dd className="mt-1 text-[11px] font-medium leading-snug text-foreground/40">分析準備中</dd>
                 )}
               </div>
               <div>
@@ -621,10 +619,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         </FadeIn>
 
         {product.ai_summary && product.ai_summary !== product.buy_reason && (
-          <FadeIn className="mt-10 rounded-2xl bg-ink p-6 text-white sm:p-10">
+          <FadeIn className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-10">
             <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">More Detail</span>
-            <h2 className="mt-2 font-display text-2xl font-semibold">価格データからわかること</h2>
-            <div className="mt-5 flex flex-col gap-4 text-sm leading-relaxed text-white/80">
+            <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">価格データからわかること</h2>
+            <div className="mt-5 flex flex-col gap-4 text-sm leading-relaxed text-foreground/70">
               <p>{product.ai_summary}</p>
             </div>
           </FadeIn>

@@ -14,7 +14,7 @@ export default function CompareBar() {
   if (slugs.length < 2) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-4 py-3 backdrop-blur-sm sm:px-6">
+    <div className="fixed inset-x-0 bottom-16 z-40 border-t border-border bg-card/95 px-4 py-3 backdrop-blur-sm sm:px-6 md:bottom-0">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
         <div className="min-w-0">
           <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">Compare</span>

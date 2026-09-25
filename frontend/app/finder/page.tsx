@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import FadeIn from "@/components/FadeIn";
+import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
 
@@ -77,15 +78,12 @@ export default async function FinderPage({
 
   return (
     <div>
-      <section className="bg-ink px-6 py-20 text-white sm:py-28">
-        <div className="mx-auto max-w-4xl">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Golf Club Finder</span>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">クラブ診断</h1>
-          <p className="mt-3 max-w-lg text-sm text-white/70">
-            カテゴリと予算を選ぶだけで、今チェックすべき商品を価格データから絞り込みます。
-          </p>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Golf Club Finder"
+        title="クラブ診断"
+        description="カテゴリと予算を選ぶだけで、今チェックすべき商品を価格データから絞り込みます。"
+        motif="flag"
+      />
 
       <section className="px-6 py-12 sm:py-16">
         <div className="mx-auto max-w-4xl">

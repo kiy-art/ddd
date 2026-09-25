@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
+import PageHeader from "@/components/PageHeader";
 import RemoveFromCompareButton from "@/components/RemoveFromCompareButton";
 import SafeProductImage from "@/components/SafeProductImage";
 import TrackedCta from "@/components/TrackedCta";
@@ -59,15 +60,12 @@ export default async function ComparePage({
 
   return (
     <div>
-      <section className="bg-ink px-6 py-20 text-white sm:py-28">
-        <div className="mx-auto max-w-7xl">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Compare</span>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">商品比較</h1>
-          <p className="mt-3 text-sm text-white/70">
-            価格・買い時スコア・価格予測を並べて比較できます（最大{MAX_COMPARE}商品）。
-          </p>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Compare"
+        title="商品比較"
+        description={`価格・買い時スコア・価格予測を並べて比較できます（最大${MAX_COMPARE}商品）。`}
+        collageImages={products.map((p) => p.image_url)}
+      />
 
       <section className="px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl">
@@ -131,7 +129,7 @@ export default async function ComparePage({
                           {reliable
                             ? yen(p.average_price)
                             : p.history_span_days > 0
-                              ? `蓄積中（${p.history_span_days}日分）`
+                              ? "分析準備中"
                               : "登録されたばかり"}
                         </td>
                       );

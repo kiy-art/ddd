@@ -4,6 +4,7 @@ import Link from "next/link";
 import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
 import FadeIn from "@/components/FadeIn";
+import PageHeader from "@/components/PageHeader";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
 import { getProductBadge } from "@/lib/badges";
@@ -162,13 +163,13 @@ export default async function RankingPage({
 
   return (
     <div>
-      <section className="bg-ink px-6 py-20 text-white sm:py-28">
-        <div className="mx-auto max-w-7xl">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Ranking</span>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">買い時ランキング</h1>
-          <p className="mt-3 text-sm text-white/70">PAR. BUY SIGNALが高い順に並べたカテゴリ別ランキングです。</p>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Ranking"
+        title="買い時ランキング"
+        description="今、最も買い時なゴルフ用品をカテゴリ別にランキング表示しています。"
+        collageImages={ranked.map((p) => p.image_url)}
+        motif="flag"
+      />
 
       <section className="px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl">

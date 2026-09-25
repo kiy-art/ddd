@@ -6,10 +6,12 @@ import AiBuySignal from "@/components/AiBuySignal";
 import CategoryIcon from "@/components/CategoryIcon";
 import CompareButton from "@/components/CompareButton";
 import FavoriteButton from "@/components/FavoriteButton";
+import MiniPriceRangeBar from "@/components/MiniPriceRangeBar";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
 import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
+import { comparePrice } from "@/lib/priceCopy";
 
 // See app/products/[slug]/page.tsx for why this threshold exists: a
 // "30-day average" claim needs more than a day or two of real data behind it.
@@ -48,6 +50,18 @@ export default function ProductCard({ product, listSource }: { product: Product;
   const isDiscounted = (msrpPct !== null && msrpPct < 0) || (pct !== null && pct < 0);
   const isPopularAndDropping = popularityBadge !== null && isDiscounted;
   const positioningFacts = getPositioningFacts(product);
+
+  // One plain sentence ("定価より16%安い") instead of two stacked numbers -
+  // prefers the fixed MSRP reference point over the 30-day average for the
+  // same reason msrpPct above does, and only ever compares against a real
+  // recorded value.
+  const comparison =
+    product.msrp !== null && product.current_price !== null
+      ? comparePrice(product.current_price, product.msrp, "定価")
+      : hasReliableTrend && product.average_price !== null && product.current_price !== null
+        ? comparePrice(product.current_price, product.average_price, "30日平均")
+        : null;
+  const referencePrice = product.msrp !== null ? product.msrp : product.average_price;
 
   return (
     <Link
@@ -132,67 +146,52 @@ export default function ProductCard({ product, listSource }: { product: Product;
           />
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-4">
-          <div>
-            {msrpPct !== null && msrpPct < 0 ? (
-              <>
-                <div className="text-xs text-foreground/35 line-through">定価 {yen(product.msrp)}</div>
-                <div className="font-display text-2xl font-semibold text-foreground">
-                  {yen(product.current_price)}
-                </div>
-              </>
-            ) : hasReliableTrend && pct !== null && pct < 0 && product.average_price !== null ? (
-              <>
-                <div className="text-xs text-foreground/35 line-through">
-                  30日平均 {yen(product.average_price)}
-                </div>
-                <div className="font-display text-2xl font-semibold text-foreground">
-                  {yen(product.current_price)}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="font-display text-2xl font-semibold text-foreground">
-                  {yen(product.current_price)}
-                </div>
-                {hasReliableTrend && product.average_price !== null ? (
-                  <div className="mt-0.5 text-xs text-foreground/45">30日平均 {yen(product.average_price)}</div>
-                ) : (
-                  <div className="mt-0.5 text-xs text-foreground/35">
-                    {product.history_span_days > 0
-                      ? `データ蓄積中（${product.history_span_days}日分）`
-                      : "登録されたばかりの商品です"}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          {msrpPct !== null ? (
-            <div className="text-right">
-              <div className={`font-display text-lg font-semibold ${msrpPct < 0 ? "text-sale" : "text-foreground/60"}`}>
-                {msrpPct > 0 ? "+" : ""}
-                {msrpPct}%
-              </div>
-              <div className="text-[10px] uppercase tracking-widest text-foreground/35">
-                {msrpPct < 0 ? "定価よりOFF" : "vs 定価"}
+        <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              {comparison && comparison.direction === "down" && referencePrice !== null && (
+                <div className="text-xs text-foreground/35 line-through">{yen(referencePrice)}</div>
+              )}
+              <div className="font-display text-2xl font-semibold text-foreground">
+                {yen(product.current_price)}
               </div>
             </div>
-          ) : (
-            pct !== null && (
-              <div className="text-right">
-                <div
-                  className={`font-display text-lg font-semibold ${
-                    pct < 0 ? "text-sale" : "text-foreground/60"
-                  }`}
-                >
-                  {pct > 0 ? "+" : ""}
-                  {pct}%
-                </div>
-                <div className="text-[10px] uppercase tracking-widest text-foreground/35">
-                  {pct <= CAUTION_DISCOUNT_PERCENT ? "要確認" : pct < 0 ? "OFF" : "vs 30d avg"}
-                </div>
+            {comparison && (
+              <div
+                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                  comparison.direction === "down"
+                    ? "bg-sale/10 text-sale"
+                    : "bg-background text-foreground/45"
+                }`}
+              >
+                {comparison.direction === "down" ? "-" : comparison.direction === "up" ? "+" : "±"}
+                {comparison.percent}%
               </div>
-            )
+            )}
+          </div>
+
+          {comparison ? (
+            <p
+              className={`text-xs font-semibold ${
+                comparison.direction === "down" ? "text-brand dark:text-brand-light" : "text-foreground/45"
+              }`}
+            >
+              {comparison.direction === "down" && pct !== null && pct <= CAUTION_DISCOUNT_PERCENT
+                ? `${comparison.label}（要確認：大幅な値下がりです）`
+                : comparison.label}
+            </p>
+          ) : (
+            <p className="text-xs text-foreground/35">
+              {product.history_span_days > 0 ? "価格分析準備中です" : "登録されたばかりの商品です"}
+            </p>
+          )}
+
+          {hasReliableTrend && product.lowest_price !== null && product.average_price !== null && product.current_price !== null && (
+            <MiniPriceRangeBar
+              low={product.lowest_price}
+              average={product.average_price}
+              current={product.current_price}
+            />
           )}
         </div>
 

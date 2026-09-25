@@ -3,9 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import CategoryGuide from "@/components/CategoryGuide";
+import CuratedPickCard from "@/components/CuratedPickCard";
 import FadeIn from "@/components/FadeIn";
+import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
+import { curateTodaysPicks } from "@/lib/curatePicks";
 import { GUIDES } from "@/lib/guides";
 
 export const revalidate = 0;
@@ -95,41 +98,39 @@ export default async function CategoryPage({
   const droppedRecently = products.filter(
     (p) => p.current_price !== null && p.previous_price !== null && p.current_price < p.previous_price
   ).length;
-  const cheapestVsAverage = products.length > 0 ? products[0] : null; // API default order = biggest discount first
   const relatedGuides = GUIDES.filter((g) => g.relatedCategories?.includes(category));
+  const todaysPicks = curateTodaysPicks(products);
+  const categoryLabel = CATEGORY_LABELS[category] ?? category;
+
+  const summary =
+    products.length === 0
+      ? `現在、${categoryLabel}の価格データを準備中です。`
+      : droppedRecently > 0
+        ? `本日、値下がり中の${categoryLabel}が${droppedRecently}点あります。`
+        : `${categoryLabel}を${products.length}点、毎日価格を追跡しています。`;
 
   return (
     <div>
-      <section className="bg-ink px-6 py-20 text-white sm:py-28">
-        <div className="mx-auto max-w-7xl">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Category</span>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">
-            {CATEGORY_LABELS[category]}
-          </h1>
-
-          <dl className="mt-8 flex flex-wrap gap-x-12 gap-y-6 border-t border-white/15 pt-8">
-            <div>
-              <dt className="text-xs uppercase tracking-widest text-white/50">監視中のモデル</dt>
-              <dd className="font-display text-3xl font-semibold">{products.length}</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-widest text-white/50">直近で値下がりしたモデル</dt>
-              <dd className="font-display text-3xl font-semibold">{droppedRecently}</dd>
-            </div>
-            {cheapestVsAverage?.price_change_percent !== undefined && cheapestVsAverage?.price_change_percent !== null && (
-              <div>
-                <dt className="text-xs uppercase tracking-widest text-white/50">30日平均から最も安いモデル</dt>
-                <dd className="font-display text-lg font-semibold leading-snug">
-                  {cheapestVsAverage.name}
-                  <span className="ml-2 text-sm font-medium text-white/70">
-                    {cheapestVsAverage.price_change_percent}%
-                  </span>
-                </dd>
-              </div>
-            )}
-          </dl>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Category"
+        title={`今日の${categoryLabel}お買い得情報`}
+        description={summary}
+        collageImages={products.map((p) => p.image_url)}
+      >
+        {todaysPicks.length > 0 && (
+          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {todaysPicks.slice(0, 4).map((pick) => (
+              <CuratedPickCard
+                key={pick.product.id}
+                icon={pick.icon}
+                label={pick.label}
+                product={pick.product}
+                listSource="category_today_pick"
+              />
+            ))}
+          </div>
+        )}
+      </PageHeader>
 
       <section className="px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl">

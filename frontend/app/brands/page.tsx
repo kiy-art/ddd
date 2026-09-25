@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import FadeIn from "@/components/FadeIn";
+import PageHeader from "@/components/PageHeader";
 import { getBrands } from "@/lib/api";
 
 export const revalidate = 0;
@@ -16,13 +17,12 @@ export default async function BrandsPage() {
 
   return (
     <div>
-      <section className="bg-ink px-6 py-20 text-white sm:py-28">
-        <div className="mx-auto max-w-7xl">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Brands</span>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">ブランドで探す</h1>
-          <p className="mt-3 text-sm text-white/70">{brands.length}ブランドの価格を分析中</p>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Brands"
+        title="ブランドで探す"
+        description={`${brands.length}ブランドの商品を毎日価格追跡しています。`}
+        motif="dimples"
+      />
 
       <section className="px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl">

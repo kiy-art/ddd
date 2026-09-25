@@ -109,9 +109,11 @@ export default async function Home({
     .sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1))
     .slice(0, 5);
 
+  const heroImages = [...bestBuy, ...allProducts].map((p) => p.image_url).filter(Boolean).slice(0, 6);
+
   return (
     <div className="flex flex-col">
-      <Hero productCount={allProducts.length} avgDiscount={avgDiscount} />
+      <Hero productCount={allProducts.length} avgDiscount={avgDiscount} collageImages={heroImages} />
 
       {error && (
         <div className="mx-auto max-w-7xl px-6 py-16">

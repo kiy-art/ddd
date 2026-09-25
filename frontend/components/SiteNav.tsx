@@ -55,6 +55,70 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   );
 }
 
+const TAB_BAR_ITEMS = [
+  {
+    href: "/",
+    label: "ホーム",
+    icon: (
+      <path d="M4 11 L12 4 L20 11 M6 10 V20 H18 V10" strokeLinecap="round" strokeLinejoin="round" />
+    ),
+  },
+  {
+    href: "/deals",
+    label: "値下がり",
+    icon: <path d="M4 6 L12 15 L16 11 L20 15 M14 15 H20 V9" strokeLinecap="round" strokeLinejoin="round" />,
+  },
+  {
+    href: "/ranking",
+    label: "買い時",
+    icon: (
+      <>
+        <path d="M7 20 H17 M12 15 V20" strokeLinecap="round" />
+        <path d="M6 4 H18 V9 C18 12.5 15.3 15 12 15 C8.7 15 6 12.5 6 9 Z" strokeLinejoin="round" />
+      </>
+    ),
+  },
+] as const;
+
+function MobileTabBar({ pathname, onMore }: { pathname: string; onMore: () => void }) {
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+      aria-label="主要ナビゲーション"
+    >
+      {TAB_BAR_ITEMS.map((item) => {
+        const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium ${
+              active ? "text-brand" : "text-foreground/50"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              {item.icon}
+            </svg>
+            {item.label}
+          </Link>
+        );
+      })}
+      <button
+        type="button"
+        onClick={onMore}
+        className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium text-foreground/50"
+      >
+        <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+        </svg>
+        もっと
+      </button>
+    </nav>
+  );
+}
+
 export default function SiteNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -161,7 +225,9 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">{children}</div>
+
+      <MobileTabBar pathname={pathname} onMore={() => setMobileOpen(true)} />
     </div>
   );
 }

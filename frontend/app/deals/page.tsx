@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import FadeIn from "@/components/FadeIn";
+import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { Product, getProducts } from "@/lib/api";
 import { computeDeals } from "@/lib/deals";
@@ -24,13 +25,12 @@ export default async function DealsPage() {
 
   return (
     <div>
-      <section className="bg-ink px-6 py-20 text-white sm:py-28">
-        <div className="mx-auto max-w-7xl">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Price Drops</span>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">価格が下がった商品</h1>
-          <p className="mt-3 text-sm text-white/70">直近の価格更新で値下がりした{deals.length}商品</p>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Price Drops"
+        title="価格が下がった商品"
+        description={`直近の価格更新で値下がりした${deals.length}商品です。すべて実際に記録された値下がりのみを掲載しています。`}
+        collageImages={deals.map(({ product }) => product.image_url)}
+      />
 
       <section className="px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl">

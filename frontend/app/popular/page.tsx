@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import FadeIn from "@/components/FadeIn";
+import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getProducts } from "@/lib/api";
 
@@ -44,15 +45,12 @@ export default async function PopularPage() {
 
   return (
     <div>
-      <section className="bg-ink px-6 py-20 text-white sm:py-28">
-        <div className="mx-auto max-w-7xl">
-          <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Popular</span>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">人気ランキング</h1>
-          <p className="mt-3 max-w-xl text-sm text-white/70">
-            楽天市場の実際のカテゴリ別売れ筋ランキングをもとにしています。当サイト独自の推測ではありません。
-          </p>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Popular"
+        title="人気ランキング"
+        description="楽天市場の実際のカテゴリ別売れ筋ランキングをもとにしています。当サイト独自の推測ではありません。"
+        collageImages={ranked.map((p) => p.image_url)}
+      />
 
       {error && (
         <div className="mx-auto max-w-7xl px-6 py-16">
