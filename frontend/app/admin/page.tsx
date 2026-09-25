@@ -203,6 +203,7 @@ export default function AdminDashboard() {
         <h2 className="font-display font-medium text-foreground">価格CSVインポート</h2>
         <p className="text-sm text-foreground/50">
           product_name,brand,category,model_number,price,product_url,image_url の列を持つCSVを取り込みます。
+          任意列（msrp,release_date,skill_level,performance_type,is_current_generation）を追加すると、新規商品の定価・発売日・ポジショニング情報も同時に設定できます（既存商品には影響しません）。
         </p>
         <input type="file" accept=".csv" onChange={handleCsv} disabled={busy} className="text-sm" />
       </div>

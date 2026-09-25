@@ -10,7 +10,7 @@ Yonex,EZONE GT TYPE S,96800,2024-04-01,all_levels,control,true
 PING,i230,,2023-01-19,advanced,control,false
 Titleist,T100,165000,2023-08-25,advanced,control,
 Mizuno,JPX 925 Forged,,2024-09-13,advanced,forgiveness,
-XXIO,XXIO13,,2023-12-09,beginner,distance,
+XXIO,XXIO13,92400,2023-12-09,beginner,distance,
 Honma,TW777 PCB MAX,,2025-11-28,beginner,forgiveness,
 Callaway,APEX PRO 24,,2024-09-29,advanced,control,
 Cobra,KING TOUR,165000,2023-02-11,advanced,control,
@@ -34,3 +34,10 @@ L.A.B Golf,DF3,,2024-02-01,all_levels,forgiveness,
 Titleist,Pro V1x,,,,control,
 Bettinardi,Studio Stock 16,,,,control,
 Wilson,Staff Model,,,,control,
+PING,G430 MAX,93500,2022-09-16,all_levels,forgiveness,false
+PING,G710,126500,2020-03-19,all_levels,forgiveness,false
+PING,G430,158400,2022-09-16,all_levels,forgiveness,
+TaylorMade,P790 (2023),153000,2023-09-08,advanced,distance,
+Titleist,TSR3,88000,2022-09-30,advanced,control,false
+Honma,TW757 Type-S,85800,2022-03-25,all_levels,forgiveness,
+Bridgestone,B3 MAX,99000,2024-04-05,all_levels,forgiveness,
