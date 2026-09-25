@@ -100,6 +100,37 @@ def test_search_lowest_price_returns_none_when_no_hits(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_search_lowest_price_skips_hits_missing_required_fields(monkeypatch):
+    """Same defensive filter as rakuten.py: a hit missing price/url/name
+    must not crash the lookup with a bare KeyError."""
+    monkeypatch.setenv("YAHOO_CLIENT_ID", "test-client-id")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    payload = {
+        "hits": [
+            {"name": "価格未定の商品"},  # missing price/url
+            {
+                "name": "PING G440 ドライバー",
+                "price": 68000,
+                "url": "https://store.shopping.yahoo.co.jp/example/g440.html",
+                "image": {"medium": "https://item-shopping.c.yimg.jp/example/g440.jpg"},
+            },
+        ]
+    }
+
+    def fake_get(url, params=None, timeout=None):
+        return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    result = yahoo.search_lowest_price("PING G440")
+    assert result is not None
+    assert result.price == 68000
+    get_settings.cache_clear()
+
+
 def test_to_affiliate_url_returns_none_when_not_configured(monkeypatch):
     monkeypatch.setenv("YAHOO_AFFILIATE_ID", "")
     from app.config import get_settings

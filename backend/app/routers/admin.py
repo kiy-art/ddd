@@ -165,6 +165,22 @@ def get_logs(limit: int = 100, offset: int = 0, db: Session = Depends(get_db)):
     return crud.list_error_logs(db, limit=limit, offset=offset)
 
 
+@router.post("/auto-fix-logs", response_model=schemas.AutoFixLogsResult)
+def auto_fix_logs(db: Session = Depends(get_db)):
+    """The AI War Room's one-tap "AI自動修復" action (CPO/Compliance):
+    immediately clears routine info/warning noise (per-product "not found"/
+    "price mismatch" notices) and error-level rows older than 3 days,
+    instead of waiting for the daily job's own longer automatic retention
+    (see fetch_rakuten below). Deliberately does NOT touch error-level rows
+    from the last 3 days - this clears accumulated noise, it never hides a
+    live, still-current problem from an admin looking at /admin/logs."""
+    deleted = crud.cleanup_error_logs(db, {"info": 0, "warning": 0, "error": 3})
+    remaining = crud.count_error_logs_by_level(db)
+    return schemas.AutoFixLogsResult(
+        deleted=deleted, total_deleted=sum(deleted.values()), remaining_by_level=remaining
+    )
+
+
 @router.post("/run-update")
 def run_update(db: Session = Depends(get_db)):
     progress.start_run("run_update", "分析・AI説明文の再生成")
@@ -300,6 +316,18 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         progress.finish_stage("x_post", f"投稿{x_posts_sent}件 / スキップ{x_posts_skipped}件")
     finally:
         progress.finish_run()
+
+    # Auto-cleanup: keeps the ErrorLog table from growing unbounded across
+    # daily runs without needing an admin to notice and clear it manually
+    # (see STEP34 - a "99件のエラー" turned out to be months of untouched
+    # accumulation, not a live incident). Routine info/warning entries
+    # (per-product "not found"/mismatch notices) are useful for only a
+    # couple of weeks; actual error-level entries are kept longer since
+    # they're the ones worth investigating. Never allowed to fail the job.
+    try:
+        crud.cleanup_error_logs(db, {"info": 14, "warning": 14, "error": 30})
+    except Exception:  # noqa: BLE001 - cleanup failing must never fail the daily job itself
+        db.rollback()
 
     result = {
         "prices_updated": price_updated,

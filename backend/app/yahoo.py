@@ -12,8 +12,7 @@ https://developer.yahoo.co.jp/webapi/shopping/shopping/v3/itemsearch.html
 
 import urllib.parse
 
-import httpx
-
+from app import http_retry
 from app.config import get_settings
 
 SEARCH_URL = "https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch"
@@ -72,13 +71,15 @@ def _fetch_candidates(keyword: str, hits: int, timeout: float) -> list[dict]:
         # of the actual product.
     }
 
-    response = httpx.get(SEARCH_URL, params=params, timeout=timeout)
+    response = http_retry.get_with_retry(SEARCH_URL, params=params, timeout=timeout)
     if response.is_error:
         raise RuntimeError(f"Yahoo Shopping API {response.status_code}: {response.text[:500]}")
     data = response.json()
 
     hits_list = data.get("hits") or []
-    return hits_list
+    # See rakuten.py's matching filter: a small fraction of listings omit
+    # price/url/name (found while investigating STEP34's error-log volume).
+    return [h for h in hits_list if "price" in h and "url" in h and "name" in h]
 
 
 def search_lowest_price(keyword: str, timeout: float = 10.0) -> YahooSearchResult | None:

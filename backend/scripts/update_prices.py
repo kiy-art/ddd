@@ -110,6 +110,16 @@ def main():
                 db.rollback()
                 print(f"X post batch failed: {exc}", file=sys.stderr)
                 crud.create_error_log(db, source="x_post", message=f"X post batch failed: {exc}")
+
+        # Same auto-cleanup as the admin API's /fetch-rakuten endpoint (the
+        # production daily job's actual entry point) - kept here too so
+        # this script stays consistent if ever run standalone.
+        try:
+            deleted = crud.cleanup_error_logs(db, {"info": 14, "warning": 14, "error": 30})
+            print(f"Log cleanup: deleted={deleted}")
+        except Exception as exc:  # noqa: BLE001 - cleanup failing must never fail the script's exit code
+            db.rollback()
+            print(f"Log cleanup failed: {exc}", file=sys.stderr)
     finally:
         db.close()
 

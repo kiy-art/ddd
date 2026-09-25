@@ -7,6 +7,7 @@ import {
   AffiliateClickSummary,
   ErrorLog,
   PageStat,
+  adminAutoFixLogs,
   adminFetchRakuten,
   adminGetAffiliateClickSummary,
   adminGetLogs,
@@ -24,7 +25,7 @@ import { useLiveJobUpdates, type LiveJobStage } from "@/lib/useLiveJobUpdates";
 // pageview, or a conclusion. See docs/ai_company_guidelines.md's standing
 // anti-fabrication rule, which applies to this internal admin page too.
 
-type PersonaId = "ceo" | "cmo" | "cro" | "cpo" | "cso";
+type PersonaId = "ceo" | "cmo" | "cro" | "cpo" | "cso" | "editor" | "compliance";
 type Status = "THINKING" | "ANALYZING" | "SYNCING" | "IDLE";
 
 interface Persona {
@@ -63,6 +64,20 @@ const PERSONAS: Persona[] = [
     stages: ["analysis", "title_cleanup"],
   },
   { id: "cmo", role: "CMO", title: "Marketing AI", focus: "SEO・検索流入分析", icon: "📢", stages: ["x_post"] },
+  // Editor/Compliance own no daily-batch stage of their own (guide content
+  // and PR-表記/価格表記 review aren't automated steps) - they stay IDLE
+  // outside the planning session and real-time log/discovery reactions
+  // below, rather than faking an ANALYZING state with nothing real behind
+  // it (see this file's anti-fabrication note above).
+  { id: "editor", role: "Editor", title: "Content AI", focus: "ガイド記事企画・コンテンツ品質", icon: "✍️", stages: [] },
+  {
+    id: "compliance",
+    role: "Compliance",
+    title: "Legal & Policy AI",
+    focus: "ASP規約・PR表記・価格表記チェック",
+    icon: "⚖️",
+    stages: [],
+  },
 ];
 
 const SHOP_LABELS: Record<string, string> = {
@@ -184,6 +199,34 @@ function buildPlanningSession(data: {
         : ["振り返り: 直近のログにエラーは見当たりません。パイプラインは安定稼働中です。"],
   });
 
+  // Editor reads the same daily_job summary line CSO already quoted above,
+  // just for its own content-planning angle (real "新商品発見N件" count,
+  // never a separate/invented number).
+  const discoveredMatch = dailyJobLog?.message.match(/新商品発見(\d+)件/);
+  const discoveredCount = discoveredMatch ? parseInt(discoveredMatch[1], 10) : null;
+  steps.push({
+    persona: "editor",
+    lines:
+      discoveredCount !== null && discoveredCount > 0
+        ? [`振り返り: 直近の自動実行で新たに${discoveredCount}件の商品が追加されました。関連ブランド・カテゴリのガイド記事更新を検討しましょう。`]
+        : ["振り返り: 新着商品はまだありません。既存ガイド記事の鮮度を確認しておきます。"],
+  });
+
+  // Compliance reads price_fetch's own "warning"-level rows - the exact
+  // real log lines pipeline.py already writes when a Rakuten/Yahoo match
+  // looks like an accessory or its price deviates too far from the known
+  // reference (see app/pipeline.py's _looks_like_accessory/_is_plausible_price).
+  const priceWarnings = data.logs.filter((l) => l.level === "warning" && l.source === "price_fetch").length;
+  steps.push({
+    persona: "compliance",
+    lines:
+      priceWarnings > 0
+        ? [
+            `課題特定: 直近のログに価格表示の警告が${priceWarnings}件あります（アクセサリ誤検出・参考価格との乖離など）。表示価格の正確性を優先して確認しましょう。`,
+          ]
+        : ["振り返り: 価格表示に関する警告は見当たりません。表示価格の正確性は保たれています。"],
+  });
+
   const actions: string[] = [];
   if (!data.clicks || total === 0) {
     actions.push("クリック計測が始まったばかりです。数日データを蓄積してから傾向を評価しましょう。");
@@ -197,6 +240,7 @@ function buildPlanningSession(data: {
     }
   }
   if (errorCount > 0) actions.push("エラーログの内容を確認し、原因を特定しましょう。");
+  if (priceWarnings > 0) actions.push("価格表示の警告（price_fetch）の内容を確認し、表示価格の正確性を優先しましょう。");
   if (!data.topPages) actions.push("GA4を設定すると、検索流入・特集ページのインデックス状況も分析対象にできます。");
   if (actions.length === 0) actions.push("現状、緊急の課題は見当たりません。引き続きデータを蓄積し、次回再評価します。");
 
@@ -280,9 +324,11 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
   const [meetingThinking, setMeetingThinking] = useState<PersonaId | null>(null);
   const [busy, setBusy] = useState(false);
   const [runMessage, setRunMessage] = useState<string | null>(null);
+  const [autoFixBusy, setAutoFixBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   const seenClickIdsRef = useRef<Set<number>>(new Set());
+  const seenLogIdsRef = useRef<Set<number>>(new Set());
   const seededRef = useRef(false);
   const prevStagesRef = useRef<Map<string, LiveJobStage["status"]>>(new Map());
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -309,6 +355,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
       adminGetTopPages(token).catch(() => null),
     ]).then(([logsData, clicksData, topPagesData]) => {
       logsRef.current = logsData;
+      seenLogIdsRef.current = new Set(logsData.map((l) => l.id));
       setClicks(clicksData);
       clicksRef.current = clicksData;
       if (clicksData) {
@@ -335,14 +382,20 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
     });
   }, [token]);
 
-  // Poll the real click summary; any click id not seen before becomes a
-  // real-time reaction bubble grounded in that exact click's shop/product.
+  // Poll the real click summary and the real error-log list. Any click id
+  // not seen before becomes a real-time CRO reaction bubble; any new
+  // warning/error-level log row becomes a real-time Compliance reaction
+  // bubble ("エラー検知時の規約的観点からの指摘") - both grounded in the
+  // exact real row, never a generated/invented event.
   useEffect(() => {
     if (!token) return;
     const poll = async () => {
       setSyncing(true);
       try {
-        const data = await adminGetAffiliateClickSummary(token);
+        const [data, logsData] = await Promise.all([
+          adminGetAffiliateClickSummary(token),
+          adminGetLogs(token).catch(() => null),
+        ]);
         setClicks(data);
         clicksRef.current = data;
         const newOnes = data.recent.filter((c) => !seenClickIdsRef.current.has(c.id));
@@ -361,6 +414,28 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
           addMessages(additions);
         }
         data.recent.forEach((c) => seenClickIdsRef.current.add(c.id));
+
+        if (logsData) {
+          logsRef.current = logsData;
+          const newLogs = logsData.filter(
+            (l) => !seenLogIdsRef.current.has(l.id) && (l.level === "warning" || l.level === "error")
+          );
+          if (newLogs.length > 0 && seenLogIdsRef.current.size > 0) {
+            const additions = newLogs
+              .slice()
+              .reverse()
+              .map((l) => ({
+                id: `log-${l.id}`,
+                persona: "compliance" as PersonaId,
+                text: `${l.source}で${l.level === "warning" ? "警告" : "エラー"}を検知しました：「${
+                  l.message.length > 60 ? `${l.message.slice(0, 60)}…` : l.message
+                }」。規約・表示の観点から確認をおすすめします。`,
+                timestamp: new Date(l.created_at).getTime(),
+              }));
+            addMessages(additions);
+          }
+          logsData.forEach((l) => seenLogIdsRef.current.add(l.id));
+        }
       } catch {
         // best-effort - a failed poll just tries again next interval
       } finally {
@@ -398,6 +473,22 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
           text: stageLogText(stage, "done"),
           timestamp: Date.now(),
         });
+        // Editor reacts to CSO's own real discovery count (same string,
+        // "新規N件（候補M件中）" from app/routers/admin.py's finish_stage
+        // call) with a content-planning angle, only when something was
+        // actually found - never a message with nothing real behind it.
+        if (stage.stage === "discovery" && stage.detail) {
+          const match = stage.detail.match(/新規(\d+)件/);
+          const count = match ? parseInt(match[1], 10) : 0;
+          if (count > 0) {
+            additions.push({
+              id: `${run.started_at}-${key}-editor-reaction`,
+              persona: "editor",
+              text: `新たに${count}件の商品が追加されました。関連するガイド記事の更新を検討しましょう。`,
+              timestamp: Date.now(),
+            });
+          }
+        }
       }
     });
 
@@ -480,13 +571,57 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
     }
   };
 
+  // CPO/Complianceの「AI自動修復」: 軽微な info/warning ログと3日以上前の
+  // error ログを一括削除する（backend: crud.cleanup_error_logs）。外部APIは
+  // 一切呼ばないので絶対ルール1の確認ダイアログは必須ではないが、削除操作
+  // であることは変わらないため、他の削除系ボタンと同じ確認を挟む。
+  const handleAutoFixLogs = async () => {
+    if (!token) return;
+    const confirmed = window.confirm(
+      "軽微なログ（info/warning）と3日以上前のエラーログを一括削除します。直近3日以内のエラーログは残ります。\n\n実行しますか？"
+    );
+    if (!confirmed) return;
+    setAutoFixBusy(true);
+    try {
+      const result = await adminAutoFixLogs(token);
+      addMessages([
+        {
+          id: `auto-fix-${Date.now()}`,
+          persona: "compliance",
+          text: `AI自動修復を実行しました。削除: info ${result.deleted.info ?? 0}件 / warning ${
+            result.deleted.warning ?? 0
+          }件 / error ${result.deleted.error ?? 0}件（3日超）。残存エラー ${
+            result.remaining_by_level.error ?? 0
+          }件は直近3日以内のため保持しています。`,
+          timestamp: Date.now(),
+        },
+      ]);
+      const refreshed = await adminGetLogs(token).catch(() => null);
+      if (refreshed) {
+        logsRef.current = refreshed;
+        seenLogIdsRef.current = new Set(refreshed.map((l) => l.id));
+      }
+    } catch (err) {
+      addMessages([
+        {
+          id: `auto-fix-error-${Date.now()}`,
+          persona: "compliance",
+          text: `AI自動修復に失敗しました: ${err instanceof Error ? err.message : String(err)}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setAutoFixBusy(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display font-medium text-foreground">AI Executive War Room</h2>
           <p className="text-xs text-foreground/45">
-            5人のAI社員が、実際のクリック・PV・パイプラインデータをもとに会議しています。
+            7人のAI社員が、実際のクリック・PV・パイプライン・ログデータをもとに会議しています。
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -506,10 +641,19 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
           >
             {busy ? "実行中..." : "全AIのPDCAサイクルを実行"}
           </button>
+          <button
+            type="button"
+            onClick={handleAutoFixLogs}
+            disabled={autoFixBusy || !token}
+            title="⚖️ Compliance AI: 軽微なログを一括削除してシステム状態を正常化します"
+            className="rounded-full border border-border px-4 py-2.5 text-xs font-semibold text-foreground/60 disabled:opacity-50"
+          >
+            {autoFixBusy ? "修復中..." : "⚖️ AI自動修復"}
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
         {PERSONAS.map((persona) => (
           <PersonaCard key={persona.id} persona={persona} status={statusFor(persona)} />
         ))}

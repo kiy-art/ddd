@@ -9,8 +9,7 @@ https://webservice.rakuten.co.jp/documentation/ichiba-item-search
 
 import urllib.parse
 
-import httpx
-
+from app import http_retry
 from app.config import get_settings
 
 SEARCH_URL = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701"
@@ -92,13 +91,19 @@ def _fetch_candidates(keyword: str, hits: int, timeout: float) -> list[dict]:
         else {}
     )
 
-    response = httpx.get(SEARCH_URL, params=params, headers=headers, timeout=timeout)
+    response = http_retry.get_with_retry(SEARCH_URL, params=params, headers=headers, timeout=timeout)
     if response.is_error:
         raise RuntimeError(f"Rakuten API {response.status_code}: {response.text[:500]}")
     data = response.json()
 
     items = data.get("Items") or []
-    return [it["Item"] for it in items]
+    candidates = [it["Item"] for it in items]
+    # A small fraction of listings omit itemPrice/itemUrl/itemName (e.g. an
+    # inquiry-only or delisted item still returned in search results).
+    # Dropped here rather than left to crash _item_to_result with a bare
+    # KeyError deep in a per-product batch loop (see app/pipeline.py) -
+    # found while investigating STEP34's accumulated error-log count.
+    return [c for c in candidates if "itemPrice" in c and "itemUrl" in c and "itemName" in c]
 
 
 def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchResult | None:
@@ -156,7 +161,7 @@ def fetch_ranking(genre_id: int, hits: int = 30, timeout: float = 10.0) -> list[
         else {}
     )
 
-    response = httpx.get(RANKING_URL, params=params, headers=headers, timeout=timeout)
+    response = http_retry.get_with_retry(RANKING_URL, params=params, headers=headers, timeout=timeout)
     if response.is_error:
         raise RuntimeError(f"Rakuten Ranking API {response.status_code}: {response.text[:500]}")
     data = response.json()

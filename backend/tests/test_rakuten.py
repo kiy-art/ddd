@@ -121,6 +121,43 @@ def test_search_lowest_price_returns_none_when_no_items(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_search_items_skips_listings_missing_required_fields(monkeypatch):
+    """A listing missing itemPrice/itemUrl/itemName (e.g. an inquiry-only
+    or delisted item Rakuten still returns in search results) must be
+    dropped rather than crash the whole keyword's lookup with a bare
+    KeyError - found while investigating STEP34's error-log volume."""
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    payload = {
+        "Items": [
+            {"Item": {"itemName": "価格未定の商品"}},  # missing itemPrice/itemUrl
+            {
+                "Item": {
+                    "itemName": "PING G440 ドライバー",
+                    "itemPrice": 68000,
+                    "itemUrl": "https://item.rakuten.co.jp/example/g440/",
+                    "mediumImageUrls": [],
+                }
+            },
+        ]
+    }
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    results = rakuten.search_items("PING G440")
+    assert len(results) == 1
+    assert results[0].price == 68000
+
+    get_settings.cache_clear()
+
+
 def test_fetch_ranking_raises_when_app_id_missing(monkeypatch):
     monkeypatch.setenv("RAKUTEN_APP_ID", "")
     from app.config import get_settings

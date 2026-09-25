@@ -104,6 +104,12 @@ class ErrorLogOut(BaseModel):
     created_at: datetime.datetime
 
 
+class AutoFixLogsResult(BaseModel):
+    deleted: dict[str, int]
+    total_deleted: int
+    remaining_by_level: dict[str, int]
+
+
 class BrandSummary(BaseModel):
     brand: str
     product_count: int

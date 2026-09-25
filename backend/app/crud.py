@@ -1,7 +1,7 @@
 import datetime
 import re
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app import analysis, models, schemas
@@ -426,3 +426,34 @@ def list_error_logs(db: Session, limit: int = 100, offset: int = 0) -> list[mode
         .limit(limit)
     )
     return list(db.execute(query).scalars().all())
+
+
+def count_error_logs_by_level(db: Session) -> dict[str, int]:
+    """Real counts, grouped by level, over the *entire* table - not just
+    whatever page /admin/logs happens to be showing. Used by the AI War
+    Room's CPO/Compliance personas so "N件のエラー" always reflects the
+    actual table, not an artifact of a 100-row page size."""
+    rows = db.execute(select(models.ErrorLog.level, func.count()).group_by(models.ErrorLog.level)).all()
+    return {level: count for level, count in rows}
+
+
+def cleanup_error_logs(db: Session, retention_days: dict[str, int]) -> dict[str, int]:
+    """Deletes ErrorLog rows older than a per-level retention window
+    (e.g. {"info": 14, "warning": 14, "error": 30}) - a level not present
+    in the dict is left untouched. Returns the number of rows deleted per
+    level that was actually acted on.
+
+    Two callers use this with different windows (see routers/admin.py):
+    the daily batch job applies a long, quiet retention so the table
+    never grows unbounded; the admin-triggered "AI自動修復" action applies
+    a short one to immediately clear routine/aging noise on demand."""
+    deleted: dict[str, int] = {}
+    now = datetime.datetime.utcnow()
+    for level, days in retention_days.items():
+        cutoff = now - datetime.timedelta(days=days)
+        result = db.execute(
+            delete(models.ErrorLog).where(models.ErrorLog.level == level, models.ErrorLog.created_at < cutoff)
+        )
+        deleted[level] = result.rowcount or 0
+    db.commit()
+    return deleted

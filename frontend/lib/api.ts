@@ -395,6 +395,19 @@ export function adminGetLogs(token: string) {
   return apiFetch<ErrorLog[]>(`/api/admin/logs`, { headers: adminHeaders(token) });
 }
 
+export interface AutoFixLogsResult {
+  deleted: Record<string, number>;
+  total_deleted: number;
+  remaining_by_level: Record<string, number>;
+}
+
+export function adminAutoFixLogs(token: string) {
+  return apiFetch<AutoFixLogsResult>(`/api/admin/auto-fix-logs`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
 export async function adminImportCsv(token: string, file: File): Promise<CsvImportResult> {
   const formData = new FormData();
   formData.append("file", file);
