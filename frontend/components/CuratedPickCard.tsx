@@ -13,12 +13,10 @@ function yen(value: number | null): string {
 }
 
 export default function CuratedPickCard({
-  icon,
   label,
   product,
   listSource,
 }: {
-  icon: string;
   label: string;
   product: Product;
   listSource: string;
@@ -32,7 +30,7 @@ export default function CuratedPickCard({
       className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-20px_rgba(20,19,15,0.2)]"
     >
       <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-background px-3 py-1 text-[11px] font-semibold text-foreground/70">
-        {icon} {label}
+        {label}
       </span>
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-background">
         {product.image_url ? (

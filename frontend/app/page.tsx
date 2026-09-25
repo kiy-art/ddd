@@ -195,7 +195,7 @@ export default async function Home({
             <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <span className="text-xs font-medium uppercase tracking-[0.3em] text-sale">
-                  🔥 Popular &amp; Dropping
+                  Popular &amp; Dropping
                 </span>
                 <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
                   人気なのに値下がり中
@@ -262,7 +262,7 @@ export default async function Home({
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-3">
               <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
-                🔮 Price Forecast
+                Price Forecast
               </span>
               <h2 className="max-w-lg font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
                 今後、値下がりが期待される商品

@@ -56,7 +56,7 @@ const POPULARITY_BADGE_MAX_RANK = 10;
  */
 export function getPopularityBadge(product: Product): ProductBadge | null {
   if (product.popularity_rank === null || product.popularity_rank > POPULARITY_BADGE_MAX_RANK) return null;
-  return { label: `🔥 楽天人気${product.popularity_rank}位`, tone: "strong" };
+  return { label: `楽天人気${product.popularity_rank}位`, tone: "strong" };
 }
 
 // Manufacturer-stated lineup positioning (see the comment on

@@ -62,7 +62,7 @@ export default async function PopularPage() {
         <section className="border-b border-border px-6 py-16 sm:py-20">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-3">
-              <span className="text-xs font-medium uppercase tracking-[0.3em] text-sale">🔥 Popular &amp; Dropping</span>
+              <span className="text-xs font-medium uppercase tracking-[0.3em] text-sale">Popular &amp; Dropping</span>
               <h2 className="max-w-lg font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
                 人気なのに値下がり中
               </h2>

@@ -164,7 +164,7 @@ export default async function ComparePage({
                     ))}
                   </CompareRow>
 
-                  <CompareRow label="🔮 予測価格">
+                  <CompareRow label="予測価格">
                     {products.map((p) => (
                       <td key={p.id} className="px-3 py-4 text-accent-dark">
                         {p.forecast_low_price !== null && p.forecast_high_price !== null
@@ -174,7 +174,7 @@ export default async function ComparePage({
                     ))}
                   </CompareRow>
 
-                  <CompareRow label="🔮 予測時期">
+                  <CompareRow label="予測時期">
                     {products.map((p) => (
                       <td key={p.id} className="px-3 py-4 text-foreground/70">
                         {p.forecast_target_date ? forecastMonthLabel(p.forecast_target_date) : "-"}
@@ -230,7 +230,7 @@ export default async function ComparePage({
                 </tbody>
               </table>
               <p className="mt-4 text-xs text-foreground/35">
-                ※「🔮」の付いた項目は過去の価格データをもとにした予測であり、将来価格を保証するものではありません。
+                ※「予測価格」「予測時期」の項目は過去の価格データをもとにした予測であり、将来価格を保証するものではありません。
               </p>
             </div>
           )}

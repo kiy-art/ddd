@@ -79,7 +79,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
         <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5">
           {isPopularAndDropping && (
             <span className="rounded-full bg-sale px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-sm">
-              🔥 人気なのに値下がり中
+              人気なのに値下がり中
             </span>
           )}
           {!isPopularAndDropping && popularityBadge && (

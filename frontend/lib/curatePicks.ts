@@ -10,7 +10,6 @@ const THIN_DATA_DAYS = 7;
 const NEAR_LOW_RATIO = 1.05;
 
 export interface CuratedPick {
-  icon: string;
   label: string;
   product: Product;
 }
@@ -30,21 +29,21 @@ export function curateTodaysPicks(products: Product[]): CuratedPick[] {
   const picks: CuratedPick[] = [];
   const used = new Set<number>();
 
-  const take = (icon: string, label: string, product: Product | undefined) => {
+  const take = (label: string, product: Product | undefined) => {
     if (!product || used.has(product.id)) return;
-    picks.push({ icon, label, product });
+    picks.push({ label, product });
     used.add(product.id);
   };
 
   const spotlight = [...products]
     .filter(isReliable)
     .sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1))[0];
-  take("🔥", "今日の注目", spotlight);
+  take("今日の注目", spotlight);
 
   const biggestDrop = [...products]
     .filter((p) => isReliable(p) && p.price_change_percent !== null && p.price_change_percent < 0)
     .sort((a, b) => (a.price_change_percent ?? 0) - (b.price_change_percent ?? 0))[0];
-  take("📉", "大幅値下げ", biggestDrop);
+  take("大幅値下げ", biggestDrop);
 
   const nearLow = [...products]
     .filter(
@@ -56,19 +55,19 @@ export function curateTodaysPicks(products: Product[]): CuratedPick[] {
         p.current_price <= p.lowest_price * NEAR_LOW_RATIO
     )
     .sort((a, b) => a.current_price! / a.lowest_price! - b.current_price! / b.lowest_price!)[0];
-  take("💰", "過去最安級", nearLow);
+  take("過去最安級", nearLow);
 
   const buyNow = [...products]
     .filter((p) => isReliable(p) && (p.buy_score === "strong_buy" || p.buy_score === "buy"))
     .sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1))[0];
-  take("🟢", "買い時", buyNow);
+  take("買い時", buyNow);
 
   const forecastDown = [...products]
     .filter(
       (p) => p.forecast_trend === "down" && p.current_price !== null && p.forecast_center_price !== null
     )
     .sort((a, b) => b.current_price! - b.forecast_center_price! - (a.current_price! - a.forecast_center_price!))[0];
-  take("🔮", "値下がり予測", forecastDown);
+  take("値下がり予測", forecastDown);
 
   return picks;
 }

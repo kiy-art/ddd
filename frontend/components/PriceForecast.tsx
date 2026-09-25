@@ -3,10 +3,10 @@ import Link from "next/link";
 import { Product } from "@/lib/api";
 import { forecastMonthLabel } from "@/lib/forecast";
 
-const CONFIDENCE_META: Record<string, { dot: string; label: string }> = {
-  high: { dot: "🟢", label: "高" },
-  medium: { dot: "🟡", label: "中" },
-  low: { dot: "⚪", label: "低" },
+const CONFIDENCE_META: Record<string, { dotClass: string; label: string }> = {
+  high: { dotClass: "bg-signal-high", label: "高" },
+  medium: { dotClass: "bg-signal-mid", label: "中" },
+  low: { dotClass: "bg-signal-low", label: "低" },
 };
 
 const TREND_LABEL: Record<string, string> = {
@@ -29,12 +29,10 @@ export default function PriceForecast({ product }: { product: Product }) {
     product.forecast_target_date !== null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
+    <div>
       <div className="flex items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">🔮 Price Forecast</span>
-        <span className="rounded-full bg-accent-dark px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-          FORECAST
-        </span>
+        <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Price Forecast</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-accent-dark">予測</span>
       </div>
       <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">価格予測</h2>
 
@@ -106,8 +104,9 @@ function ForecastBody({ product }: { product: Product }) {
         </div>
         <div>
           <span className="text-xs text-foreground/45">予測信頼度</span>
-          <p className="mt-1 font-display text-2xl font-semibold text-foreground">
-            {confidence.dot} {confidence.label}
+          <p className="mt-1 flex items-center gap-2 font-display text-2xl font-semibold text-foreground">
+            <span className={`inline-block h-2.5 w-2.5 rounded-full ${confidence.dotClass}`} aria-hidden />
+            {confidence.label}
           </p>
           <p className="mt-0.5 text-xs text-foreground/45">利用できる価格データの量に基づく確度です</p>
         </div>
@@ -115,7 +114,7 @@ function ForecastBody({ product }: { product: Product }) {
 
       {reasons.length > 0 && (
         <div>
-          <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">🔮 予測の根拠</span>
+          <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">予測の根拠</span>
           <ol className="mt-2 flex flex-col gap-2 text-sm text-foreground/60">
             {reasons.map((reason, i) => (
               <li key={i} className="flex gap-2.5">

@@ -122,7 +122,6 @@ export default async function CategoryPage({
             {todaysPicks.slice(0, 4).map((pick) => (
               <CuratedPickCard
                 key={pick.product.id}
-                icon={pick.icon}
                 label={pick.label}
                 product={pick.product}
                 listSource="category_today_pick"

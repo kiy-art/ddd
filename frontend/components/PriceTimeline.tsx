@@ -35,14 +35,13 @@ export default function PriceTimeline({ product }: { product: Product }) {
     : getModelCycleInsight({ release_date: product.release_date, is_current_generation: product.is_current_generation });
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
-      <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Timeline</span>
-      <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">いつ安くなりそう？</h2>
+    <div>
+      <h3 className="font-display text-lg font-semibold text-foreground">いつ安くなりそう？</h3>
 
-      <div className="mt-6 flex flex-col gap-3">
+      <div className="mt-5 flex flex-col gap-3">
         <div className="flex items-start gap-3 rounded-xl border border-border bg-background p-4">
-          <span className="mt-0.5 shrink-0 rounded-full bg-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-            FACT
+          <span className="mt-0.5 shrink-0 text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-500">
+            実績
           </span>
           <div className="text-sm leading-relaxed text-foreground/70">
             現在価格 <span className="font-semibold text-foreground">{yen(product.current_price ?? 0)}</span>
@@ -52,8 +51,8 @@ export default function PriceTimeline({ product }: { product: Product }) {
 
         {hasForecast ? (
           <div className="flex items-start gap-3 rounded-xl border border-accent/30 bg-accent/5 p-4">
-            <span className="mt-0.5 shrink-0 rounded-full bg-accent-dark px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-              FORECAST
+            <span className="mt-0.5 shrink-0 text-[10px] font-bold uppercase tracking-widest text-accent-dark">
+              予測
             </span>
             <div className="text-sm leading-relaxed text-foreground/70">
               <span className="font-semibold text-foreground">{forecastMonthLabel(product.forecast_target_date!)}</span>
@@ -74,10 +73,10 @@ export default function PriceTimeline({ product }: { product: Product }) {
             style={{ borderColor: cycleInsight.tier === "fact" ? "var(--ink)" : "var(--accent-dark)" }}
           >
             <span
-              className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white"
-              style={{ backgroundColor: cycleInsight.tier === "fact" ? "var(--ink)" : "var(--accent-dark)" }}
+              className="mt-0.5 shrink-0 text-[10px] font-bold uppercase tracking-widest"
+              style={{ color: cycleInsight.tier === "fact" ? "var(--ink)" : "var(--accent-dark)" }}
             >
-              {cycleInsight.tier === "fact" ? "FACT" : "AI推測"}
+              {cycleInsight.tier === "fact" ? "実績" : "AI推測"}
             </span>
             <div className="text-sm leading-relaxed text-foreground/70">
               <span className="font-semibold text-foreground">{cycleInsight.stageLabel}</span>
@@ -89,7 +88,7 @@ export default function PriceTimeline({ product }: { product: Product }) {
           </div>
         ) : (
           <div className="flex items-start gap-3 rounded-xl border border-dashed border-border bg-background p-4">
-            <span className="mt-0.5 shrink-0 rounded-full bg-foreground/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+            <span className="mt-0.5 shrink-0 text-[10px] font-bold uppercase tracking-widest text-foreground/40">
               データ不足
             </span>
             <p className="text-sm leading-relaxed text-foreground/50">

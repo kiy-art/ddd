@@ -16,7 +16,7 @@ const SOURCES: { label: string; detail: string }[] = [
  */
 export default function DataSourceNote() {
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+    <div>
       <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Data Source</span>
       <h2 className="mt-2 font-display text-xl font-semibold text-foreground">このページのデータについて</h2>
       <dl className="mt-4 flex flex-col gap-3 text-sm">

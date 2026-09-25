@@ -379,8 +379,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               />
               <div className="flex flex-col gap-1 border-l border-border pl-6">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
-                    FACT
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-500">
+                    実績
                   </span>
                   <span className="text-xs text-foreground/40">現在価格</span>
                 </div>
@@ -450,7 +450,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               )}
               {needsPriceCaution && (
                 <p className="mt-3 rounded-xl border border-border bg-card px-3 py-2 text-xs leading-relaxed text-foreground/50">
-                  ⚠ 価格要確認：通常価格帯から大きく外れた値下がりです。掲載元での価格反映のタイムラグや、
+                  <span className="font-semibold text-foreground/70">要確認：</span>
+                  通常価格帯から大きく外れた値下がりです。掲載元での価格反映のタイムラグや、
                   商品の取り違えなどの可能性もゼロではありません。購入前に実際の販売ページで価格をご確認ください。
                 </p>
               )}
@@ -561,11 +562,11 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         <FadeIn className="mt-16 rounded-2xl border border-border bg-card p-6 sm:p-10">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Price History</span>
-            <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
-              FACT
+            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-500">
+              実績
             </span>
           </div>
-          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">価格推移チャート</h2>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">価格推移</h2>
           <div className="mt-8">
             <PriceHistoryChartPanel
               history={product.price_history}
@@ -590,27 +591,21 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               ]}
             />
           </div>
+
+          <div className="mt-10 border-t border-border pt-10">
+            <h3 className="font-display text-lg font-semibold text-foreground">長期価格推移（月次・最大3年）</h3>
+            <div className="mt-6">
+              <MonthlyTrendChart history={product.price_history} />
+            </div>
+          </div>
+
+          <div className="mt-10 border-t border-border pt-10">
+            <PriceTimeline product={product} />
+          </div>
         </FadeIn>
 
-        <FadeIn className="mt-10">
+        <FadeIn className="mt-10 border-t border-border pt-10">
           <PriceForecast product={product} />
-        </FadeIn>
-
-        <FadeIn className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-10">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Long-Term Trend</span>
-            <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
-              FACT
-            </span>
-          </div>
-          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">長期価格推移（月次・最大3年）</h2>
-          <div className="mt-8">
-            <MonthlyTrendChart history={product.price_history} />
-          </div>
-        </FadeIn>
-
-        <FadeIn className="mt-10">
-          <PriceTimeline product={product} />
         </FadeIn>
 
         <FadeIn id="store-comparison" className="mt-10 scroll-mt-20">
@@ -622,7 +617,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         </FadeIn>
 
         {product.ai_summary && product.ai_summary !== product.buy_reason && (
-          <FadeIn className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-10">
+          <FadeIn className="mt-10 border-t border-border pt-10">
             <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">More Detail</span>
             <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">価格データからわかること</h2>
             <div className="mt-5 flex flex-col gap-4 text-sm leading-relaxed text-foreground/70">
@@ -633,15 +628,15 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
         {product.ai_caution && (
           <p className="mt-8 rounded-xl border border-border bg-card px-4 py-3 text-xs text-foreground/45">
-            ⚠ {product.ai_caution}
+            <span className="font-semibold text-foreground/70">補足：</span> {product.ai_caution}
           </p>
         )}
 
-        <FadeIn className="mt-10">
+        <FadeIn className="mt-10 border-t border-border pt-10">
           <ProductFAQ product={product} />
         </FadeIn>
 
-        <FadeIn className="mt-10">
+        <FadeIn className="mt-10 border-t border-border pt-10">
           <DataSourceNote />
         </FadeIn>
       </div>

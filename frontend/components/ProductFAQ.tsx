@@ -41,7 +41,7 @@ export default function ProductFAQ({ product }: { product: Product }) {
   });
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
+    <div>
       <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">FAQ</span>
       <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">よくある質問</h2>
       <dl className="mt-6 flex flex-col divide-y divide-border">
