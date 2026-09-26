@@ -65,7 +65,9 @@ class XNotConfigured(Exception):
 
 
 class XPostError(Exception):
-    pass
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def _oauth1_authorization_header(method: str, url: str) -> str:
@@ -112,7 +114,7 @@ def post_tweet(text: str, timeout: float = 10.0) -> str:
         timeout=timeout,
     )
     if response.is_error:
-        raise XPostError(f"X API {response.status_code}: {response.text[:500]}")
+        raise XPostError(f"X API {response.status_code}: {response.text[:500]}", status_code=response.status_code)
     data = response.json()
     return data["data"]["id"]
 
@@ -253,22 +255,55 @@ def _build_tweet_text(db: Session, products: list[models.Product]) -> str:
     return f"{body}\n{url}"
 
 
+def build_manual_post_text(db: Session) -> str | None:
+    """The same text `post_daily_deals` would tweet if it posted - built
+    from the exact same product selection and wording (select_deals_of_the_
+    day + _build_tweet_text below) - for a human to copy/paste onto X
+    directly. Returns None (never a fabricated placeholder) when nothing
+    genuinely qualifies today, same as post_daily_deals itself.
+
+    Used by app/daily_report.py (the morning email) and the admin page's
+    "手動投稿用テキストのプレビュー" so both always show exactly what the
+    automated poster would have said - one selection/wording path, not two
+    that could drift apart."""
+    products = select_deals_of_the_day(db, count=2)
+    if not products:
+        return None
+    return _build_tweet_text(db, products)
+
+
 def post_daily_deals(db: Session) -> tuple[int, int]:
     """Posts one tweet featuring today's best deal(s). A no-op (returns
     (0, 0)) when X credentials aren't configured or no product qualifies
-    today - neither is an error. Returns (posts_sent, posts_skipped)."""
+    today - neither is an error. Returns (posts_sent, posts_skipped).
+
+    X's free API tier stopped allowing tweet creation (402 Payment
+    Required) - this is a standing, not transient, condition, so it's
+    treated as a graceful skip (an info-level log carrying the ready-to-
+    paste text, not an "error") rather than a failure the daily batch or
+    an admin should be alarmed about. Any other failure (real auth error,
+    network issue, etc.) still logs at the normal error level."""
     settings = get_settings()
     if not (settings.x_api_key and settings.x_api_secret and settings.x_access_token and settings.x_access_token_secret):
         return 0, 0
 
-    products = select_deals_of_the_day(db, count=2)
-    if not products:
+    text = build_manual_post_text(db)
+    if text is None:
         return 0, 0  # nothing worth posting today - not an error
-
-    text = _build_tweet_text(db, products)
 
     try:
         tweet_id = post_tweet(text)
+    except XPostError as exc:
+        if exc.status_code == 402:
+            crud.create_error_log(
+                db,
+                source="x_post",
+                level="info",
+                message=f"X API 402（無料プランでは投稿できません）のため自動投稿をスキップし、手動投稿用テキストを生成・ログ出力完了:\n{text}",
+            )
+            return 0, 1
+        crud.create_error_log(db, source="x_post", message=f"X post failed: {exc}\n投稿予定だった本文:\n{text}")
+        return 0, 1
     except Exception as exc:  # noqa: BLE001 - one failed post shouldn't be fatal to the caller
         crud.create_error_log(db, source="x_post", message=f"X post failed: {exc}\n投稿予定だった本文:\n{text}")
         return 0, 1

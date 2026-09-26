@@ -17,7 +17,7 @@ import datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import crud, email, models
+from app import crud, email, models, x_post
 from app.analytics_ga4 import GA4NotConfigured, get_top_pages
 from app.config import get_settings
 
@@ -128,9 +128,20 @@ def build_daily_report(db: Session) -> tuple[str, str]:
     if not actions:
         actions.append("現状、緊急の課題は見当たりません。引き続きデータを蓄積し、明日また評価します。")
 
+    # X (旧Twitter) の無料APIプランでは投稿自体ができなくなった (402) ため、
+    # 同じ商品選定・文面ロジック (x_post.build_manual_post_text) でそのまま
+    # コピペ投稿できるテキストを毎朝この報告に含める - 自動投稿の代替導線。
+    manual_post_text = x_post.build_manual_post_text(db)
+
     subject = f"【PAR.】本日のAI会議レポート（{today_jst_label}）"
     body_items = "".join(f'<li style="margin-bottom: 10px; line-height: 1.6;">{line}</li>' for line in lines)
     action_items = "".join(f'<li style="margin-bottom: 6px; line-height: 1.6;">{a}</li>' for a in actions)
+    manual_post_block = (
+        f'<pre style="white-space: pre-wrap; font-family: inherit; font-size: 13px; '
+        f'background: #f5f4f0; border-radius: 8px; padding: 12px; margin: 0 0 24px;">{manual_post_text}</pre>'
+        if manual_post_text
+        else '<p style="font-size: 13px; color: #6b6a63; margin: 0 0 24px;">本日は投稿対象となる商品がありません。</p>'
+    )
 
     html = f"""
     <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; color: #14130f;">
@@ -141,6 +152,9 @@ def build_daily_report(db: Session) -> tuple[str, str]:
 
       <p style="font-size: 13px; font-weight: 600; color: #6b6a63; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">改善施策</p>
       <ul style="padding-left: 18px; font-size: 14px; margin: 0 0 24px;">{action_items}</ul>
+
+      <p style="font-size: 13px; font-weight: 600; color: #6b6a63; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">X投稿用テキスト（コピペ用）</p>
+      {manual_post_block}
 
       <p style="font-size: 12px; color: #6b6a63; line-height: 1.6;">
         ※このレポートに含まれる数値はすべて実データ（自社DBの記録）に基づいており、AIによる推測・作文は含まれていません。

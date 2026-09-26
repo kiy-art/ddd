@@ -472,6 +472,10 @@ export function adminPostToX(token: string) {
   });
 }
 
+export function adminGetXPostPreview(token: string) {
+  return apiFetch<{ text: string | null }>(`/api/admin/x-post-preview`, { headers: adminHeaders(token) });
+}
+
 export async function verifyAdminToken(token: string): Promise<boolean> {
   try {
     await adminListProducts(token);

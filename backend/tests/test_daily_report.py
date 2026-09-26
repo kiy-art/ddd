@@ -54,6 +54,25 @@ def test_build_daily_report_no_errors_says_stable(db_session):
     assert "エラーは見当たりません" in html
 
 
+def test_build_daily_report_includes_manual_x_post_text_when_a_deal_qualifies(db_session):
+    product = _make_product(db_session)
+    product.buy_score = "strong_buy"
+    product.buy_signal_score = 90
+    product.history_span_days = 14
+    product.msrp = 60000
+    product.current_price = 45000
+    db_session.commit()
+
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "X投稿用テキスト" in html
+    assert "#ゴルフ" in html
+
+
+def test_build_daily_report_says_no_deal_when_nothing_qualifies(db_session):
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "本日は投稿対象となる商品がありません" in html
+
+
 def test_build_daily_report_includes_daily_job_summary(db_session):
     crud.create_error_log(
         db_session, source="daily_job", level="info", message="日次更新ジョブ完了: 楽天更新3件/スキップ0件"

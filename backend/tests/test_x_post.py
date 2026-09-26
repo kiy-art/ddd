@@ -197,6 +197,94 @@ def test_post_daily_deals_success_logs_info(db_session, monkeypatch):
         get_settings.cache_clear()
 
 
+def test_build_manual_post_text_matches_what_post_daily_deals_would_tweet(db_session, monkeypatch):
+    monkeypatch.setenv("X_API_KEY", "k")
+    monkeypatch.setenv("X_API_SECRET", "s")
+    monkeypatch.setenv("X_ACCESS_TOKEN", "t")
+    monkeypatch.setenv("X_ACCESS_TOKEN_SECRET", "ts")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    _make_product(
+        db_session, name="strong", buy_score="strong_buy", buy_signal_score=95, history_span_days=14, msrp=60000, current_price=45000
+    )
+    captured = {}
+    monkeypatch.setattr(x_post, "post_tweet", lambda text, timeout=10.0: captured.setdefault("text", text) or "1")
+
+    try:
+        preview_text = x_post.build_manual_post_text(db_session)
+        assert preview_text is not None
+        x_post.post_daily_deals(db_session)
+        assert preview_text == captured["text"]
+    finally:
+        get_settings.cache_clear()
+
+
+def test_build_manual_post_text_returns_none_when_nothing_qualifies(db_session):
+    _make_product(db_session, name="nothing-to-show", msrp=None, current_price=40000)
+    assert x_post.build_manual_post_text(db_session) is None
+
+
+def test_post_daily_deals_gracefully_skips_on_402_without_treating_it_as_an_error(db_session, monkeypatch):
+    """X's free API tier stopped allowing tweet creation (402 Payment
+    Required) - a standing condition, not a transient failure, so this
+    must be a graceful skip (info-level log carrying the ready-to-paste
+    text) rather than an alarming error, per the new manual-posting
+    workflow."""
+    monkeypatch.setenv("X_API_KEY", "k")
+    monkeypatch.setenv("X_API_SECRET", "s")
+    monkeypatch.setenv("X_ACCESS_TOKEN", "t")
+    monkeypatch.setenv("X_ACCESS_TOKEN_SECRET", "ts")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    _make_product(
+        db_session, name="strong", buy_score="strong_buy", buy_signal_score=95, history_span_days=14, msrp=60000, current_price=45000
+    )
+
+    def _payment_required(text, timeout=10.0):
+        raise x_post.XPostError("X API 402: payment required", status_code=402)
+
+    monkeypatch.setattr(x_post, "post_tweet", _payment_required)
+
+    try:
+        sent, skipped = x_post.post_daily_deals(db_session)
+        assert (sent, skipped) == (0, 1)
+        logs = crud.list_error_logs(db_session)
+        assert not any(log.source == "x_post" and log.level == "error" for log in logs)
+        assert any(
+            log.source == "x_post" and log.level == "info" and "402" in log.message and "手動投稿用テキスト" in log.message
+            for log in logs
+        )
+    finally:
+        get_settings.cache_clear()
+
+
+def test_x_post_preview_endpoint_requires_admin_auth(client):
+    resp = client.get("/api/admin/x-post-preview")
+    assert resp.status_code in (401, 403)
+
+
+def test_x_post_preview_endpoint_returns_null_when_nothing_qualifies(client, admin_headers, db_session):
+    _make_product(db_session, name="nothing-to-show", msrp=None, current_price=40000)
+    resp = client.get("/api/admin/x-post-preview", headers=admin_headers)
+    assert resp.status_code == 200
+    assert resp.json() == {"text": None}
+
+
+def test_x_post_preview_endpoint_returns_the_ready_to_paste_text(client, admin_headers, db_session):
+    _make_product(
+        db_session, name="strong", buy_score="strong_buy", buy_signal_score=95, history_span_days=14, msrp=60000, current_price=45000
+    )
+    resp = client.get("/api/admin/x-post-preview", headers=admin_headers)
+    assert resp.status_code == 200
+    text = resp.json()["text"]
+    assert text is not None
+    assert "#ゴルフ" in text
+    # No X credentials configured in the test environment - the preview
+    # must not depend on them, since it's read-only and never posts.
+
+
 def test_post_daily_deals_failure_logs_error_and_does_not_raise(db_session, monkeypatch):
     monkeypatch.setenv("X_API_KEY", "k")
     monkeypatch.setenv("X_API_SECRET", "s")

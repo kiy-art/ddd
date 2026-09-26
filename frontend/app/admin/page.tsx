@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   adminDiscoverProducts,
   adminFetchRakuten,
+  adminGetXPostPreview,
   adminImportCsv,
   adminListProducts,
   adminPostToX,
@@ -24,6 +25,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [xPostPreview, setXPostPreview] = useState<string | null | undefined>(undefined);
+  const [xCopyMessage, setXCopyMessage] = useState<string | null>(null);
 
   const load = async () => {
     if (!token) return;
@@ -41,6 +44,13 @@ export default function AdminDashboard() {
         setLoading(false);
       }
     });
+    adminGetXPostPreview(token)
+      .then((result) => {
+        if (!ignore) setXPostPreview(result.text);
+      })
+      .catch(() => {
+        if (!ignore) setXPostPreview(null);
+      });
     return () => {
       ignore = true;
     };
@@ -143,7 +153,8 @@ export default function AdminDashboard() {
     try {
       const result = await adminPostToX(token);
       setMessage(
-        `X投稿完了: 投稿${result.x_posts_sent}件 / スキップ${result.x_posts_skipped}件`
+        `X投稿完了: 投稿${result.x_posts_sent}件 / スキップ${result.x_posts_skipped}件` +
+          "（無料APIプランでは投稿がスキップされ、下の「手動投稿用テキスト」からコピペしていただく運用になっています）"
       );
     } catch (err) {
       setMessage(
@@ -151,6 +162,16 @@ export default function AdminDashboard() {
       );
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleCopyXPost = async () => {
+    if (!xPostPreview) return;
+    try {
+      await navigator.clipboard.writeText(xPostPreview);
+      setXCopyMessage("コピーしました。");
+    } catch {
+      setXCopyMessage("コピーに失敗しました。テキストを選択して手動でコピーしてください。");
     }
   };
 
@@ -324,16 +345,48 @@ export default function AdminDashboard() {
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
         <h2 className="font-display font-medium text-foreground">今日のお買い得情報をXに投稿</h2>
         <p className="text-sm text-foreground/50">
-          買い時スコアが高い商品（データ不足の場合は定価からの割引率）を1〜2点選び、AIが紹介文を生成してX
-          (旧Twitter) に投稿します。毎日の自動更新の最後にも実行されます。X_API_KEY 等4つの環境変数が
-          設定されている必要があります。
+          買い時スコアが高い商品（データ不足の場合は定価からの割引率）を1〜2点選び、AIが紹介文を生成します。
+          X APIの無料プランでは投稿自体ができなくなった（402エラー）ため、現在は下のテキストを手動でコピーして
+          Xに貼り付けて投稿する運用です。毎朝のAI会議レポートにも同じテキストが含まれます。
         </p>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-foreground/40">
+            手動投稿用テキストのプレビュー
+          </p>
+          {xPostPreview === undefined ? (
+            <p className="text-sm text-foreground/50">読み込み中...</p>
+          ) : xPostPreview === null ? (
+            <p className="text-sm text-foreground/50">
+              本日は投稿対象となる商品がありません（強い買い時シグナルの商品も、定価割引の商品もまだ無し）。
+            </p>
+          ) : (
+            <>
+              <textarea
+                readOnly
+                value={xPostPreview}
+                rows={5}
+                className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+              />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleCopyXPost}
+                  className="w-fit rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground"
+                >
+                  コピー
+                </button>
+                {xCopyMessage && <p className="text-xs text-foreground/50">{xCopyMessage}</p>}
+              </div>
+            </>
+          )}
+        </div>
+
         <button
           onClick={handlePostToX}
           disabled={busy}
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
-          今すぐ投稿
+          今すぐ投稿（API経由・無料プランでは失敗します）
         </button>
       </div>
 

@@ -456,6 +456,16 @@ def post_to_x(db: Session = Depends(get_db)):
     return {"x_posts_sent": sent, "x_posts_skipped": skipped}
 
 
+@router.get("/x-post-preview")
+def x_post_preview(db: Session = Depends(get_db)):
+    """Read-only preview of the ready-to-paste X post text (same selection/
+    wording post_daily_deals would tweet) - for manually copying onto X
+    since the free API tier no longer allows posting (402). Does not
+    require X credentials to be configured; `text` is null when no product
+    genuinely qualifies today (never a fabricated placeholder)."""
+    return {"text": x_post.build_manual_post_text(db)}
+
+
 @router.post("/sync-popularity")
 def sync_popularity(db: Session = Depends(get_db)):
     """Manual trigger for the same Rakuten-ranking sync that also runs as
