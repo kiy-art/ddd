@@ -439,6 +439,22 @@ export interface AutoFixLogsResult {
   remaining_by_level: Record<string, number>;
 }
 
+export interface ImageBackfillResult {
+  checked: number;
+  broken_found: number;
+  filled_from_rakuten: number;
+  filled_from_yahoo: number;
+  still_missing: string[];
+  yahoo_quota_exhausted: boolean;
+}
+
+export function adminBackfillImages(token: string) {
+  return apiFetch<ImageBackfillResult>(`/api/admin/backfill-images`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
 export function adminAutoFixLogs(token: string) {
   return apiFetch<AutoFixLogsResult>(`/api/admin/auto-fix-logs`, {
     method: "POST",

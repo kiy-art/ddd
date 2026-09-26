@@ -35,7 +35,7 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, models, rakuten, schemas, title_cleaner
+from app import crud, image_urls, models, rakuten, schemas, title_cleaner
 # Brand recognition lives in app/brands.py (shared with app/popularity.py
 # and app/title_cleaner.py, none of which need to import each other just
 # for this) - BRAND_KEYWORDS is re-exported here so existing
@@ -238,7 +238,7 @@ def discover_new_products(
                             name=clean_name,
                             brand=brand,
                             category=category,
-                            image_url=item.image_url,
+                            image_url=image_urls.normalize_image_url(item.image_url),
                             product_url=item.item_url,
                             affiliate_url=rakuten.to_affiliate_url(item.item_url) or item.item_url,
                             initial_price=item.price,

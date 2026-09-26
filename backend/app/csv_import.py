@@ -17,7 +17,7 @@ import io
 
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import crud, image_urls, schemas
 from app.models import CATEGORIES
 
 REQUIRED_COLUMNS = {"product_name", "brand", "category", "price"}
@@ -46,7 +46,7 @@ def import_csv(db: Session, content: bytes) -> schemas.CsvImportResult:
             model_number = (row.get("model_number") or "").strip() or None
             price_raw = (row.get("price") or "").strip()
             product_url = (row.get("product_url") or "").strip() or None
-            image_url = (row.get("image_url") or "").strip() or None
+            image_url = image_urls.normalize_image_url(row.get("image_url"))
             msrp_raw = (row.get("msrp") or "").strip()
             msrp = int(float(msrp_raw)) if msrp_raw else None
             release_date_raw = (row.get("release_date") or "").strip()

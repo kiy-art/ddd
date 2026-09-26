@@ -30,6 +30,18 @@ def _fresh_db():
 
 
 @pytest.fixture(autouse=True)
+def _no_real_image_checks(monkeypatch):
+    # The daily batch loads each stored product photo to find dead ones
+    # (app/image_backfill.clear_broken_images). Tests must never make that
+    # real network request - treat every photo as alive unless a test
+    # overrides this to exercise the broken-photo path.
+    from app import image_urls
+
+    monkeypatch.setattr(image_urls, "is_definitely_broken", lambda url, timeout=None: False)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _fresh_progress_state():
     # app/progress.py is a module-level singleton (see its own docstring)
     # so any test hitting an admin job endpoint (fetch-rakuten, run-update,

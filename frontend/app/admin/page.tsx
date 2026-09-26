@@ -6,6 +6,7 @@ import {
   AiOptimizationAction,
   ImprovementOpportunity,
   adminDiscoverProducts,
+  adminBackfillImages,
   adminFetchRakuten,
   adminGetImprovementOpportunities,
   adminGetXPostPreview,
@@ -160,6 +161,29 @@ export default function AdminDashboard() {
       setMessage(
         `取得失敗: ${err instanceof Error ? err.message : String(err)}（RAKUTEN_APP_IDが設定されているか確認してください）`
       );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBackfillImages = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage("商品画像を確認・補完しています（商品数によっては数分かかります）...");
+    try {
+      const r = await adminBackfillImages(token);
+      const missing =
+        r.still_missing.length > 0
+          ? ` / 見つからず${r.still_missing.length}件（${r.still_missing.slice(0, 10).join("、")}${r.still_missing.length > 10 ? " ほか" : ""}）`
+          : " / 画像の無い商品は0件です";
+      setMessage(
+        `商品画像の補完完了: 確認${r.checked}件 / リンク切れ${r.broken_found}件 / ` +
+          `楽天から${r.filled_from_rakuten}件・Yahoo!から${r.filled_from_yahoo}件を補完${missing}` +
+          (r.yahoo_quota_exhausted ? "（Yahoo!の1日の利用上限に達したため、残りは楽天のみで検索しました）" : "")
+      );
+      await load();
+    } catch (err) {
+      setMessage(`補完失敗: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setBusy(false);
     }
@@ -350,6 +374,22 @@ export default function AdminDashboard() {
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ価格を取得
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">商品画像の補完（NO IMAGEの解消）</h2>
+        <p className="text-sm text-foreground/50">
+          画像が無い・無効（空欄や見本の example.com など）・リンク切れの商品について、楽天市場（見つからなければYahoo!ショッピング）で
+          同じ商品と判定できる出品の写真を取得して設定します。価格取得と同じ「アクセサリではないか・価格が妥当か」の判定を通った出品だけを使い、
+          価格は記録しません。毎朝の自動更新でも同じ補完が行われます。
+        </p>
+        <button
+          onClick={handleBackfillImages}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          今すぐ画像を補完
         </button>
       </div>
 

@@ -313,3 +313,12 @@ class ImprovementOpportunityOut(BaseModel):
     est_extra_shop_clicks: float
     priority_score: float
     shop_click_rate_known: bool
+
+
+class ImageBackfillResultOut(BaseModel):
+    checked: int
+    broken_found: int
+    filled_from_rakuten: int
+    filled_from_yahoo: int
+    still_missing: list[str]
+    yahoo_quota_exhausted: bool

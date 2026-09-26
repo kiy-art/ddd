@@ -4,6 +4,10 @@
 // https URL. This is the one place that decides what is safe to put in an
 // <img src> (and the share-image renderer in lib/og.tsx).
 
+// Never a real product photo: the sample CSV's example.com URLs and
+// local-dev hosts. Same list as backend/app/image_urls.py PLACEHOLDER_HOSTS.
+const PLACEHOLDER_HOSTS = ["example.com", "example.org", "example.net", "localhost", "127.0.0.1", "0.0.0.0"];
+
 /**
  * Returns a loadable https URL, or null when the value can't be one (the
  * caller then shows the NO IMAGE placeholder instead of a broken image).
@@ -15,6 +19,7 @@
  *   Rakuten's and Yahoo's image CDNs both serve https)
  * - "//host/..." (protocol-relative) -> "https://host/..."
  * - a same-site path ("/images/x.png") is kept as-is
+ * - placeholder / local-dev hosts (example.com, localhost) -> null
  * - anything else (data:, javascript:, a bare relative path, an
  *   unparsable string) -> null
  */
@@ -35,6 +40,8 @@ export function normalizeImageUrl(raw: string | null | undefined): string | null
   try {
     const url = new URL(candidate);
     if (url.protocol !== "https:" || !url.hostname) return null;
+    const host = url.hostname.toLowerCase();
+    if (PLACEHOLDER_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return null;
     return url.toString();
   } catch {
     return null;

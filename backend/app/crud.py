@@ -4,7 +4,7 @@ import re
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app import analysis, models, schemas
+from app import analysis, image_urls, models, schemas
 
 
 def slugify(*parts: str) -> str:
@@ -152,7 +152,7 @@ def create_product(db: Session, data: schemas.ProductCreate, pending_review: boo
         brand=data.brand,
         category=data.category,
         model_number=data.model_number,
-        image_url=data.image_url,
+        image_url=image_urls.normalize_image_url(data.image_url),
         product_url=data.product_url,
         affiliate_url=data.affiliate_url,
         msrp=data.msrp,
@@ -187,6 +187,8 @@ def list_pending_products(db: Session) -> list[models.Product]:
 
 def update_product(db: Session, product: models.Product, data: schemas.ProductUpdate) -> models.Product:
     for field, value in data.model_dump(exclude_unset=True).items():
+        if field == "image_url":
+            value = image_urls.normalize_image_url(value)
         setattr(product, field, value)
     db.commit()
     db.refresh(product)

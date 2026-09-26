@@ -11,7 +11,7 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ai, analysis, content_rewriter, crud, email, forecast, models, rakuten, yahoo
+from app import ai, analysis, content_rewriter, crud, email, forecast, image_urls, models, rakuten, yahoo
 from app.config import get_settings
 from app.rakuten import search_lowest_price
 
@@ -241,12 +241,15 @@ def fetch_rakuten_prices(
             crud.add_price(db, product, result.price)
             # Rakuten's API returns the item's own listing photo, provided
             # for exactly this kind of use (unlike hotlinking e.g. Amazon
-            # images). Only fill in blanks — never overwrite an image or
-            # link an admin has manually curated. The link points at the
-            # same Rakuten listing the photo/price came from.
+            # images). Only fill in what the site can't show (missing,
+            # blank, invalid or a placeholder host - image_urls.needs_image)
+            # - never overwrite a valid image or link an admin has curated.
+            # The link points at the same Rakuten listing the photo/price
+            # came from.
             changed = False
-            if result.image_url and not product.image_url:
-                product.image_url = result.image_url
+            new_image = image_urls.normalize_image_url(result.image_url)
+            if new_image and image_urls.needs_image(product.image_url):
+                product.image_url = new_image
                 changed = True
             if result.item_url and not product.affiliate_url:
                 product.affiliate_url = rakuten.to_affiliate_url(result.item_url) or result.item_url
@@ -303,6 +306,13 @@ def fetch_yahoo_prices(
             product.yahoo_price = result.price
             product.yahoo_url = yahoo.to_affiliate_url(result.item_url) or result.item_url
             product.yahoo_updated_at = datetime.datetime.utcnow()
+            # Yahoo's API likewise returns the listing's own photo. Used only
+            # as a fallback when the product still has none the site can
+            # show (e.g. Rakuten had no plausible match) - Rakuten's photo,
+            # or an admin-curated one, always wins.
+            yahoo_image = image_urls.normalize_image_url(result.image_url)
+            if yahoo_image and image_urls.needs_image(product.image_url):
+                product.image_url = yahoo_image
             db.commit()
             updated += 1
         except yahoo.YahooQuotaExceeded as exc:

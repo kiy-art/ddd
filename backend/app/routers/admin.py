@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import content_optimizer, crud, daily_report, discovery, models, pipeline, popularity, progress, schemas, title_migration, x_post
+from app import content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, progress, schemas, title_migration, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -165,6 +165,18 @@ def get_logs(limit: int = 100, offset: int = 0, db: Session = Depends(get_db)):
     return crud.list_error_logs(db, limit=limit, offset=offset)
 
 
+@router.post("/backfill-images", response_model=schemas.ImageBackfillResultOut)
+def backfill_images(verify_existing: bool = True, db: Session = Depends(get_db)):
+    """Fills every product photo the site currently shows as NO IMAGE -
+    now, instead of waiting for the next daily price fetch - from a
+    Rakuten (then Yahoo!) listing that passes the same "is this really the
+    product" checks the price fetch uses. With verify_existing (default),
+    stored photos that are definitely gone are replaced too. Uses the free
+    Rakuten/Yahoo search APIs only (no Claude); never records prices."""
+    result = image_backfill.backfill_product_images(db, verify_existing=verify_existing)
+    return schemas.ImageBackfillResultOut(**dataclasses.asdict(result))
+
+
 @router.post("/auto-fix-logs", response_model=schemas.AutoFixLogsResult)
 def auto_fix_logs(db: Session = Depends(get_db)):
     """The AI War Room's one-tap "AI自動修復" action (CPO/Compliance):
@@ -228,6 +240,20 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         # optional, before the next step's queries: on Postgres, any query
         # after an unhandled exception on the same session fails with
         # "current transaction is aborted" until the session is rolled back.
+        # Clear stored photos that are gone (404/non-image) or unusable, so
+        # the Rakuten/Yahoo fetch below refills them from the listing it
+        # matches - otherwise a dead photo shows NO IMAGE forever.
+        try:
+            images_cleared = image_backfill.clear_broken_images(db)
+            if images_cleared:
+                crud.create_error_log(
+                    db, source="image_backfill", level="info",
+                    message=f"リンク切れ・無効な商品画像{images_cleared}件をクリアしました（この後の価格取得で補完します）",
+                )
+        except Exception as exc:  # noqa: BLE001 - keep the rest of the job alive
+            db.rollback()
+            crud.create_error_log(db, source="image_backfill", level="warning", message=f"Image check failed: {exc}")
+
         progress.start_stage("rakuten_prices")
         price_updated, price_skipped = 0, 0
         try:

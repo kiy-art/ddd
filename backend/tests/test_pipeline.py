@@ -91,7 +91,9 @@ def test_fetch_rakuten_prices_fills_in_blank_image_and_affiliate_url(db_session,
 
 def test_fetch_rakuten_prices_never_overwrites_existing_image_or_affiliate_url(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
-    product.image_url = "https://example.com/manually-curated.jpg"
+    # A real, valid photo an admin chose (example.com would count as a
+    # placeholder the site can't show - see image_urls.PLACEHOLDER_HOSTS).
+    product.image_url = "https://www.clubping.jp/images/manually-curated.jpg"
     product.affiliate_url = "https://example.com/manually-curated-link"
     db_session.commit()
 
@@ -108,7 +110,7 @@ def test_fetch_rakuten_prices_never_overwrites_existing_image_or_affiliate_url(d
     pipeline.fetch_rakuten_prices(db_session)
 
     db_session.refresh(product)
-    assert product.image_url == "https://example.com/manually-curated.jpg"
+    assert product.image_url == "https://www.clubping.jp/images/manually-curated.jpg"
     assert product.affiliate_url == "https://example.com/manually-curated-link"
 
 
