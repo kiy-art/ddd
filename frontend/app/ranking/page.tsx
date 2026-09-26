@@ -12,7 +12,7 @@ export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "買い時ランキング",
-  description: "カテゴリ別のPAR. BUY SIGNALランキングです。",
+  description: "カテゴリ別の買い時スコアランキングです。",
 };
 
 function isCategory(value: string | undefined): value is (typeof CATEGORIES)[number] {

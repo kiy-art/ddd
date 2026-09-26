@@ -72,6 +72,29 @@ def _clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
 
 
+# STEP49: the 0-99 score shown next to the verdict must never contradict it
+# ("82 / 様子見" read as nonsense to a shopper). The verdict (buy_score)
+# stays the single rule that decides the label - it also drives filters,
+# badges and X-post selection - and the score is placed inside that
+# verdict's band, ordered within it by the four real signals below. So
+# 80+ always means "今が買い時", 65-79 "買い時", 40-64 "様子見",
+# 39 or below "待つのが無難", on every page that shows the number.
+SCORE_BANDS = {
+    "strong_buy": (80, 99),
+    "buy": (65, 79),
+    "neutral": (40, 64),
+    "not_buy": (1, 39),
+}
+
+
+def _score_in_band(composite: int, buy_score: str) -> int:
+    """Linearly maps a raw 1-99 composite into the verdict's band
+    (order-preserving: a stronger composite is still a higher score
+    within the same verdict)."""
+    lo, hi = SCORE_BANDS[buy_score]
+    return int(round(lo + (composite - 1) / 98 * (hi - lo)))
+
+
 def _buy_signal_score(
     current_price: int,
     average_price: int,
@@ -235,8 +258,9 @@ def analyze_prices(
             msrp_discount_percent = None
 
     momentum_percent = _recent_momentum_percent(current_price, recent, now)
-    buy_signal_score = _buy_signal_score(
-        current_price, average_price, lowest_price, recent_prices, momentum_percent
+    buy_signal_score = _score_in_band(
+        _buy_signal_score(current_price, average_price, lowest_price, recent_prices, momentum_percent),
+        buy_score,
     )
 
     return AnalysisResult(

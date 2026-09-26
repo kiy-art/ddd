@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AiBuySignal from "@/components/AiBuySignal";
+import ScoreExplanation from "@/components/ScoreExplanation";
 import CompareButton from "@/components/CompareButton";
 import CompareStrip from "@/components/CompareStrip";
 import DataSourceNote from "@/components/DataSourceNote";
@@ -339,6 +340,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 )}
               </div>
             </div>
+
+            {hasReliableTrend && product.buy_signal_score !== null && (
+              <ScoreExplanation product={product} />
+            )}
 
             <div className="rounded-2xl border border-border bg-background p-6">
               <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">今買うべき？</span>

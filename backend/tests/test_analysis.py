@@ -1,5 +1,7 @@
 import datetime
 
+import pytest
+
 from app import analysis
 
 
@@ -195,8 +197,12 @@ def test_msrp_blend_upgrades_a_neutral_or_not_buy_verdict_with_thin_history():
     assert with_msrp.buy_score == "strong_buy"
     assert with_msrp.data_basis == "msrp_estimate"
     assert with_msrp.msrp_discount_percent == -41.3
-    # The real-data buy_signal_score is untouched by the MSRP blend.
-    assert with_msrp.buy_signal_score == without_msrp.buy_signal_score
+    # STEP49: the score always sits in its verdict's band, so the number
+    # shown next to "今が買い時" is never a not_buy-range number.
+    lo, hi = analysis.SCORE_BANDS["strong_buy"]
+    assert lo <= with_msrp.buy_signal_score <= hi
+    lo, hi = analysis.SCORE_BANDS["not_buy"]
+    assert lo <= without_msrp.buy_signal_score <= hi
 
 
 def test_msrp_blend_never_upgrades_not_buy_into_a_mere_neutral():
@@ -247,3 +253,46 @@ def test_rule_based_reason_for_msrp_estimate_discloses_the_basis():
     assert "定価" in reason
     assert "25.0%" in reason
     assert "強い買い時" in reason
+
+
+# --- STEP49: score and verdict always agree --------------------------------------
+
+
+def test_score_bands_cover_1_to_99_without_overlap():
+    bands = sorted(analysis.SCORE_BANDS.values())
+    assert bands[0][0] == 1 and bands[-1][1] == 99
+    for (_, hi), (lo, _) in zip(bands, bands[1:]):
+        assert lo == hi + 1
+
+
+def test_at_recorded_low_but_only_slightly_below_average_is_not_a_high_score_with_hold():
+    # The confusing production case: at the recorded low and falling (the
+    # raw composite is high), but only ~6.5% under the 30-day average, so
+    # the verdict is "neutral". The number must now read as neutral too.
+    history = [(int(100000 * (1 + 0.01 * d)), _days_ago(d)) for d in range(14, 0, -1)]
+    result = analysis.analyze_prices(100000, history)
+    assert result.buy_score == "neutral"
+    lo, hi = analysis.SCORE_BANDS["neutral"]
+    assert lo <= result.buy_signal_score <= hi
+
+
+@pytest.mark.parametrize(
+    "current, history_prices",
+    [
+        (80000, [100000] * 10),  # 20% under average -> strong_buy
+        (88000, [100000] * 10),  # 12% under -> buy
+        (95000, [100000, 90000] * 5),  # mid-range -> neutral
+        (100000, [90000, 100000] * 5),  # at the 30-day high -> not_buy
+    ],
+)
+def test_every_verdict_gets_a_score_inside_its_own_band(current, history_prices):
+    history = [(p, _days_ago(i + 1)) for i, p in enumerate(history_prices)]
+    result = analysis.analyze_prices(current, history)
+    lo, hi = analysis.SCORE_BANDS[result.buy_score]
+    assert lo <= result.buy_signal_score <= hi
+
+
+def test_band_mapping_preserves_order_within_a_verdict():
+    assert analysis._score_in_band(1, "buy") == 65
+    assert analysis._score_in_band(99, "buy") == 79
+    assert analysis._score_in_band(30, "buy") < analysis._score_in_band(70, "buy")

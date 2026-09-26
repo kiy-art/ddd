@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { getProduct } from "@/lib/api";
+import { verdictInfo } from "@/lib/buySignal";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { getModelCycleInsight } from "@/lib/modelCycle";
 import {
@@ -73,9 +74,9 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 
   const signalLabel =
     score !== null
-      ? `BUY SIGNAL ${score}/100`
+      ? `買い時スコア ${score}/100（${verdictInfo(product.buy_score).label}）`
       : fallback
-        ? `定価比較スコア ${fallback.score}/100`
+        ? `定価からのお得度 ${fallback.score}/100`
         : cycleInsight
           ? `${cycleInsight.stageLabel}（${cycleInsight.tier === "fact" ? "FACT" : "AI推測"}）`
           : null;
@@ -145,7 +146,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
                 {score !== null ? score : fallback?.score}
               </span>
               <span style={{ display: "flex", fontSize: 18, color: OG_COLORS.accentLight, letterSpacing: 2 }}>
-                {score !== null ? "BUY SIGNAL" : "定価比較"}
+                {score !== null ? verdictInfo(product.buy_score).label : "定価からのお得度"}
               </span>
             </div>
           ) : (

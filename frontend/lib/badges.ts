@@ -19,10 +19,10 @@ export interface ProductBadge {
 
 /**
  * Deliberately keyed off buy_score (the same category the gauge label and
- * product-page verdict already use), not the raw buy_signal_score number -
- * the two can diverge (buy_signal_score also weighs momentum/rank/distance
- * from the low), and a badge that says "STRONG BUY" next to a gauge that
- * says "HOLD" would contradict itself. No per-product attribute we can't
+ * product-page verdict already use), not the raw buy_signal_score number.
+ * Since STEP49 the score always sits inside its verdict's band (backend
+ * analysis.SCORE_BANDS), so the two agree - but the verdict remains the
+ * one source of truth for any label. No per-product attribute we can't
  * verify is ever used here (no "premium pick", "best for beginners", etc).
  */
 export function getProductBadge(product: Product): ProductBadge | null {

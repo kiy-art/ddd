@@ -71,6 +71,9 @@ AVERAGE_DROP_HOOK_PCT = -5.0
 
 CTA_LINE = "相場推移と取扱店舗はここからチェック👇"
 
+# Same wording as the site (frontend lib/buySignal.ts VERDICTS).
+VERDICT_LABELS = {"strong_buy": "今が買い時", "buy": "買い時", "neutral": "様子見", "not_buy": "待つのが無難"}
+
 class XNotConfigured(Exception):
     pass
 
@@ -337,7 +340,11 @@ def _compose(
 
     blocks = [_hook(lead, lead_facts), "", name, _price_line(lead, lead_facts)]
     if include_signal and lead_facts.buy_signal_score is not None:
-        blocks.append(f"📊 PAR.買い時スコア {lead_facts.buy_signal_score}/100")
+        # Verdict next to the number (STEP49) - "82/100" alone means nothing.
+        verdict = VERDICT_LABELS.get(lead.buy_score)
+        blocks.append(
+            f"📊 PAR.買い時スコア {lead_facts.buy_signal_score}/100" + (f"（{verdict}）" if verdict else "")
+        )
     if include_teaser:
         for product, facts in others:
             blocks += ["", _teaser_line(product, facts, name_max)]

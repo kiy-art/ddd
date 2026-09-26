@@ -1,23 +1,11 @@
 import CountUp from "@/components/CountUp";
+import { NEW_LISTING, SCORE_NAME, verdictInfo } from "@/lib/buySignal";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 
-const SIGNAL_LABELS: Record<string, string> = {
-  strong_buy: "STRONG BUY",
-  buy: "BUY NOW",
-  neutral: "HOLD",
-  not_buy: "WAIT",
-  // Reached only when there's neither enough price history nor an MSRP to
-  // fall back on (see FALLBACK_LABEL below) - the true "nothing to show
-  // yet" case. "ANALYZING" used to sit here, but it reads as a stuck
-  // process rather than an honest "this is a newly-tracked listing", which
-  // is what's actually true.
-  insufficient_data: "NEW LISTING",
-};
-
-// A separate, deliberately different-sounding label from the real
-// SIGNAL_LABELS above - this number is not the same kind of claim (see
-// lib/fallbackScore.ts), so it must never look like one.
-const FALLBACK_LABEL = "定価比較";
+// A separate, deliberately different-sounding label from the real verdict
+// labels (lib/buySignal.ts) - this number is not the same kind of claim
+// (see lib/fallbackScore.ts), so it must never look like one.
+const FALLBACK_LABEL = "定価からのお得度";
 
 // Below this many days of accumulated price history, a confident score
 // would overstate how much is actually known - shown as "still analyzing"
@@ -32,8 +20,8 @@ function signalColorVar(buyScore: string): string {
 }
 
 const SIZES = {
-  sm: { box: 56, ring: 5, scoreText: "text-base", labelText: "text-[9px]" },
-  lg: { box: 108, ring: 7, scoreText: "text-3xl", labelText: "text-[11px]" },
+  sm: { box: 56, ring: 5, scoreText: "text-base", labelText: "text-[10px]" },
+  lg: { box: 108, ring: 7, scoreText: "text-3xl", labelText: "text-xs" },
 } as const;
 
 export default function AiBuySignal({
@@ -63,10 +51,14 @@ export default function AiBuySignal({
   if (reliable) {
     const score = buySignalScore;
     const color = signalColorVar(buyScore);
-    const label = SIGNAL_LABELS[buyScore] ?? SIGNAL_LABELS.neutral;
+    const verdict = verdictInfo(buyScore);
     const pct = score ?? 0;
+    const description =
+      score === null
+        ? `${SCORE_NAME}: ${verdict.label}`
+        : `${SCORE_NAME} ${score}/100: ${verdict.label}（${verdict.meaning}）`;
     return (
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-col items-center gap-1.5" title={description} aria-label={description} role="img">
         <div
           className="relative flex items-center justify-center rounded-full"
           style={{
@@ -79,13 +71,15 @@ export default function AiBuySignal({
           }}
         >
           <div className="absolute rounded-full bg-card" style={{ inset: dims.ring }} />
-          <span className={`relative font-display font-semibold text-foreground ${dims.scoreText}`}>
+          <span className={`relative flex items-baseline font-display font-semibold text-foreground ${dims.scoreText}`}>
             {score === null ? "—" : <CountUp value={score} />}
+            {score !== null && size === "lg" && <span className="ml-0.5 text-xs font-medium text-foreground/40">/100</span>}
           </span>
         </div>
-        <span className={`font-medium uppercase tracking-widest ${dims.labelText}`} style={{ color }}>
-          {label}
+        <span className={`whitespace-nowrap font-semibold ${dims.labelText}`} style={{ color }}>
+          {verdict.label}
         </span>
+        {size === "lg" && <span className="text-[10px] text-foreground/40">{SCORE_NAME}</span>}
       </div>
     );
   }
@@ -96,8 +90,9 @@ export default function AiBuySignal({
     // and the accent color ties into the same FACT/FORECAST visual
     // language used elsewhere on the product page rather than the
     // strong_buy/buy/neutral/not_buy signal colors.
+    const fallbackDescription = `${FALLBACK_LABEL} ${fallback.score}/100（価格の記録がまだ少ないため、定価と比べた目安です）`;
     return (
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-col items-center gap-1.5" title={fallbackDescription} aria-label={fallbackDescription} role="img">
         <div
           className="relative flex items-center justify-center rounded-full border-2 border-dashed"
           style={{ width: dims.box, height: dims.box, borderColor: "var(--accent-dark)" }}
@@ -106,7 +101,7 @@ export default function AiBuySignal({
             <CountUp value={fallback.score} />
           </span>
         </div>
-        <span className={`font-medium uppercase tracking-widest ${dims.labelText}`} style={{ color: "var(--accent-dark)" }}>
+        <span className={`whitespace-nowrap font-semibold ${dims.labelText}`} style={{ color: "var(--accent-dark)" }}>
           {FALLBACK_LABEL}
         </span>
       </div>
@@ -123,10 +118,11 @@ export default function AiBuySignal({
         <span className={`relative font-display font-semibold text-foreground ${dims.scoreText}`}>—</span>
       </div>
       <span
-        className={`font-medium uppercase tracking-widest ${dims.labelText}`}
+        className={`whitespace-nowrap font-semibold ${dims.labelText}`}
         style={{ color: signalColorVar("insufficient_data") }}
+        title={NEW_LISTING.meaning}
       >
-        {SIGNAL_LABELS.insufficient_data}
+        {NEW_LISTING.label}
       </span>
     </div>
   );

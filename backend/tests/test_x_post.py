@@ -319,7 +319,7 @@ def test_post_leads_with_recorded_lowest_only_on_enough_history(db_session):
     text = _text_for(db_session, at_low)
     assert text.split("\n")[0] == "📉 注目のドライバーが過去14日間の最安値に"
     assert "💰 ¥99,000（定価より¥59,400安い／-38%）" in text
-    assert "📊 PAR.買い時スコア 82/100" in text
+    assert "📊 PAR.買い時スコア 82/100（今が買い時）" in text
 
     thin = _make_product(
         db_session, name="thindriver", current_price=99000, msrp=110000, lowest_price=99000, history_span_days=3,
