@@ -102,7 +102,7 @@ export default async function FinderPage({
                       defaultChecked={validCategory === c}
                       className="peer sr-only"
                     />
-                    <span className="block rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/60 transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white hover:border-brand/40">
+                    <span className="block rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/60 transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-on-brand hover:border-brand/40">
                       {CATEGORY_LABELS[c]}
                     </span>
                   </label>
@@ -124,7 +124,7 @@ export default async function FinderPage({
                       defaultChecked={(budget ?? "") === b.value}
                       className="peer sr-only"
                     />
-                    <span className="block rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/60 transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white hover:border-brand/40">
+                    <span className="block rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/60 transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-on-brand hover:border-brand/40">
                       {b.label}
                     </span>
                   </label>
@@ -146,7 +146,7 @@ export default async function FinderPage({
                       defaultChecked={priority === p.value}
                       className="peer sr-only"
                     />
-                    <span className="block rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/60 transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white hover:border-brand/40">
+                    <span className="block rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground/60 transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-on-brand hover:border-brand/40">
                       {p.label}
                     </span>
                   </label>
@@ -156,7 +156,7 @@ export default async function FinderPage({
 
             <button
               type="submit"
-              className="w-fit rounded-full bg-brand px-8 py-3.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+              className="w-fit rounded-full bg-brand px-8 py-3.5 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.02]"
             >
               診断する
             </button>

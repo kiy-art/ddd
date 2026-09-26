@@ -72,7 +72,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
           list_source: listSource ?? "unknown",
         })
       }
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-24px_rgba(20,19,15,0.22)]"
+      className="card-lux group flex flex-col overflow-hidden rounded-2xl"
     >
       <div className="relative aspect-[4/3] w-full bg-background">
         <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5">
@@ -82,16 +82,19 @@ export default function ProductCard({ product, listSource }: { product: Product;
             </span>
           )}
           {!isPopularAndDropping && popularityBadge && (
-            <span className="rounded-full bg-brand px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-sm">
+            <span className="rounded-full bg-brand px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-on-brand shadow-sm">
               {popularityBadge.label}
             </span>
           )}
           {badge && (
             <span
               className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest shadow-sm ${
-                badge.tone === "strong" ? "bg-brand text-white" : "bg-ink text-white"
+                badge.tone === "strong"
+                  ? `bg-brand text-on-brand ${badge.label === "過去最安値圏" ? "glow-emerald" : ""}`
+                  : "bg-ink text-white"
               }`}
             >
+              {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}
               {badge.label}
             </span>
           )}
@@ -114,7 +117,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
             <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">
               {CATEGORY_LABELS[product.category] ?? product.category} · {product.brand}
             </span>
-            <h3 className="mt-1 line-clamp-2 font-display text-lg font-medium leading-snug text-foreground">
+            <h3 className="mt-1 line-clamp-2 font-display text-[17px] font-bold leading-snug tracking-tight text-foreground">
               {product.name}
             </h3>
             {positioningFacts.length > 0 && (
@@ -147,7 +150,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
               {comparison && comparison.direction === "down" && referencePrice !== null && (
                 <div className="text-xs text-foreground/35 line-through">{yen(referencePrice)}</div>
               )}
-              <div className="font-display text-2xl font-semibold text-foreground">
+              <div className="font-num text-2xl font-semibold text-foreground">
                 {yen(product.current_price)}
               </div>
             </div>

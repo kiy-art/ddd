@@ -46,7 +46,7 @@ export default function Newsletter() {
             />
             <button
               type="submit"
-              className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.03]"
+              className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.03]"
             >
               先行登録
             </button>

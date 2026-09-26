@@ -51,7 +51,7 @@ export default function CompareStrip({ products, currentId }: { products: Produc
         >
           <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{p.brand}</span>
           <span className="line-clamp-2 font-display text-sm font-medium text-foreground">{p.name}</span>
-          <span className="font-display text-lg font-semibold text-foreground">{yen(p.current_price)}</span>
+          <span className="font-num text-lg font-semibold text-foreground">{yen(p.current_price)}</span>
           {p.forecast_confidence !== null && p.forecast_low_price !== null && p.forecast_high_price !== null && (
             <span className="text-[11px] text-accent-dark">
               予測 {yen(p.forecast_low_price)}〜{yen(p.forecast_high_price)}
@@ -88,7 +88,7 @@ export default function CompareStrip({ products, currentId }: { products: Produc
           Amazonで探す ↗
         </a>
         {p.id === currentId && (
-          <span className="mt-1 w-fit rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold text-white">
+          <span className="mt-1 w-fit rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold text-on-brand">
             この商品
           </span>
         )}

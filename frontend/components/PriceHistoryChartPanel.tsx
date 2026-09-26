@@ -40,15 +40,18 @@ export default function PriceHistoryChartPanel({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      {/* Segmented control (TradingView-style range switcher). */}
+      <div className="mb-4 inline-flex flex-wrap gap-0.5 rounded-full border border-border bg-background p-1" role="tablist" aria-label="表示期間">
         {PERIODS.map((p) => (
           <button
             key={p.key}
+            role="tab"
+            aria-selected={period === p.key}
             onClick={() => setPeriod(p.key)}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`tap rounded-full px-3.5 py-1.5 text-xs font-semibold ${
               period === p.key
-                ? "bg-brand text-white"
-                : "border border-border bg-background text-foreground/60 hover:border-brand/40 hover:text-brand"
+                ? "bg-card text-foreground shadow-[0_1px_2px_rgba(6,16,12,0.08),0_0_0_1px_var(--border-strong)]"
+                : "text-foreground/50 hover:text-foreground"
             }`}
           >
             {p.label}

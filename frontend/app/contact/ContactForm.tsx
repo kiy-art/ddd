@@ -73,7 +73,7 @@ export default function ContactForm() {
       <button
         type="submit"
         disabled={status === "sending"}
-        className="w-fit rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        className="w-fit rounded-full bg-brand px-6 py-3 text-sm font-semibold text-on-brand disabled:opacity-50"
       >
         {status === "sending" ? "送信中..." : "送信する"}
       </button>

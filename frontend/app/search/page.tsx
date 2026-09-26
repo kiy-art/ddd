@@ -50,7 +50,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         />
         <button
           type="submit"
-          className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white hover:opacity-90"
+          className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-on-brand hover:opacity-90"
         >
           検索
         </button>

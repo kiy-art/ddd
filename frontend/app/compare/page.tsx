@@ -75,7 +75,7 @@ export default async function ComparePage({
               </p>
               <Link
                 href="/"
-                className="mt-6 inline-block rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+                className="mt-6 inline-block rounded-full bg-brand px-6 py-3 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.02]"
               >
                 商品を探す →
               </Link>
@@ -110,7 +110,7 @@ export default async function ComparePage({
                 <tbody className="text-sm">
                   <CompareRow label="現在価格">
                     {products.map((p) => (
-                      <td key={p.id} className="px-3 py-4 font-display text-lg font-semibold text-foreground">
+                      <td key={p.id} className="px-3 py-4 font-num text-lg font-semibold text-foreground">
                         {yen(p.current_price)}
                       </td>
                     ))}
@@ -186,7 +186,7 @@ export default async function ComparePage({
                               href={p.affiliate_url}
                               target="_blank"
                               rel="noopener noreferrer sponsored"
-                              className="block w-full rounded-full bg-brand px-4 py-3 text-center text-xs font-semibold text-white transition-transform hover:scale-[1.03]"
+                              className="block w-full rounded-full bg-brand px-4 py-3 text-center text-xs font-semibold text-on-brand transition-transform hover:scale-[1.03]"
                               event="cta_click"
                               params={{ product_id: p.id, product_slug: p.slug, cta_type: "affiliate_compare" }}
                               productId={p.id}

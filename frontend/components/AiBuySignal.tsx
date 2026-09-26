@@ -57,21 +57,30 @@ export default function AiBuySignal({
       score === null
         ? `${SCORE_NAME}: ${verdict.label}`
         : `${SCORE_NAME} ${score}/100: ${verdict.label}（${verdict.meaning}）`;
+    // Buy verdicts get an emerald gradient sweep with a soft glow (and a
+    // slow "breathing" halo for 今が買い時); hold/wait stay a flat, quiet
+    // ring so the eye only lands where there's something to act on.
+    const positive = buyScore === "strong_buy" || buyScore === "buy";
+    const sweep = pct * 3.6;
+    const ringFill =
+      score === null
+        ? `conic-gradient(var(--border) 0deg, var(--border) 360deg)`
+        : positive
+          ? `conic-gradient(from 200deg, var(--brand-dark) 0deg, var(--brand-light) ${sweep}deg, color-mix(in srgb, var(--foreground) 9%, transparent) ${sweep}deg 360deg)`
+          : `conic-gradient(${color} ${sweep}deg, color-mix(in srgb, var(--foreground) 9%, transparent) ${sweep}deg 360deg)`;
     return (
       <div className="flex flex-col items-center gap-1.5" title={description} aria-label={description} role="img">
         <div
-          className="relative flex items-center justify-center rounded-full"
+          className={`relative flex items-center justify-center rounded-full ${buyScore === "strong_buy" ? "score-breathe" : ""}`}
           style={{
             width: dims.box,
             height: dims.box,
-            background:
-              score === null
-                ? `conic-gradient(var(--border) 0deg, var(--border) 360deg)`
-                : `conic-gradient(${color} ${pct * 3.6}deg, var(--border) ${pct * 3.6}deg 360deg)`,
+            background: ringFill,
+            boxShadow: positive && buyScore !== "strong_buy" ? "0 0 20px -8px rgba(var(--glow), 0.6)" : undefined,
           }}
         >
           <div className="absolute rounded-full bg-card" style={{ inset: dims.ring }} />
-          <span className={`relative flex items-baseline font-display font-semibold text-foreground ${dims.scoreText}`}>
+          <span className={`font-num relative flex items-baseline font-semibold text-foreground ${dims.scoreText}`}>
             {score === null ? "—" : <CountUp value={score} />}
             {score !== null && size === "lg" && <span className="ml-0.5 text-xs font-medium text-foreground/40">/100</span>}
           </span>
@@ -97,7 +106,7 @@ export default function AiBuySignal({
           className="relative flex items-center justify-center rounded-full border-2 border-dashed"
           style={{ width: dims.box, height: dims.box, borderColor: "var(--accent-dark)" }}
         >
-          <span className={`relative font-display font-semibold text-foreground ${dims.scoreText}`}>
+          <span className={`font-num relative font-semibold text-foreground ${dims.scoreText}`}>
             <CountUp value={fallback.score} />
           </span>
         </div>
@@ -115,7 +124,7 @@ export default function AiBuySignal({
         style={{ width: dims.box, height: dims.box, background: `conic-gradient(var(--border) 0deg, var(--border) 360deg)` }}
       >
         <div className="absolute rounded-full bg-card" style={{ inset: dims.ring }} />
-        <span className={`relative font-display font-semibold text-foreground ${dims.scoreText}`}>—</span>
+        <span className={`font-num relative font-semibold text-foreground ${dims.scoreText}`}>—</span>
       </div>
       <span
         className={`whitespace-nowrap font-semibold ${dims.labelText}`}

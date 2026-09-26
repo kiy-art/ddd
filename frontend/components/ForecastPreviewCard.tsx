@@ -30,11 +30,11 @@ export default function ForecastPreviewCard({ product }: { product: Product }) {
       <div className="flex items-end justify-between gap-3 border-t border-border pt-4">
         <div>
           <span className="text-xs text-foreground/45">現在</span>
-          <p className="font-display text-xl font-semibold text-foreground">{yen(product.current_price)}</p>
+          <p className="font-num text-xl font-semibold text-foreground">{yen(product.current_price)}</p>
         </div>
         <div className="text-right">
           <span className="text-xs text-accent-dark">予測</span>
-          <p className="font-display text-lg font-semibold text-accent-dark">
+          <p className="font-num text-lg font-semibold text-accent-dark">
             {yen(product.forecast_low_price)}〜{yen(product.forecast_high_price)}
           </p>
         </div>

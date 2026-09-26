@@ -17,12 +17,13 @@ import { normalizeImageUrl } from "@/lib/imageUrl";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
+// STEP50 "Fairway Terminal": obsidian panel, emerald accent.
 export const OG_COLORS = {
-  ink: "#14130F",
-  paper: "#FAF9F6",
-  accent: "#C1521A",
-  accentLight: "#E2762F",
-  muted: "#A8A69E",
+  ink: "#06100C",
+  paper: "#F2F6F4",
+  accent: "#047857",
+  accentLight: "#34D399",
+  muted: "#8FA39A",
 };
 
 // Render's free plan sleeps the backend after inactivity; its cold start

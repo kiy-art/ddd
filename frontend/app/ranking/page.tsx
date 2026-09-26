@@ -50,15 +50,18 @@ function FeaturedRankCard({ product }: { product: Product }) {
       </div>
       <div className="flex flex-col justify-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-brand px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white">
+          <span className="rounded-full bg-brand px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-on-brand">
             No.1
           </span>
           {badge && (
             <span
               className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest ${
-                badge.tone === "strong" ? "bg-brand text-white" : "bg-ink text-white"
+                badge.tone === "strong"
+                  ? `bg-brand text-on-brand ${badge.label === "過去最安値圏" ? "glow-emerald" : ""}`
+                  : "bg-ink text-white"
               }`}
             >
+              {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}
               {badge.label}
             </span>
           )}
@@ -70,7 +73,7 @@ function FeaturedRankCard({ product }: { product: Product }) {
           </h2>
         </div>
         <div className="flex items-end gap-6">
-          <span className="font-display text-3xl font-semibold text-foreground">{yen(product.current_price)}</span>
+          <span className="font-num text-3xl font-semibold text-foreground">{yen(product.current_price)}</span>
           <AiBuySignal
             buyScore={product.buy_score}
             buySignalScore={product.buy_signal_score}
@@ -97,7 +100,7 @@ function MediumRankCard({ product, rank }: { product: Product; rank: number }) {
       <div className="min-w-0 flex-1">
         <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{product.brand}</span>
         <div className="truncate font-display text-base font-medium text-foreground">{product.name}</div>
-        <div className="mt-1 font-display text-lg font-semibold text-foreground">{yen(product.current_price)}</div>
+        <div className="mt-1 font-num text-lg font-semibold text-foreground">{yen(product.current_price)}</div>
       </div>
       <AiBuySignal
         buyScore={product.buy_score}
@@ -171,7 +174,7 @@ export default async function RankingPage({
                 href={`/ranking?category=${c}`}
                 className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   category === c
-                    ? "border-brand bg-brand text-white"
+                    ? "border-brand bg-brand text-on-brand"
                     : "border-border bg-background text-foreground/60 hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
                 }`}
               >

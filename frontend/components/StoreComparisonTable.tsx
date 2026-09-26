@@ -1,3 +1,4 @@
+import CtaArrow from "@/components/CtaArrow";
 import TrackedCta from "@/components/TrackedCta";
 import { getAmazonSearchUrl } from "@/lib/amazon";
 import { Product } from "@/lib/api";
@@ -188,12 +189,12 @@ export default function StoreComparisonTable({
                 <td className="py-3 pr-4 font-medium text-foreground">
                   {row.label}
                   {row === cheapestRow && (
-                    <span className="ml-2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    <span className="ml-2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-bold text-on-brand">
                       最安
                     </span>
                   )}
                 </td>
-                <td className="py-3 pr-4 font-display font-semibold text-foreground">
+                <td className="py-3 pr-4 font-num font-semibold text-foreground">
                   {row.priceDisplay ?? (row.isPriceSource ? yen(row.price) : "要確認")}
                 </td>
                 <td className="py-3 pr-4 text-xs text-foreground/40">
@@ -209,8 +210,8 @@ export default function StoreComparisonTable({
                     rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
                     className={
                       row.worthChecking
-                        ? "inline-block rounded-full bg-brand px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
-                        : "inline-block rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground/70 hover:border-brand/40 hover:text-brand"
+                        ? "btn-shop whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold"
+                        : "btn-ghost whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold text-foreground/75 hover:text-foreground"
                     }
                     event="cta_click"
                     params={{
@@ -230,7 +231,8 @@ export default function StoreComparisonTable({
                     category={product.category}
                     placement="store_comparison"
                   >
-                    {row.ctaLabel ?? "見る →"}
+                    {(row.ctaLabel ?? "見る").replace(/\s*→$/, "")}
+                    <CtaArrow className="h-3.5 w-3.5" />
                   </TrackedCta>
                 </td>
               </tr>

@@ -94,12 +94,14 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 export const BUY_SCORES = ["strong_buy", "buy", "neutral", "not_buy", "insufficient_data"] as const;
 
+// Same wording as the score ring (lib/buySignal.ts VERDICTS) - one
+// vocabulary for the verdict everywhere it appears.
 export const BUY_SCORE_LABELS: Record<string, string> = {
-  strong_buy: "強い買い時",
+  strong_buy: "今が買い時",
   buy: "買い時",
   neutral: "様子見",
-  not_buy: "買い時ではない",
-  insufficient_data: "判定不能",
+  not_buy: "待つのが無難",
+  insufficient_data: "データ収集中",
 };
 
 class ApiError extends Error {

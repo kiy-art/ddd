@@ -39,7 +39,7 @@ export default function AdminLoginForm() {
         <button
           type="submit"
           disabled={loading || !value}
-          className="rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand disabled:opacity-50"
         >
           {loading ? "確認中..." : "ログイン"}
         </button>

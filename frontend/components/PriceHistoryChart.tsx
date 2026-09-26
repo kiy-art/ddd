@@ -1,3 +1,7 @@
+"use client";
+
+import { useRef, useState } from "react";
+
 import { PriceHistoryItem } from "@/lib/api";
 import { smoothPath } from "@/lib/chart";
 
@@ -26,6 +30,11 @@ export default function PriceHistoryChart({
   // PriceHistoryChartPanel) is showing only a recent slice of history.
   referenceLines?: ChartReferenceLine[];
 }) {
+  // Hover/touch readout: nearest recorded point under the pointer. Hooks
+  // must run before the early return below.
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
   if (history.length < 2) {
     return (
       <p className="rounded-xl border border-dashed border-border bg-background px-4 py-10 text-center text-sm text-foreground/45">
@@ -81,15 +90,54 @@ export default function PriceHistoryChart({
       ? `M ${last.x} ${last.y} L ${forecastX} ${forecastLowY} L ${forecastX} ${forecastHighY} Z`
       : null;
 
+  const handlePointer = (clientX: number) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const vx = ((clientX - rect.left) / rect.width) * width;
+    let nearest = 0;
+    for (let i = 1; i < points.length; i++) {
+      if (Math.abs(points[i].x - vx) < Math.abs(points[nearest].x - vx)) nearest = i;
+    }
+    setHoverIndex(nearest);
+  };
+  const hovered = hoverIndex !== null ? { point: points[hoverIndex], item: history[hoverIndex] } : null;
+  const tooltipW = 132;
+  const tooltipX = hovered ? Math.min(Math.max(hovered.point.x - tooltipW / 2, padLeft), width - padRight - tooltipW) : 0;
+  const tooltipY = hovered ? (hovered.point.y - 58 < 4 ? hovered.point.y + 14 : hovered.point.y - 58) : 0;
+
   return (
     <div className="w-full">
       <div className="w-full overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-56 w-full min-w-[420px]">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-56 w-full min-w-[420px] touch-pan-y select-none"
+          onPointerMove={(e) => handlePointer(e.clientX)}
+          onPointerDown={(e) => handlePointer(e.clientX)}
+          onPointerLeave={() => setHoverIndex(null)}
+          role="img"
+          aria-label={`価格推移グラフ：${new Date(history[0].recorded_at).toLocaleDateString("ja-JP")}から${new Date(history[history.length - 1].recorded_at).toLocaleDateString("ja-JP")}、最新 ¥${lastPrice.toLocaleString("ja-JP")}`}
+        >
           <defs>
             <linearGradient id="price-area" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.16" />
-              <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--brand-light)" stopOpacity="0.28" />
+              <stop offset="60%" stopColor="var(--brand-light)" stopOpacity="0.06" />
+              <stop offset="100%" stopColor="var(--brand-light)" stopOpacity="0" />
             </linearGradient>
+            <linearGradient id="price-line" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="var(--brand-dark)" />
+              <stop offset="100%" stopColor="var(--brand-light)" />
+            </linearGradient>
+            {/* Soft emerald glow under the price line - the "live
+                instrument" feel, kept subtle so the line stays crisp. */}
+            <filter id="line-glow" x="-10%" y="-40%" width="120%" height="180%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
           {yAxisTicks.map((tick) => (
@@ -143,11 +191,12 @@ export default function PriceHistoryChart({
           <path
             d={linePath}
             fill="none"
-            stroke="var(--brand)"
+            stroke="url(#price-line)"
             strokeWidth={2.5}
             strokeLinecap="round"
             pathLength={1}
             className="animate-draw"
+            filter="url(#line-glow)"
           />
 
           {conePath && (
@@ -192,17 +241,43 @@ export default function PriceHistoryChart({
             </>
           )}
 
-          <circle cx={last.x} cy={last.y} r={4.5} fill="var(--brand)" stroke="var(--card)" strokeWidth={2} />
+          <circle cx={last.x} cy={last.y} r={4.5} className="chart-pulse" fill="var(--brand-light)" opacity={0.35} />
+          <circle cx={last.x} cy={last.y} r={4.5} fill="var(--brand-light)" stroke="var(--card)" strokeWidth={2} />
           <text
+            opacity={hovered ? 0 : 1}
             x={Math.min(last.x, width - 90)}
             y={Math.max(last.y - 14, 16)}
-            className="font-display"
+            className="font-num"
             fontSize={13}
             fontWeight={600}
             fill="var(--foreground)"
           >
             ¥{lastPrice.toLocaleString("ja-JP")}
           </text>
+
+          {hovered && (
+            <g pointerEvents="none">
+              <line
+                x1={hovered.point.x}
+                x2={hovered.point.x}
+                y1={padTop - 8}
+                y2={height - padBottom}
+                stroke="var(--brand-light)"
+                strokeOpacity={0.6}
+                strokeWidth={1}
+                strokeDasharray="3 3"
+              />
+              <circle cx={hovered.point.x} cy={hovered.point.y} r={9} fill="var(--brand-light)" opacity={0.18} />
+              <circle cx={hovered.point.x} cy={hovered.point.y} r={4.5} fill="var(--brand-light)" stroke="var(--card)" strokeWidth={2} />
+              <rect x={tooltipX} y={tooltipY} width={tooltipW} height={44} rx={8} fill="var(--ink)" opacity={0.94} />
+              <text x={tooltipX + 12} y={tooltipY + 17} fontSize={10} fill="#e6ece9" opacity={0.6}>
+                {new Date(hovered.item.recorded_at).toLocaleDateString("ja-JP")}
+              </text>
+              <text x={tooltipX + 12} y={tooltipY + 34} fontSize={14} fontWeight={600} fill="#e6ece9" className="font-num">
+                ¥{hovered.item.price.toLocaleString("ja-JP")}
+              </text>
+            </g>
+          )}
         </svg>
       </div>
       <div className="mt-3 flex justify-between text-xs text-foreground/45">

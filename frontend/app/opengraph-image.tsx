@@ -13,7 +13,7 @@ export default async function Image() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#14130F",
+          background: "#06100C",
           padding: "80px",
         }}
       >
@@ -26,7 +26,7 @@ export default async function Image() {
               strokeWidth="2"
               strokeLinecap="round"
             />
-            <circle cx="27.8" cy="22" r="2.4" fill="#C1521A" />
+            <circle cx="27.8" cy="22" r="2.4" fill="#34D399" />
           </svg>
           <span style={{ fontSize: 40, fontWeight: 600, color: "#FAF9F6" }}>PAR.</span>
         </div>
@@ -36,7 +36,7 @@ export default async function Image() {
             <br />
             ゴルフ用品をAIが発見。
           </span>
-          <span style={{ fontSize: 26, color: "#E2762F" }}>
+          <span style={{ fontSize: 26, color: "#34D399" }}>
             価格の変化を毎日分析。今が買い時かをスコアでお伝えします。
           </span>
         </div>

@@ -8,7 +8,7 @@ export function LogoMark({ className }: { className?: string }) {
         strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="27.8" cy="22" r="2.4" fill="currentColor" />
+      <circle cx="27.8" cy="22" r="2.4" fill="var(--brand-light)" />
     </svg>
   );
 }

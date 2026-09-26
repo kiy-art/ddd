@@ -30,7 +30,7 @@ export default function CompareBar() {
           </button>
           <Link
             href={`/compare?slugs=${slugs.map(encodeURIComponent).join(",")}`}
-            className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.03]"
+            className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.03]"
           >
             比較する ({slugs.length})
           </Link>

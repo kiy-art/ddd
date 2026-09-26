@@ -59,7 +59,7 @@ export default function PriceAlertForm({ slug, currentPrice }: { slug: string; c
         <button
           type="submit"
           disabled={status === "loading"}
-          className="shrink-0 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="shrink-0 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand disabled:opacity-50"
         >
           {status === "loading" ? "設定中..." : "通知を設定"}
         </button>

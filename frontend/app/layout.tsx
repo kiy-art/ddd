@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { Geist, JetBrains_Mono, Zen_Kaku_Gothic_New } from "next/font/google";
 import Link from "next/link";
 import Script from "next/script";
 
@@ -17,15 +17,24 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Numbers - prices, %, scores - in a terminal-grade monospace with
+// tabular figures (the .font-num utility, globals.css).
+const numFont = JetBrains_Mono({
+  variable: "--font-num",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+// Japanese text: a refined, slightly geometric gothic that holds up at
+// headline sizes (Latin stays in Geist, which comes first in the stack).
+// preload: false - CJK fonts ship as many unicode-range slices; only the
+// slices for characters actually on the page are downloaded.
+const jpFont = Zen_Kaku_Gothic_New({
+  variable: "--font-jp",
   subsets: ["latin"],
-  axes: ["opsz", "SOFT", "WONK"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  preload: false,
 });
 
 const SITE_NAME = "PAR.";
@@ -60,7 +69,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${numFont.variable} ${jpFont.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         {GA_MEASUREMENT_ID && (

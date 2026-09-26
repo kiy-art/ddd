@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AiBuySignal from "@/components/AiBuySignal";
+import CtaArrow from "@/components/CtaArrow";
 import ScoreExplanation from "@/components/ScoreExplanation";
 import CompareButton from "@/components/CompareButton";
 import CompareStrip from "@/components/CompareStrip";
@@ -256,16 +257,19 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     {product.brand}
                   </Link>
                   {popularityBadge && (
-                    <span className="rounded-full bg-brand px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-white">
+                    <span className="rounded-full bg-brand px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-on-brand">
                       {popularityBadge.label}
                     </span>
                   )}
                   {badge && (
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
-                        badge.tone === "strong" ? "bg-brand text-white" : "bg-ink text-white"
+                        badge.tone === "strong"
+                  ? `bg-brand text-on-brand ${badge.label === "過去最安値圏" ? "glow-emerald" : ""}`
+                  : "bg-ink text-white"
                       }`}
                     >
+                      {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}
                       {badge.label}
                     </span>
                   )}
@@ -317,7 +321,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   </span>
                   <span className="text-xs text-foreground/40">現在価格</span>
                 </div>
-                <span className="font-display text-4xl font-semibold text-foreground">
+                <span className="font-num text-4xl font-semibold text-foreground">
                   {yen(product.current_price)}
                 </span>
                 {msrpPct !== null && (
@@ -407,13 +411,13 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               {product.msrp !== null && (
                 <div>
                   <dt>メーカー希望小売価格</dt>
-                  <dd className="mt-1 font-display text-base font-medium text-foreground">{yen(product.msrp)}</dd>
+                  <dd className="mt-1 font-num text-base font-medium text-foreground">{yen(product.msrp)}</dd>
                 </div>
               )}
               <div>
                 <dt>過去30日平均</dt>
                 {hasReliableTrend ? (
-                  <dd className="mt-1 font-display text-base font-medium text-foreground">
+                  <dd className="mt-1 font-num text-base font-medium text-foreground">
                     {yen(product.average_price)}
                   </dd>
                 ) : (
@@ -422,24 +426,24 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               </div>
               <div>
                 <dt>過去最安値</dt>
-                <dd className="mt-1 font-display text-base font-medium text-foreground">{yen(product.lowest_price)}</dd>
+                <dd className="mt-1 font-num text-base font-medium text-foreground">{yen(product.lowest_price)}</dd>
               </div>
               <div>
                 <dt>前回価格</dt>
-                <dd className="mt-1 font-display text-base font-medium text-foreground">{yen(product.previous_price)}</dd>
+                <dd className="mt-1 font-num text-base font-medium text-foreground">{yen(product.previous_price)}</dd>
               </div>
             </dl>
 
             <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-5">
               <span className="text-xs text-foreground/45">現在価格</span>
-              <span className="font-display text-2xl font-semibold text-foreground">{yen(product.current_price)}</span>
+              <span className="font-num text-2xl font-semibold text-foreground">{yen(product.current_price)}</span>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                 {product.affiliate_url && (
                   <TrackedCta
                     href={product.affiliate_url}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
-                    className="flex-1 rounded-full bg-brand px-6 py-4 text-center text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+                    className="btn-shop flex-1 rounded-full px-6 py-4 text-center text-sm font-semibold"
                     event="cta_click"
                     params={{
                       product_id: product.id,
@@ -453,6 +457,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     placement="product_detail_cta"
                   >
                     {ctaLabel(product.affiliate_url)}
+                    <CtaArrow />
                   </TrackedCta>
                 )}
                 {product.product_url && (
@@ -460,7 +465,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     href={product.product_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 rounded-full border border-border px-6 py-4 text-center text-sm font-semibold text-foreground/80 transition-colors hover:bg-background"
+                    className="btn-ghost flex-1 rounded-full px-6 py-4 text-center text-sm font-semibold text-foreground/80 hover:text-foreground"
                     event="cta_click"
                     params={{
                       product_id: product.id,
@@ -471,6 +476,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     }}
                   >
                     メーカー商品ページを見る
+                    <CtaArrow />
                   </TrackedCta>
                 )}
               </div>

@@ -148,7 +148,7 @@ export default async function CategoryPage({
                     href={opt === "discount" ? `/category/${category}` : `/category/${category}?sort=${opt}`}
                     className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                       sort === opt
-                        ? "border-brand bg-brand text-white"
+                        ? "border-brand bg-brand text-on-brand"
                         : "border-border bg-background text-foreground/60 hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
                     }`}
                   >

@@ -384,7 +384,7 @@ export default async function Home({
           </div>
           <Link
             href="/finder"
-            className="shrink-0 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+            className="shrink-0 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.02]"
           >
             診断してみる →
           </Link>
@@ -403,20 +403,24 @@ export default async function Home({
                   すべてのゴルフ用品
                 </h2>
               </div>
-              <div className="flex flex-wrap gap-2">
+              {/* Segmented filter - scrolls sideways on a phone instead of wrapping. */}
+              <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:px-0">
+                <div className="inline-flex gap-0.5 rounded-full border border-border bg-background p-1">
                 {FILTER_TABS.map((tab) => (
                   <Link
                     key={tab}
                     href={tab === "all" ? "/" : `/?buy_score=${tab}`}
-                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                    aria-current={activeTab === tab ? "page" : undefined}
+                    className={`tap whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold ${
                       activeTab === tab
-                        ? "border-brand bg-brand text-white"
-                        : "border-border bg-background text-foreground/60 hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
+                        ? "bg-card text-foreground shadow-[0_1px_2px_rgba(6,16,12,0.08),0_0_0_1px_var(--border-strong)]"
+                        : "text-foreground/50 hover:text-foreground"
                     }`}
                   >
                     {tab === "all" ? "すべて" : BUY_SCORE_LABELS[tab]}
                   </Link>
                 ))}
+                </div>
               </div>
             </FadeIn>
 

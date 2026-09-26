@@ -90,7 +90,7 @@ function ForecastBody({ product }: { product: Product }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <span className="text-xs text-foreground/45">予測中心値</span>
-          <p className="mt-1 font-display text-2xl font-semibold text-foreground">{yen(forecastCenter)}</p>
+          <p className="mt-1 font-num text-2xl font-semibold text-foreground">{yen(forecastCenter)}</p>
           <p className="mt-0.5 text-xs text-foreground/45">
             予測レンジ {yen(forecastLow)}〜{yen(forecastHigh)}
           </p>
@@ -135,7 +135,7 @@ function ForecastBody({ product }: { product: Product }) {
           {diffCallout && (
             <div className="mt-3 flex items-baseline gap-3 rounded-lg bg-card px-4 py-3">
               <span className="text-xs text-foreground/45">予測される差額</span>
-              <span className="font-display text-2xl font-semibold text-foreground">{yen(diffCallout.amount)}</span>
+              <span className="font-num text-2xl font-semibold text-foreground">{yen(diffCallout.amount)}</span>
               <span className={`text-sm font-semibold ${diffCallout.direction === "down" ? "text-brand dark:text-brand-light" : "text-foreground/60"}`}>
                 約{diffCallout.percent}%{diffCallout.direction === "down" ? "安くなる" : "高くなる"}可能性
               </span>
@@ -145,7 +145,7 @@ function ForecastBody({ product }: { product: Product }) {
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-lg border border-border bg-card p-4">
               <span className="text-xs font-semibold text-foreground/50">今購入する場合</span>
-              <p className="mt-1 font-display text-xl font-semibold text-foreground">{yen(current)}</p>
+              <p className="mt-1 font-num text-xl font-semibold text-foreground">{yen(current)}</p>
               <ul className="mt-2 flex flex-col gap-1 text-xs text-foreground/55">
                 <li>・在庫があり、すぐに購入できる</li>
                 <li>・希望のスペック（色・サイズ等）を確保しやすい</li>
@@ -154,7 +154,7 @@ function ForecastBody({ product }: { product: Product }) {
             </div>
             <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
               <span className="text-xs font-semibold text-foreground/50">価格低下を待つ場合</span>
-              <p className="mt-1 font-display text-xl font-semibold text-foreground">
+              <p className="mt-1 font-num text-xl font-semibold text-foreground">
                 {yen(forecastLow)}〜{yen(forecastHigh)}
               </p>
               <ul className="mt-2 flex flex-col gap-1 text-xs text-foreground/55">

@@ -1,48 +1,54 @@
 @import "tailwindcss";
 
+/* ============================================================
+   "Fairway Terminal" (STEP50) - TradingView/Bloomberg-grade data
+   clarity x the quiet of a modern luxury golf brand.
+   Light, high-contrast paper for reading and product photography;
+   obsidian "terminal" panels (--ink) for data (hero, score, chart);
+   one emerald accent meaning "act here / good price".
+   ============================================================ */
 :root {
-  /* Off White — warm, not stark #fff. Lets product photography and the
-     orange CTA color carry the page instead of competing with a bright bg. */
-  --background: #f7f4ee;
-  --foreground: #14130f;
+  /* Mist paper, obsidian ink - cool, not warm, so emerald reads clean. */
+  --background: #f3f5f4;
+  --foreground: #0a100d;
   --card: #ffffff;
-  --border: #e7e1d5;
+  --border: #dde3e0;
+  /* Slightly stronger hairline for card edges that must hold on white. */
+  --border-strong: #c9d2cd;
 
-  /* Brand: a burnt/terracotta orange — premium, not traffic-cone bright.
-     The one color used to mean "act here": CTAs, links, primary actions,
-     hover states. Used sparingly by design — see AGENTS/DESIGN notes. */
-  --brand: #c1521a;
-  --brand-dark: #963f14;
-  --brand-light: #de7239;
+  /* Brand: fairway emerald. The one "act here" color - CTAs, links,
+     active states, good-price signals. #047857 keeps white button text at
+     AA (5.5:1). --on-brand is the text color ON a brand surface (white
+     here; obsidian in dark mode, where the brand turns bright). */
+  --brand: #047857;
+  --brand-dark: #065f46;
+  --brand-light: #10b981;
+  --on-brand: #ffffff;
+  /* Deep fairway - the darkest green, for premium fills and gradients. */
+  --fairway: #052e16;
+  /* rgb triplet for emerald glows: rgba(var(--glow), a) */
+  --glow: 16 185 129;
 
-  /* Secondary accent: warm charcoal-stone, for eyebrow labels / editorial
-     furniture that needs to read as "considered" without competing with
-     the orange CTA color for attention. */
-  --accent: #8a7e6e;
-  --accent-dark: #6e6455;
+  /* Secondary accent: slate-sage, for eyebrow labels and editorial
+     furniture that must read as "considered" without competing. */
+  --accent: #5b6b64;
+  --accent-dark: #3f4d47;
 
-  /* Discount / urgency only (SALE, 値下げ, 残りわずか) — muted red-brick,
-     never the sitewide accent. Kept visually distinct from --brand so a
-     price drop and a "click here" never look like the same signal. */
-  --sale: #b23a2e;
-  --sale-dark: #8f2e24;
+  /* Discount / urgency only - a refined vermilion, never the accent. */
+  --sale: #c2412d;
+  --sale-dark: #9a3220;
 
-  /* AI signal scale: orange (act now) / warm stone (neutral) / quiet gray
-     (wait) — reuses the brand + accent hues rather than a separate
-     red/green/blue traffic-light palette. */
-  --signal-high: #c1521a;
-  --signal-mid: #8a7e6e;
-  --signal-low: #9b9789;
+  /* Buy-score scale: emerald (buy) / slate (hold) / quiet gray (wait). */
+  --signal-high: #047857;
+  --signal-mid: #64748b;
+  --signal-low: #94a3a0;
 
-  /* Fixed black surface for hero/section headers that pair with literal
-     white text. Deliberately NOT redefined under prefers-color-scheme:
-     dark below - unlike --foreground (which inverts to a light color so
-     body text stays readable on a dark page), these sections are always
-     meant to read as a black panel with white text, so the background
-     must never flip to match. Using --foreground here was the bug: in
-     dark mode it became a near-white cream, leaving white text on a
-     near-white background. */
-  --ink: #14130f;
+  /* Fixed obsidian surface for terminal panels paired with light text -
+     deliberately NOT redefined in dark mode (see the STEP29 note: it
+     must stay a dark panel whatever the page theme). */
+  --ink: #06100c;
+  --ink-2: #0c1813;
+  --ink-border: #1c2b24;
 }
 
 @theme inline {
@@ -50,9 +56,12 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-brand: var(--brand);
   --color-brand-dark: var(--brand-dark);
   --color-brand-light: var(--brand-light);
+  --color-on-brand: var(--on-brand);
+  --color-fairway: var(--fairway);
   --color-accent: var(--accent);
   --color-accent-dark: var(--accent-dark);
   --color-sale: var(--sale);
@@ -61,31 +70,35 @@
   --color-signal-mid: var(--signal-mid);
   --color-signal-low: var(--signal-low);
   --color-ink: var(--ink);
-  --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-fraunces);
-  --font-mono: var(--font-geist-mono);
+  --color-ink-2: var(--ink-2);
+  --color-ink-border: var(--ink-border);
+  --font-sans: var(--font-geist-sans), var(--font-jp);
+  --font-display: var(--font-geist-sans), var(--font-jp);
+  --font-mono: var(--font-num), ui-monospace, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0c0b09;
-    --foreground: #f3f0e8;
-    --card: #17150f;
-    --border: #29271f;
+    --background: #050807;
+    --foreground: #e6ece9;
+    --card: #0a100d;
+    --border: #1a2621;
+    --border-strong: #26352e;
 
-    --brand: #e2762f;
-    --brand-dark: #c1521a;
-    --brand-light: #f0925a;
+    --brand: #10b981;
+    --brand-dark: #059669;
+    --brand-light: #34d399;
+    --on-brand: #03120b;
 
-    --accent: #a79a85;
-    --accent-dark: #8a7e6e;
+    --accent: #8fa39a;
+    --accent-dark: #a9bab2;
 
-    --sale: #d9584a;
-    --sale-dark: #b23a2e;
+    --sale: #f0735f;
+    --sale-dark: #d9584a;
 
-    --signal-high: #e2762f;
-    --signal-mid: #a79a85;
-    --signal-low: #6b6a60;
+    --signal-high: #10b981;
+    --signal-mid: #8a9aa6;
+    --signal-low: #5f6f69;
   }
 }
 
@@ -96,13 +109,25 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), var(--font-jp), "Hiragino Sans", "Yu Gothic", sans-serif;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "palt" 1; /* tighter, more editorial Japanese spacing */
 }
 
 h1, h2, h3, .font-display {
-  font-family: var(--font-display), Georgia, serif;
-  letter-spacing: -0.01em;
+  font-family: var(--font-geist-sans), var(--font-jp), "Hiragino Sans", "Yu Gothic", sans-serif;
+  letter-spacing: -0.025em;
+}
+
+/* Numbers (prices, %, scores): a terminal-grade monospace with tabular
+   figures, so columns of prices align and read like an analytics tool. */
+@layer components {
+  .font-num {
+    font-family: var(--font-num), ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums slashed-zero;
+    letter-spacing: -0.03em;
+    font-feature-settings: "zero" 1;
+  }
 }
 
 @keyframes fade-up {
@@ -143,4 +168,221 @@ h1, h2, h3, .font-display {
 
 html {
   scroll-behavior: smooth;
+}
+
+
+/* ============================================================
+   STEP50 components & micro-interactions
+   ============================================================ */
+/* In @layer components so Tailwind utilities on the same element (e.g.
+   rounded-full on a .skeleton circle) always win over these defaults. */
+@layer components {
+
+/* Premium card: hairline border that turns into an emerald gradient edge
+   on hover, with a slight lift and a soft, green-tinted shadow. The
+   gradient border uses the padding-box/border-box technique so there's
+   no extra wrapper element. */
+.card-lux {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(145deg, var(--border-strong), var(--border) 45%, var(--border)) border-box;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.35s ease;
+}
+.card-lux:hover {
+  transform: translateY(-3px);
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(145deg, rgba(var(--glow), 0.9), rgba(var(--glow), 0.15) 40%, var(--border-strong) 100%) border-box;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 18px 40px -22px rgba(var(--glow), 0.45),
+    0 8px 24px -16px rgba(6, 16, 12, 0.25);
+}
+
+/* Shop CTA ("楽天で見る" etc.): deep-fairway-to-emerald fill, a light
+   sweep on hover, the arrow nudges forward, a press squashes slightly. */
+.btn-shop {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--on-brand);
+  background: linear-gradient(135deg, var(--brand-dark), var(--brand) 55%, var(--brand-light));
+  box-shadow: 0 10px 24px -14px rgba(var(--glow), 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.3s ease, filter 0.3s ease;
+}
+.btn-shop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn-shop:hover {
+  box-shadow: 0 16px 32px -14px rgba(var(--glow), 1), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  filter: saturate(1.1);
+}
+.btn-shop:hover::after {
+  transform: translateX(120%);
+}
+.btn-shop:active {
+  transform: scale(0.98);
+}
+.btn-shop:focus-visible,
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--brand-light);
+  outline-offset: 3px;
+}
+.btn-shop .btn-arrow,
+.btn-ghost .btn-arrow {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn-shop:hover .btn-arrow,
+.btn-ghost:hover .btn-arrow {
+  transform: translateX(3px);
+}
+/* Secondary CTA: hairline outline that picks up the emerald on hover. */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  transition: border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.3s ease;
+}
+.btn-ghost:hover {
+  border-color: rgba(var(--glow), 0.7);
+  box-shadow: 0 0 0 3px rgba(var(--glow), 0.1);
+}
+.btn-ghost:active {
+  transform: scale(0.98);
+}
+
+/* Obsidian terminal panel: faint measurement grid + emerald horizon glow. */
+.terminal-panel {
+  background-color: var(--ink);
+  background-image:
+    radial-gradient(120% 80% at 85% 0%, rgba(var(--glow), 0.18), transparent 55%),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: auto, 32px 32px, 32px 32px;
+  color: #e6ece9;
+}
+
+/* Emerald glow for "best price" style highlights. */
+.glow-emerald {
+  box-shadow: 0 0 0 1px rgba(var(--glow), 0.35), 0 0 18px -2px rgba(var(--glow), 0.55);
+}
+
+/* Live dot: a soft emerald pulse (records-low badge, "LIVE" markers). */
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(var(--glow), 0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(var(--glow), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--glow), 0); }
+}
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--brand-light);
+  animation: live-pulse 2s ease-out infinite;
+}
+
+/* Buy-score ring halo for 今が買い時 - slow breathing glow. */
+@keyframes score-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--glow), 0.0), 0 0 22px -6px rgba(var(--glow), 0.55); }
+  50% { box-shadow: 0 0 0 5px rgba(var(--glow), 0.08), 0 0 34px -4px rgba(var(--glow), 0.75); }
+}
+.score-breathe {
+  animation: score-breathe 3.2s ease-in-out infinite;
+}
+
+/* Latest-price marker on the chart: an expanding emerald ripple. */
+@keyframes chart-pulse {
+  0% { transform: scale(1); opacity: 0.45; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+.chart-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-pulse 2.2s ease-out infinite;
+}
+
+/* Skeleton loading: a calm, low-contrast shimmer - never a harsh flash. */
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--foreground) 6%, transparent) 0%,
+    color-mix(in srgb, var(--foreground) 11%, transparent) 50%,
+    color-mix(in srgb, var(--foreground) 6%, transparent) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Bottom sheet (mobile "もっと" menu): slides up with a spring-like ease. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes sheet-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.sheet-enter { animation: sheet-up 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sheet-exit { animation: sheet-down 0.24s cubic-bezier(0.4, 0, 1, 1) both; }
+.backdrop-enter { animation: backdrop-in 0.3s ease both; }
+.backdrop-exit { animation: backdrop-out 0.24s ease both; }
+
+/* Tap feedback for app-like controls (tab bar, segmented tabs). */
+.tap {
+  transition: transform 0.15s ease, background-color 0.25s ease, color 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tap:active {
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-lux,
+  .card-lux:hover,
+  .btn-shop,
+  .btn-shop::after,
+  .tap:active {
+    transform: none;
+    transition: none;
+  }
+  .live-dot,
+  .chart-pulse,
+  .score-breathe,
+  .skeleton,
+  .sheet-enter,
+  .sheet-exit,
+  .backdrop-enter,
+  .backdrop-exit {
+    animation: none;
+  }
+}
 }

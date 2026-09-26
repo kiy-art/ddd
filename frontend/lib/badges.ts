@@ -35,7 +35,7 @@ export function getProductBadge(product: Product): ProductBadge | null {
     product.current_price <= product.lowest_price * NEAR_LOW_RATIO;
 
   if (product.buy_score === "strong_buy") {
-    return nearAllTimeLow ? { label: "過去最安値圏", tone: "strong" } : { label: "STRONG BUY", tone: "strong" };
+    return nearAllTimeLow ? { label: "過去最安値圏", tone: "strong" } : { label: "今が買い時", tone: "strong" };
   }
   if (product.buy_score === "buy") {
     return { label: "コスパ良し", tone: "value" };

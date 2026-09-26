@@ -29,6 +29,10 @@ const SLOTS: Slot[] = [
   { top: "26%", left: "34%", size: 68, rotate: -8, opacity: 0.35 },
 ];
 
+function hideTile(img: HTMLImageElement) {
+  img.parentElement?.style.setProperty("display", "none");
+}
+
 export default function ProductPhotoCollage({ images }: { images: (string | null | undefined)[] }) {
   const usable = images
     .map(normalizeImageUrl)
@@ -66,8 +70,12 @@ export default function ProductPhotoCollage({ images }: { images: (string | null
               alt=""
               referrerPolicy="no-referrer"
               className="h-full w-full rounded-2xl object-contain p-3"
-              onError={(e) => {
-                e.currentTarget.parentElement?.style.setProperty("display", "none");
+              onError={(e) => hideTile(e.currentTarget)}
+              // A photo that failed BEFORE React hydrated never fires onError
+              // (the event is gone by the time the handler attaches) - check
+              // once on mount so a dead photo can't linger as a broken tile.
+              ref={(img) => {
+                if (img && img.complete && img.naturalWidth === 0) hideTile(img);
               }}
             />
           </div>
