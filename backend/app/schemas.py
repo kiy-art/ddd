@@ -300,3 +300,14 @@ class GuideArticleOut(BaseModel):
 class TrendingProductsOut(BaseModel):
     decision_basis: str | None
     products: list[ProductOut]
+
+
+class ImprovementOpportunityOut(BaseModel):
+    product_id: int
+    product_name: str
+    target_path: str
+    goal: str
+    decision_basis: str
+    est_extra_shop_clicks: float
+    priority_score: float
+    shop_click_rate_known: bool

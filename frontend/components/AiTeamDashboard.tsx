@@ -7,10 +7,12 @@ import {
   AffiliateClickSummary,
   AiOptimizationAction,
   ErrorLog,
+  ImprovementOpportunity,
   PageStat,
   adminAutoFixLogs,
   adminFetchRakuten,
   adminGetAffiliateClickSummary,
+  adminGetImprovementOpportunities,
   adminGetLogs,
   adminGetTopPages,
   adminListOptimizationActions,
@@ -152,6 +154,7 @@ function buildPlanningSession(data: {
   logs: ErrorLog[];
   topPages: PageStat[] | null;
   optimizationActions: AiOptimizationAction[] | null;
+  opportunities: ImprovementOpportunity[] | null;
 }): { persona: PersonaId; lines: string[] }[] {
   const steps: { persona: PersonaId; lines: string[] }[] = [];
 
@@ -196,6 +199,25 @@ function buildPlanningSession(data: {
     steps.push({
       persona: "cmo",
       lines: ["振り返り: GA4が未設定のため検索流入データは確認できません。設定後に上位ページ分析が可能になります。"],
+    });
+  }
+
+  // STEP43: the same revenue-ranked priority queue the daily optimization
+  // run spends its budget on (app/content_optimizer.py
+  // find_improvement_opportunities) - CMO owns search-result (SEO) gaps,
+  // CRO owns on-page conversion gaps. Each line quotes the real basis.
+  const topSearchGap = (data.opportunities ?? []).find((o) => o.goal === "search_ctr");
+  const topConversionGap = (data.opportunities ?? []).find((o) => o.goal === "on_page_conversion");
+  if (topSearchGap) {
+    steps.push({
+      persona: "cmo",
+      lines: [`課題特定（SEO）: 「${topSearchGap.product_name}」— ${topSearchGap.decision_basis}`],
+    });
+  }
+  if (topConversionGap) {
+    steps.push({
+      persona: "cro",
+      lines: [`課題特定（CRO）: 「${topConversionGap.product_name}」— ${topConversionGap.decision_basis}`],
     });
   }
 
@@ -271,6 +293,12 @@ function buildPlanningSession(data: {
         `${missing.map((s) => SHOP_LABELS[s]).join("・")}へのクリックが未記録です。リンクの表示位置・視認性を確認しましょう。`
       );
     }
+  }
+  const topOpportunity = (data.opportunities ?? [])[0];
+  if (topOpportunity) {
+    actions.push(
+      `想定報酬インパクトが最も大きい「${topOpportunity.product_name}」から、次回の自動改善ループで優先的に改善します。`
+    );
   }
   if (errorCount > 0) actions.push("エラーログの内容を確認し、原因を特定しましょう。");
   if (priceWarnings > 0) actions.push("価格表示の警告（price_fetch）の内容を確認し、表示価格の正確性を優先しましょう。");
@@ -369,6 +397,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
   const logsRef = useRef<ErrorLog[]>([]);
   const topPagesRef = useRef<PageStat[] | null>(null);
   const optimizationActionsRef = useRef<AiOptimizationAction[] | null>(null);
+  const opportunitiesRef = useRef<ImprovementOpportunity[] | null>(null);
 
   const addMessages = (additions: Omit<ChatMessage, "fresh">[]) => {
     if (additions.length === 0) return;
@@ -388,7 +417,8 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
       adminGetAffiliateClickSummary(token).catch(() => null),
       adminGetTopPages(token).catch(() => null),
       adminListOptimizationActions(token).catch(() => null),
-    ]).then(([logsData, clicksData, topPagesData, optimizationActionsData]) => {
+      adminGetImprovementOpportunities(token).catch(() => null),
+    ]).then(([logsData, clicksData, topPagesData, optimizationActionsData, opportunitiesData]) => {
       logsRef.current = logsData;
       seenLogIdsRef.current = new Set(logsData.map((l) => l.id));
       setClicks(clicksData);
@@ -400,6 +430,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
       topPagesRef.current = topPagesData;
       setGa4Configured(topPagesData !== null);
       optimizationActionsRef.current = optimizationActionsData;
+      opportunitiesRef.current = opportunitiesData;
 
       if (!seededRef.current) {
         const seeded = [...logsData]
@@ -573,6 +604,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
       logs: logsRef.current,
       topPages: topPagesRef.current,
       optimizationActions: optimizationActionsRef.current,
+      opportunities: opportunitiesRef.current,
     });
     for (const step of steps) {
       setMeetingThinking(step.persona);

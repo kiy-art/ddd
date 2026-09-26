@@ -513,6 +513,8 @@ def revert_optimization_action(db: Session, action_id: int) -> models.AiOptimiza
     product.ai_title = before.get("ai_title")
     product.ai_summary = before.get("ai_summary")
     product.ai_caution = before.get("ai_caution")
+    if product.ai_copy_source_action_id == action.id:
+        product.ai_copy_source_action_id = None
 
     action.status = "reverted"
     action.reverted_at = datetime.datetime.utcnow()

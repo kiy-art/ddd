@@ -130,3 +130,71 @@ def test_draft_new_guide_returns_parsed_json_referencing_only_given_products(mon
         ]
     finally:
         get_settings.cache_clear()
+
+
+def test_rewrite_passes_goal_and_real_search_queries_to_claude(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    response = json.dumps(
+        {"title": "PING G440 MAX ドライバー 定価より26.8%安い", "summary": "¥58,000で購入できます。", "caution": "価格は変動する可能性があります。"},
+        ensure_ascii=False,
+    )
+    fake_client = _mock_anthropic_client(response)
+
+    import anthropic
+
+    monkeypatch.setattr(anthropic, "Anthropic", lambda api_key: fake_client)
+    queries = [{"query": "g440 max 最安", "impressions": 120, "clicks": 2, "position": 7.1}]
+    try:
+        content_rewriter.rewrite_product_copy(_make_product(), "CTRがサイト平均未満", goal="search_ctr", search_queries=queries)
+        call_kwargs = fake_client.messages.create.call_args.kwargs
+        sent_facts = json.loads(call_kwargs["messages"][0]["content"].split("\n", 1)[1])
+        assert sent_facts["optimization_goal"] == "search_ctr"
+        assert sent_facts["real_search_queries"] == queries
+        assert "検索結果でのクリック率改善" in call_kwargs["system"]
+    finally:
+        get_settings.cache_clear()
+
+
+def test_rewrite_rejects_copy_that_invents_a_number(monkeypatch):
+    from app import marketing_playbook
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    response = json.dumps(
+        {"title": "PING G440 MAX 定価より50%安い", "summary": "今が買い時です。", "caution": "価格は変動する可能性があります。"},
+        ensure_ascii=False,
+    )
+    import anthropic
+
+    monkeypatch.setattr(anthropic, "Anthropic", lambda api_key: _mock_anthropic_client(response))
+    try:
+        with pytest.raises(marketing_playbook.ContentPolicyViolation):
+            content_rewriter.rewrite_product_copy(_make_product(), "x", goal="on_page_conversion")
+    finally:
+        get_settings.cache_clear()
+
+
+def test_guide_draft_rejects_a_price_not_in_the_product_list(monkeypatch):
+    from app import marketing_playbook
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    response = json.dumps(
+        {"title": "型落ちパター特集", "description": "d", "sections": [{"heading": "h", "paragraphs": ["¥9,800から買えます。"]}]},
+        ensure_ascii=False,
+    )
+    import anthropic
+
+    monkeypatch.setattr(anthropic, "Anthropic", lambda api_key: _mock_anthropic_client(response))
+    try:
+        with pytest.raises(marketing_playbook.ContentPolicyViolation):
+            content_rewriter.draft_new_guide("パター 型落ち", [_make_product(category="putter")])
+    finally:
+        get_settings.cache_clear()

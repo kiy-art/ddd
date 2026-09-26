@@ -9,7 +9,9 @@ from app.database import Base
 # and (once evaluated) whether it actually helped.
 OPTIMIZATION_ACTION_TYPES = ["rewrite_product", "new_guide", "reorder_homepage"]
 OPTIMIZATION_ACTION_STATUSES = ["applied", "reverted", "failed"]
-OPTIMIZATION_VERDICTS = ["improved", "no_change", "worse"]
+# "inconclusive": the copy being measured was replaced mid-window, so the
+# effect can't be attributed to this decision (STEP43).
+OPTIMIZATION_VERDICTS = ["improved", "no_change", "worse", "inconclusive"]
 
 CATEGORIES = ["driver", "iron", "wedge", "putter", "ball"]
 
@@ -119,6 +121,13 @@ class Product(Base):
     ai_caution: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_generated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     ai_content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # STEP43: id of the AiOptimizationAction whose goal/style currently
+    # governs this product's ai_* copy (None = routine ai.py copy). Lets
+    # pipeline.sync_product_analysis keep an optimizer rewrite's approach
+    # when price facts change (instead of silently reverting to routine
+    # copy the next day), and lets evaluate_past_actions tell whether the
+    # copy it's measuring is still the one that decision produced.
+    ai_copy_source_action_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(

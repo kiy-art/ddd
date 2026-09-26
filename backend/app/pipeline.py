@@ -3,6 +3,7 @@
 two never drift apart."""
 
 import datetime
+import json
 import statistics
 import time
 from typing import Callable
@@ -10,7 +11,7 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ai, analysis, crud, email, forecast, models, rakuten, yahoo
+from app import ai, analysis, content_rewriter, crud, email, forecast, models, rakuten, yahoo
 from app.config import get_settings
 from app.rakuten import search_lowest_price
 
@@ -79,6 +80,35 @@ def _is_plausible_price(product: models.Product, price: int) -> bool:
     return PRICE_SANITY_MIN_RATIO <= ratio <= PRICE_SANITY_MAX_RATIO
 
 
+def _regenerate_in_optimized_style(db: Session, product: models.Product, result: analysis.AnalysisResult) -> bool:
+    """When a product's copy came from a content-optimizer decision (STEP43)
+    and its price facts just changed, regenerate with that decision's goal
+    and search queries instead of reverting to routine copy - otherwise the
+    optimizer's improvement is erased the next day and its effect can
+    never be measured. Only when ai.py would itself call Claude for this
+    verdict, so this never adds a Claude call beyond the existing routine
+    regeneration (docs/ai_company_guidelines.md absolute rule 1). Returns
+    False (caller falls back to routine copy) if not eligible or it fails."""
+    action = db.get(models.AiOptimizationAction, product.ai_copy_source_action_id)
+    if action is None or action.status != "applied" or not action.content_after or not ai.would_use_claude(result):
+        return False
+    after = json.loads(action.content_after)
+    try:
+        rewritten = content_rewriter.rewrite_product_copy(
+            product, action.decision_basis, goal=after.get("goal"), search_queries=after.get("queries") or []
+        )
+    except Exception as exc:  # noqa: BLE001 - fall back to routine copy rather than keep stale numbers
+        crud.create_error_log(
+            db, source="ai_generation", message=f"optimized-style regeneration failed, using routine copy: {exc}", product_id=product.id
+        )
+        return False
+    product.ai_title = rewritten.title
+    product.ai_summary = rewritten.summary
+    product.ai_caution = rewritten.caution
+    product.ai_generated_at = datetime.datetime.utcnow()
+    return True
+
+
 def sync_product_analysis(db: Session, product: models.Product) -> bool:
     """Recompute stats/buy_score from price history, refresh buy_reason, and
     regenerate AI wording only if the underlying facts changed (cost control).
@@ -122,6 +152,15 @@ def sync_product_analysis(db: Session, product: models.Product) -> bool:
     if not ai.should_regenerate(product, new_hash):
         db.commit()
         return False
+
+    if product.ai_copy_source_action_id is not None and _regenerate_in_optimized_style(db, product, result):
+        product.ai_content_hash = new_hash
+        db.commit()
+        db.refresh(product)
+        return True
+    # Routine copy replaces whatever the optimizer wrote - clear the marker
+    # so evaluate_past_actions knows that decision's copy is no longer live.
+    product.ai_copy_source_action_id = None
 
     content, error = ai.generate_ai_content_safe(product.name, product.brand, result)
     if error:

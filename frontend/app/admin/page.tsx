@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 
 import {
   AiOptimizationAction,
+  ImprovementOpportunity,
   adminDiscoverProducts,
   adminFetchRakuten,
+  adminGetImprovementOpportunities,
   adminGetXPostPreview,
   adminImportCsv,
   adminListOptimizationActions,
@@ -29,6 +31,11 @@ const OPTIMIZATION_ACTION_LABELS: Record<string, string> = {
   reorder_homepage: "トップページ注目商品の入れ替え",
 };
 
+const OPPORTUNITY_GOAL_LABELS: Record<string, string> = {
+  search_ctr: "検索結果での訴求（SEO）",
+  on_page_conversion: "ページ上の購入訴求（CRO）",
+};
+
 const OPTIMIZATION_STATUS_LABELS: Record<string, string> = {
   applied: "実施済み",
   reverted: "元に戻し済み",
@@ -44,6 +51,7 @@ export default function AdminDashboard() {
   const [xPostPreview, setXPostPreview] = useState<string | null | undefined>(undefined);
   const [xCopyMessage, setXCopyMessage] = useState<string | null>(null);
   const [optimizationActions, setOptimizationActions] = useState<AiOptimizationAction[]>([]);
+  const [opportunities, setOpportunities] = useState<ImprovementOpportunity[]>([]);
 
   const load = async () => {
     if (!token) return;
@@ -55,7 +63,12 @@ export default function AdminDashboard() {
   const loadOptimizationActions = async () => {
     if (!token) return;
     try {
-      setOptimizationActions(await adminListOptimizationActions(token));
+      const [actions, opps] = await Promise.all([
+        adminListOptimizationActions(token),
+        adminGetImprovementOpportunities(token),
+      ]);
+      setOptimizationActions(actions);
+      setOpportunities(opps);
     } catch {
       // best-effort - the rest of the dashboard still works without this
     }
@@ -80,6 +93,13 @@ export default function AdminDashboard() {
     adminListOptimizationActions(token)
       .then((data) => {
         if (!ignore) setOptimizationActions(data);
+      })
+      .catch(() => {
+        // best-effort
+      });
+    adminGetImprovementOpportunities(token)
+      .then((data) => {
+        if (!ignore) setOpportunities(data);
       })
       .catch(() => {
         // best-effort
@@ -474,6 +494,33 @@ export default function AdminDashboard() {
           今すぐ実行
         </button>
 
+        <div className="mt-2 flex flex-col gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-foreground/40">
+            優先度の高い改善機会（実データから算出・次回の実行で上位から自動改善）
+          </p>
+          {opportunities.length === 0 ? (
+            <p className="text-sm text-foreground/50">
+              現時点で、実データ上の明確な改善余地が見つかった商品ページはありません（データ蓄積中の場合もあります）。
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-2">
+              {opportunities.slice(0, 5).map((o, i) => (
+                <li key={o.product_id} className="rounded-xl border border-border bg-background p-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-foreground">{i + 1}.</span>
+                    <span className="font-medium text-foreground">{o.product_name}</span>
+                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-foreground/60">
+                      {OPPORTUNITY_GOAL_LABELS[o.goal] ?? o.goal}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-foreground/65">{o.decision_basis}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        <p className="mt-2 text-xs font-medium uppercase tracking-wide text-foreground/40">実施履歴</p>
         {optimizationActions.length === 0 ? (
           <p className="text-sm text-foreground/50">まだ実行記録がありません。</p>
         ) : (

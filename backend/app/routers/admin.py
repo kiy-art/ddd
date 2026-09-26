@@ -655,6 +655,27 @@ def run_content_optimization_now(db: Session = Depends(get_db)):
     )
 
 
+@router.get("/improvement-opportunities", response_model=list[schemas.ImprovementOpportunityOut])
+def list_improvement_opportunities(limit: int = 10, db: Session = Depends(get_db)):
+    """The STEP43 priority queue the daily run spends its Claude budget on:
+    every product page with a real, measurable gap, ranked by estimated
+    affiliate-click gain x price. Pure DB computation - no Claude or
+    Google API calls - so it's safe to call on every admin page load."""
+    return [
+        schemas.ImprovementOpportunityOut(
+            product_id=o.product.id,
+            product_name=o.product.name,
+            target_path=f"/products/{o.product.slug}",
+            goal=o.goal,
+            decision_basis=o.decision_basis,
+            est_extra_shop_clicks=o.est_extra_shop_clicks,
+            priority_score=o.priority_score,
+            shop_click_rate_known=o.shop_click_rate_known,
+        )
+        for o in content_optimizer.find_improvement_opportunities(db)[:limit]
+    ]
+
+
 @router.get("/optimization-actions", response_model=list[schemas.AiOptimizationActionOut])
 def list_optimization_actions(limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
     """The STEP42 "ナレッジ" log: every autonomous content/layout decision,

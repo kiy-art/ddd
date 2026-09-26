@@ -108,3 +108,30 @@ def test_get_top_queries_parses_real_response_shape(monkeypatch):
 
     call_kwargs = fake_service.searchanalytics.return_value.query.call_args.kwargs
     assert call_kwargs["body"]["dimensions"] == ["query"]
+
+
+def test_get_queries_for_page_filters_by_the_exact_page_url(monkeypatch):
+    _set_env(monkeypatch, site_url="https://par-gear.com/")
+
+    fake_query = MagicMock()
+    fake_query.execute.return_value = {
+        "rows": [{"keys": ["g440 max 値下がり"], "clicks": 1, "impressions": 80, "ctr": 0.0125, "position": 9.2}]
+    }
+    fake_service = MagicMock()
+    fake_service.searchanalytics.return_value.query.return_value = fake_query
+
+    monkeypatch.setattr("googleapiclient.discovery.build", _mock_build(fake_service))
+    monkeypatch.setattr(
+        "google.oauth2.service_account.Credentials.from_service_account_info",
+        lambda info, **kwargs: MagicMock(),
+    )
+
+    rows = search_console.get_queries_for_page("https://par-gear.com/products/ping-g440-max")
+    assert [r.query for r in rows] == ["g440 max 値下がり"]
+
+    body = fake_service.searchanalytics.return_value.query.call_args.kwargs["body"]
+    assert body["dimensionFilterGroups"][0]["filters"][0] == {
+        "dimension": "page",
+        "operator": "equals",
+        "expression": "https://par-gear.com/products/ping-g440-max",
+    }

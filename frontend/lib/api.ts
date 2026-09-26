@@ -527,7 +527,7 @@ export interface AiOptimizationAction {
   created_at: string;
   effect_evaluated_at: string | null;
   effect_summary: string | null;
-  effect_verdict: "improved" | "no_change" | "worse" | null;
+  effect_verdict: "improved" | "no_change" | "worse" | "inconclusive" | null;
   reverted_at: string | null;
 }
 
@@ -547,6 +547,21 @@ export function adminRunContentOptimization(token: string) {
 
 export function adminListOptimizationActions(token: string) {
   return apiFetch<AiOptimizationAction[]>(`/api/admin/optimization-actions`, { headers: adminHeaders(token) });
+}
+
+export interface ImprovementOpportunity {
+  product_id: number;
+  product_name: string;
+  target_path: string;
+  goal: "search_ctr" | "on_page_conversion";
+  decision_basis: string;
+  est_extra_shop_clicks: number;
+  priority_score: number;
+  shop_click_rate_known: boolean;
+}
+
+export function adminGetImprovementOpportunities(token: string) {
+  return apiFetch<ImprovementOpportunity[]>(`/api/admin/improvement-opportunities`, { headers: adminHeaders(token) });
 }
 
 export function adminRevertOptimizationAction(token: string, actionId: number) {

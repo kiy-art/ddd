@@ -165,6 +165,8 @@ def test_revert_optimization_action_restores_previous_content(client, admin_head
     )
     db_session.add(action)
     db_session.commit()
+    product.ai_copy_source_action_id = action.id
+    db_session.commit()
 
     resp = client.post(f"/api/admin/optimization-actions/{action.id}/revert", headers=admin_headers)
     assert resp.status_code == 200
@@ -172,6 +174,7 @@ def test_revert_optimization_action_restores_previous_content(client, admin_head
 
     db_session.refresh(product)
     assert product.ai_title == "旧タイトル"
+    assert product.ai_copy_source_action_id is None
 
 
 def test_revert_optimization_action_404_for_unknown_id(client, admin_headers):
@@ -202,3 +205,27 @@ def test_revert_optimization_action_rejects_already_reverted(client, admin_heade
 
     resp = client.post(f"/api/admin/optimization-actions/{action.id}/revert", headers=admin_headers)
     assert resp.status_code == 400
+
+
+def test_improvement_opportunities_requires_admin_auth(client):
+    resp = client.get("/api/admin/improvement-opportunities")
+    assert resp.status_code in (401, 403)
+
+
+def test_improvement_opportunities_returns_ranked_real_gaps(client, admin_headers, db_session):
+    weak = _make_product(db_session, name="weak", slug="weak", current_price=60000)
+    ref = _make_product(db_session, name="ref", slug="ref")
+    today = datetime.date.today()
+    for product, clicks in ((weak, 10), (ref, 80)):
+        db_session.add(models.PageMetricsSnapshot(
+            snapshot_date=today, path=f"/products/{product.slug}", product_id=product.id,
+            search_impressions=1000, search_clicks=clicks, search_ctr=clicks / 1000, search_position=5.0,
+        ))
+    db_session.commit()
+
+    resp = client.get("/api/admin/improvement-opportunities", headers=admin_headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert [o["product_name"] for o in body] == ["weak"]
+    assert body[0]["goal"] == "search_ctr"
+    assert body[0]["target_path"] == "/products/weak"

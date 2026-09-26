@@ -13,6 +13,7 @@ etc). Uses whichever of the two IS configured if only one is.
 import dataclasses
 import datetime
 import re
+import urllib.parse
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -41,8 +42,12 @@ class SnapshotCaptureResult:
     pages_captured: int
 
 
-def _strip_query(path: str) -> str:
-    return path.split("?", 1)[0].rstrip("/") or "/"
+def _normalize_path(path_or_url: str) -> str:
+    # GA4 reports a bare path ("/products/x"), but Search Console reports
+    # the page's full URL ("https://par-gear.com/products/x") - both must
+    # reduce to the same key or the two sources never merge into one row.
+    path = urllib.parse.urlparse(path_or_url).path or "/"
+    return path.rstrip("/") or "/"
 
 
 def _match_product_id(path: str, slug_to_id: dict[str, int]) -> int | None:
@@ -65,7 +70,7 @@ def capture_daily_snapshot(db: Session) -> SnapshotCaptureResult:
     ga4_available = True
     try:
         for stat in analytics_ga4.get_top_pages(days=GA4_WINDOW_DAYS, limit=SNAPSHOT_PAGE_LIMIT):
-            ga4_pages[_strip_query(stat.path)] = stat
+            ga4_pages[_normalize_path(stat.path)] = stat
     except analytics_ga4.GA4NotConfigured:
         ga4_available = False
 
@@ -73,7 +78,7 @@ def capture_daily_snapshot(db: Session) -> SnapshotCaptureResult:
     search_console_available = True
     try:
         for stat in search_console.get_page_performance(days=SEARCH_CONSOLE_WINDOW_DAYS, limit=SNAPSHOT_PAGE_LIMIT):
-            search_pages[_strip_query(stat.path)] = stat
+            search_pages[_normalize_path(stat.path)] = stat
     except search_console.SearchConsoleNotConfigured:
         search_console_available = False
 

@@ -40,12 +40,14 @@ def test_capture_daily_snapshot_merges_ga4_and_search_console_by_path(db_session
             )
         ],
     )
+    # Search Console's real response shape: the page key is the full URL,
+    # not a path like GA4's - the two must still merge into one row.
     monkeypatch.setattr(
         search_console,
         "get_page_performance",
         lambda **kwargs: [
             search_console.PagePerformance(
-                path=f"/products/{product.slug}", clicks=12, impressions=340, ctr=0.035, position=8.4
+                path=f"https://par-gear.com/products/{product.slug}", clicks=12, impressions=340, ctr=0.035, position=8.4
             )
         ],
     )

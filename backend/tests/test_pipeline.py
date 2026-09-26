@@ -507,3 +507,71 @@ def test_find_and_fix_price_anomalies_cleans_up_preexisting_bad_row(db_session):
     assert 1100 not in remaining_prices
 
     assert pipeline.find_price_anomalies(db_session) == []
+
+
+# --- STEP43: routine regeneration must not erase an optimizer rewrite -------
+
+
+def _optimized_product(db):
+    import datetime
+    import json
+
+    from app import models
+
+    product = _make_product(db)
+    for days_ago, price in ((20, 60000), (10, 60000)):
+        row = crud.add_price(db, product, price)
+        row.recorded_at = datetime.datetime.utcnow() - datetime.timedelta(days=days_ago)
+    db.commit()
+    action = models.AiOptimizationAction(
+        action_type="rewrite_product",
+        target_path=f"/products/{product.slug}",
+        product_id=product.id,
+        decision_basis="検索クリック率がサイト平均未満",
+        content_after=json.dumps({"ai_title": "最適化タイトル", "goal": "search_ctr", "queries": [{"query": "g430"}]}),
+        status="applied",
+    )
+    db.add(action)
+    db.flush()
+    product.ai_title = "最適化タイトル"
+    product.ai_copy_source_action_id = action.id
+    product.ai_content_hash = "stale-facts"
+    db.commit()
+    return product, action
+
+
+def test_price_change_regenerates_in_the_optimizers_style_not_routine_copy(db_session, monkeypatch):
+    from app import ai, content_rewriter
+
+    product, action = _optimized_product(db_session)
+    monkeypatch.setattr(ai, "would_use_claude", lambda result: True)
+    calls = []
+
+    def _rewrite(product, reason, goal=None, search_queries=None):
+        calls.append((goal, search_queries))
+        return content_rewriter.RewrittenProductCopy(title="最適化タイトル（新価格）", summary="s", caution="c")
+
+    monkeypatch.setattr(content_rewriter, "rewrite_product_copy", _rewrite)
+    monkeypatch.setattr(ai, "generate_ai_content_safe", lambda *a, **k: (_ for _ in ()).throw(AssertionError("routine copy used")))
+
+    assert pipeline.sync_product_analysis(db_session, product) is True
+    db_session.refresh(product)
+    assert calls == [("search_ctr", [{"query": "g430"}])]
+    assert product.ai_title == "最適化タイトル（新価格）"
+    assert product.ai_copy_source_action_id == action.id
+
+
+def test_optimized_style_never_adds_a_claude_call_the_routine_path_wouldnt_make(db_session, monkeypatch):
+    from app import ai, content_rewriter
+
+    product, _ = _optimized_product(db_session)
+    monkeypatch.setattr(ai, "would_use_claude", lambda result: False)
+    monkeypatch.setattr(
+        content_rewriter, "rewrite_product_copy", lambda *a, **k: (_ for _ in ()).throw(AssertionError("extra Claude call"))
+    )
+
+    pipeline.sync_product_analysis(db_session, product)
+    db_session.refresh(product)
+    # Routine (free, rule-based) copy took over, so the marker is cleared -
+    # evaluate_past_actions will report the old decision as inconclusive.
+    assert product.ai_copy_source_action_id is None

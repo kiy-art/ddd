@@ -23,8 +23,9 @@ import re
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import content_metrics, content_rewriter, crud, models, search_console
+from app import ai, content_metrics, content_rewriter, crud, models, search_console
 from app.brands import match_brand
+from app.config import get_settings
 
 # A rewrite/new-guide costs a real Claude API call - capped low and
 # explicitly approved by the president (STEP42) rather than left
@@ -57,10 +58,44 @@ EFFECT_EVALUATION_DELAY_DAYS = 7
 EFFECT_IMPROVE_THRESHOLD_PCT = 10.0
 
 
+# STEP43: "成果に直結する改善" prioritization. Every candidate improvement
+# is expressed in the one unit closest to revenue this site can actually
+# measure - estimated extra affiliate (shop) clicks - and then weighted by
+# price, because affiliate commission is a percentage of the sale: the
+# same click gap on a ¥80,000 driver is worth ~16x one on a ¥5,000 dozen
+# of balls. That makes priority_score a *relative* ranking under a stated
+# assumption (similar purchase and commission rates across products), not
+# a yen forecast - no real commission data is integrated (see
+# daily_report.py's note on 収益). The daily Claude budget
+# (DAILY_ACTION_CAP) then goes to the highest-scoring pages first, and
+# existing pages with proven traffic are improved before any new guide is
+# drafted (the standard affiliate-SEO order: fix what already ranks
+# before writing more).
+GOAL_SEARCH_CTR = "search_ctr"
+GOAL_ON_PAGE_CONVERSION = "on_page_conversion"
+
+# Cross-sectional (single snapshot) gaps vs. this site's own product-page
+# average - a comparison across pages on the same day, not a claimed
+# trend, so one snapshot is enough.
+SEARCH_GAP_MIN_IMPRESSIONS = 50
+# Past ~page 2 of results, a better title rarely unlocks clicks - the
+# ranking itself is the bottleneck, which copy can't fix.
+SEARCH_GAP_MAX_POSITION = 20.0
+CONVERSION_GAP_MIN_PAGEVIEWS = 30
+CONVERSION_LOOKBACK_DAYS = 7
+# Must be at least this far below the site average to count - a small
+# gap is within normal page-to-page variation.
+GAP_MIN_RATIO = 0.3
+
+
 @dataclasses.dataclass
-class UnderperformingFinding:
+class ImprovementOpportunity:
     product: models.Product
+    goal: str
     decision_basis: str
+    est_extra_shop_clicks: float  # in shop clicks, or search visits when shop_click_rate_known is False
+    priority_score: float
+    shop_click_rate_known: bool
 
 
 @dataclasses.dataclass
@@ -92,58 +127,181 @@ def _recent_rewrite_exists(db: Session, product_id: int) -> bool:
     return row is not None
 
 
-def find_underperforming_products(db: Session, lookback_days: int = UNDERPERFORMING_LOOKBACK_DAYS) -> list[UnderperformingFinding]:
-    """A product qualifies only when at least 2 real snapshots exist for
-    its page and the metric (search CTR, or pageviews when Search Console
-    isn't configured) declined by at least DECLINE_THRESHOLD_PCT between
-    the earliest and latest snapshot in the window - never from a single
-    data point, and never below the noise floors above."""
-    since = datetime.date.today() - datetime.timedelta(days=lookback_days)
-    rows = list(
+def _site_search_ctr(latest: dict[int, models.PageMetricsSnapshot]) -> float | None:
+    rows = [r for r in latest.values() if r.search_impressions and r.search_clicks is not None]
+    impressions = sum(r.search_impressions for r in rows)
+    return sum(r.search_clicks for r in rows) / impressions if impressions > 0 else None
+
+
+def _product_pageviews_since(db: Session, since: datetime.date) -> dict[int, int]:
+    rows = db.execute(
+        select(models.PageMetricsSnapshot.product_id, func.sum(models.PageMetricsSnapshot.pageviews))
+        .where(
+            models.PageMetricsSnapshot.product_id.is_not(None),
+            models.PageMetricsSnapshot.pageviews.is_not(None),
+            models.PageMetricsSnapshot.snapshot_date >= since,
+        )
+        .group_by(models.PageMetricsSnapshot.product_id)
+    ).all()
+    return {pid: int(pv or 0) for pid, pv in rows}
+
+
+def _product_clicks_since(db: Session, since: datetime.datetime) -> dict[int, int]:
+    rows = db.execute(
+        select(models.AffiliateClick.product_id, func.count())
+        .where(models.AffiliateClick.product_id.is_not(None), models.AffiliateClick.created_at >= since)
+        .group_by(models.AffiliateClick.product_id)
+    ).all()
+    return {pid: count for pid, count in rows}
+
+
+def _site_shop_click_rate(pageviews: dict[int, int], clicks: dict[int, int]) -> float | None:
+    # Same denominator population on both sides: only products with real
+    # pageview data, so the rate isn't inflated by clicks on untracked pages.
+    total_pv = sum(pageviews.values())
+    if total_pv == 0:
+        return None
+    rate = sum(clicks.get(pid, 0) for pid in pageviews) / total_pv
+    return rate or None
+
+
+def _trend_decline(snapshots: list[models.PageMetricsSnapshot]) -> tuple[str, float] | None:
+    """(basis, lost search visits) when a real decline exists between the
+    earliest and latest snapshot - never from a single data point."""
+    if len(snapshots) < MIN_SNAPSHOTS_FOR_TREND:
+        return None
+    baseline, latest = snapshots[0], snapshots[-1]
+
+    if (
+        baseline.search_ctr is not None
+        and latest.search_ctr is not None
+        and baseline.search_impressions is not None
+        and baseline.search_impressions >= MIN_BASELINE_SEARCH_IMPRESSIONS
+        and baseline.search_ctr > 0
+    ):
+        decline = (latest.search_ctr - baseline.search_ctr) / baseline.search_ctr * 100
+        if decline <= -DECLINE_THRESHOLD_PCT:
+            lost = (latest.search_impressions or baseline.search_impressions) * (baseline.search_ctr - latest.search_ctr)
+            return (
+                f"検索クリック率が{baseline.snapshot_date}の{baseline.search_ctr * 100:.1f}%から"
+                f"{latest.snapshot_date}の{latest.search_ctr * 100:.1f}%へ{abs(round(decline))}%低下",
+                lost,
+            )
+
+    if baseline.pageviews is not None and latest.pageviews is not None and baseline.pageviews >= MIN_BASELINE_PAGEVIEWS:
+        decline = (latest.pageviews - baseline.pageviews) / baseline.pageviews * 100
+        if decline <= -DECLINE_THRESHOLD_PCT:
+            return (
+                f"ページビューが{baseline.snapshot_date}の{baseline.pageviews}件から"
+                f"{latest.snapshot_date}の{latest.pageviews}件へ{abs(round(decline))}%低下",
+                float(baseline.pageviews - latest.pageviews),
+            )
+    return None
+
+
+def _search_ctr_gap(snapshot: models.PageMetricsSnapshot, site_ctr: float | None) -> tuple[str, float] | None:
+    if site_ctr is None or snapshot.search_ctr is None or snapshot.search_position is None:
+        return None
+    if (snapshot.search_impressions or 0) < SEARCH_GAP_MIN_IMPRESSIONS:
+        return None
+    if snapshot.search_position > SEARCH_GAP_MAX_POSITION:
+        return None
+    if snapshot.search_ctr >= site_ctr * (1 - GAP_MIN_RATIO):
+        return None
+    extra = snapshot.search_impressions * (site_ctr - snapshot.search_ctr)
+    return (
+        f"検索表示{snapshot.search_impressions:,}回・平均掲載順位{snapshot.search_position}位に対し"
+        f"検索クリック率{snapshot.search_ctr:.1%}（商品ページ平均{site_ctr:.1%}）。平均並みになれば直近"
+        f"{content_metrics.SEARCH_CONSOLE_WINDOW_DAYS}日で約{extra:.0f}件の検索流入増が見込めるため、"
+        "検索結果での訴求（タイトル）を改善",
+        extra,
+    )
+
+
+def _conversion_gap(pageviews: int, clicks: int, shop_rate: float | None) -> tuple[str, float] | None:
+    if shop_rate is None or pageviews < CONVERSION_GAP_MIN_PAGEVIEWS:
+        return None
+    rate = clicks / pageviews
+    if rate >= shop_rate * (1 - GAP_MIN_RATIO):
+        return None
+    extra = pageviews * (shop_rate - rate)
+    return (
+        f"直近{CONVERSION_LOOKBACK_DAYS}日間で{pageviews}PVに対しショップへのクリック{clicks}件"
+        f"（{rate:.1%}、商品ページ平均{shop_rate:.1%}）。平均並みになれば約{extra:.1f}件のクリック増が"
+        "見込めるため、ページ上の購入判断の訴求（説明文）を改善",
+        extra,
+    )
+
+
+def find_improvement_opportunities(db: Session) -> list[ImprovementOpportunity]:
+    """Every product page with a real, measurable gap, ranked by expected
+    revenue impact (see the STEP43 note above). Three detectors, all from
+    stored real data: search CTR well below the site's product-page
+    average (title problem), shop-click rate well below average (on-page
+    persuasion problem), and a real decline between two snapshots. A
+    product under its post-rewrite measurement window is skipped."""
+    today = datetime.date.today()
+    snapshots = list(
         db.execute(
             select(models.PageMetricsSnapshot)
-            .where(models.PageMetricsSnapshot.product_id.is_not(None), models.PageMetricsSnapshot.snapshot_date >= since)
+            .where(
+                models.PageMetricsSnapshot.product_id.is_not(None),
+                models.PageMetricsSnapshot.snapshot_date >= today - datetime.timedelta(days=UNDERPERFORMING_LOOKBACK_DAYS),
+            )
             .order_by(models.PageMetricsSnapshot.snapshot_date.asc())
         ).scalars()
     )
     by_product: dict[int, list[models.PageMetricsSnapshot]] = {}
-    for row in rows:
+    for row in snapshots:
         by_product.setdefault(row.product_id, []).append(row)
+    latest = {pid: rows[-1] for pid, rows in by_product.items()}
 
-    findings: list[UnderperformingFinding] = []
-    for product_id, snapshots in by_product.items():
-        if len(snapshots) < MIN_SNAPSHOTS_FOR_TREND:
-            continue
-        if _recent_rewrite_exists(db, product_id):
-            continue
-        baseline, latest = snapshots[0], snapshots[-1]
+    site_ctr = _site_search_ctr(latest)
+    pageviews = _product_pageviews_since(db, today - datetime.timedelta(days=CONVERSION_LOOKBACK_DAYS))
+    clicks = _product_clicks_since(db, datetime.datetime.utcnow() - datetime.timedelta(days=CONVERSION_LOOKBACK_DAYS))
+    shop_rate = _site_shop_click_rate(pageviews, clicks)
 
-        basis = None
-        if baseline.search_ctr is not None and latest.search_ctr is not None and baseline.search_impressions is not None:
-            if baseline.search_impressions >= MIN_BASELINE_SEARCH_IMPRESSIONS and baseline.search_ctr > 0:
-                decline = (latest.search_ctr - baseline.search_ctr) / baseline.search_ctr * 100
-                if decline <= -DECLINE_THRESHOLD_PCT:
-                    basis = (
-                        f"検索クリック率が{baseline.snapshot_date}の{baseline.search_ctr * 100:.1f}%から"
-                        f"{latest.snapshot_date}の{latest.search_ctr * 100:.1f}%へ{abs(round(decline))}%低下"
-                    )
-        if basis is None and baseline.pageviews is not None and latest.pageviews is not None:
-            if baseline.pageviews >= MIN_BASELINE_PAGEVIEWS:
-                decline = (latest.pageviews - baseline.pageviews) / baseline.pageviews * 100
-                if decline <= -DECLINE_THRESHOLD_PCT:
-                    basis = (
-                        f"ページビューが{baseline.snapshot_date}の{baseline.pageviews}件から"
-                        f"{latest.snapshot_date}の{latest.pageviews}件へ{abs(round(decline))}%低下"
-                    )
-        if basis is None:
-            continue
+    # (goal, basis, value in shop clicks - or search visits when shop_rate is unknown)
+    candidates: dict[int, list[tuple[str, str, float]]] = {}
 
-        product = db.get(models.Product, product_id)
-        if product is None or product.pending_review:
-            continue
-        findings.append(UnderperformingFinding(product=product, decision_basis=basis))
+    def _as_shop_clicks(visits: float) -> float:
+        return visits * shop_rate if shop_rate else visits
 
-    return findings
+    for pid, rows in by_product.items():
+        trend = _trend_decline(rows)
+        if trend:
+            candidates.setdefault(pid, []).append((GOAL_SEARCH_CTR, trend[0], _as_shop_clicks(trend[1])))
+        gap = _search_ctr_gap(latest[pid], site_ctr)
+        if gap:
+            candidates.setdefault(pid, []).append((GOAL_SEARCH_CTR, gap[0], _as_shop_clicks(gap[1])))
+    for pid, pv in pageviews.items():
+        gap = _conversion_gap(pv, clicks.get(pid, 0), shop_rate)
+        if gap:
+            candidates.setdefault(pid, []).append((GOAL_ON_PAGE_CONVERSION, gap[0], gap[1]))
+
+    opportunities: list[ImprovementOpportunity] = []
+    for pid, options in candidates.items():
+        product = db.get(models.Product, pid)
+        if product is None or product.pending_review or _recent_rewrite_exists(db, pid):
+            continue
+        goal, basis, value = max(options, key=lambda o: o[2])
+        price = product.current_price or 0
+        score = value * max(price, 1)
+        unit = "推定ショップクリック増" if shop_rate else "推定検索流入増（ショップクリック率が未蓄積のため流入数で換算）"
+        basis += f"【優先度】{unit}{value:.1f}件×価格¥{price:,}＝{score:,.0f}（想定報酬の相対値）"
+        opportunities.append(
+            ImprovementOpportunity(
+                product=product,
+                goal=goal,
+                decision_basis=basis,
+                est_extra_shop_clicks=round(value, 2),
+                priority_score=round(score, 1),
+                shop_click_rate_known=bool(shop_rate),
+            )
+        )
+
+    opportunities.sort(key=lambda o: o.priority_score, reverse=True)
+    return opportunities
 
 
 def select_trending_products(
@@ -240,20 +398,35 @@ def _apply_homepage_reorder(db: Session, trending: list[tuple[models.Product, in
     return action
 
 
-def _apply_product_rewrite(db: Session, finding: UnderperformingFinding) -> models.AiOptimizationAction:
-    product = finding.product
+def _real_queries_for(db: Session, product: models.Product) -> list[dict]:
+    url = f"{get_settings().site_url.rstrip('/')}/products/{product.slug}"
+    try:
+        rows = search_console.get_queries_for_page(url, days=28, limit=5)
+    except search_console.SearchConsoleNotConfigured:
+        return []
+    except Exception as exc:  # noqa: BLE001 - a missing query list shouldn't block the rewrite itself
+        crud.create_error_log(db, source="content_optimizer", level="warning", message=f"search query lookup failed for {url}: {exc}")
+        return []
+    return [dataclasses.asdict(r) for r in rows]
+
+
+def _apply_product_rewrite(db: Session, opportunity: ImprovementOpportunity) -> models.AiOptimizationAction:
+    product = opportunity.product
     content_before = json.dumps(
         {"ai_title": product.ai_title, "ai_summary": product.ai_summary, "ai_caution": product.ai_caution},
         ensure_ascii=False,
     )
+    queries = _real_queries_for(db, product) if opportunity.goal == GOAL_SEARCH_CTR else []
     try:
-        rewritten = content_rewriter.rewrite_product_copy(product, finding.decision_basis)
+        rewritten = content_rewriter.rewrite_product_copy(
+            product, opportunity.decision_basis, goal=opportunity.goal, search_queries=queries
+        )
     except Exception as exc:  # noqa: BLE001 - log the failure as knowledge, never crash the run
         action = models.AiOptimizationAction(
             action_type="rewrite_product",
             target_path=f"/products/{product.slug}",
             product_id=product.id,
-            decision_basis=finding.decision_basis,
+            decision_basis=opportunity.decision_basis,
             content_before=content_before,
             status="failed",
         )
@@ -263,24 +436,36 @@ def _apply_product_rewrite(db: Session, finding: UnderperformingFinding) -> mode
         db.refresh(action)
         return action
 
-    product.ai_title = rewritten.title
-    product.ai_summary = rewritten.summary
-    product.ai_caution = rewritten.caution
-    product.ai_generated_at = datetime.datetime.utcnow()
-    content_after = json.dumps(
-        {"ai_title": rewritten.title, "ai_summary": rewritten.summary, "ai_caution": rewritten.caution},
-        ensure_ascii=False,
-    )
     action = models.AiOptimizationAction(
         action_type="rewrite_product",
         target_path=f"/products/{product.slug}",
         product_id=product.id,
-        decision_basis=finding.decision_basis,
+        decision_basis=opportunity.decision_basis,
         content_before=content_before,
-        content_after=content_after,
+        content_after=json.dumps(
+            {
+                "ai_title": rewritten.title,
+                "ai_summary": rewritten.summary,
+                "ai_caution": rewritten.caution,
+                "goal": opportunity.goal,
+                "queries": queries,
+            },
+            ensure_ascii=False,
+        ),
         status="applied",
     )
     db.add(action)
+    db.flush()
+
+    product.ai_title = rewritten.title
+    product.ai_summary = rewritten.summary
+    product.ai_caution = rewritten.caution
+    product.ai_generated_at = datetime.datetime.utcnow()
+    product.ai_copy_source_action_id = action.id
+    # Marks this copy as current for today's facts, so the routine analysis
+    # stage doesn't immediately regenerate it; when facts do change,
+    # pipeline.sync_product_analysis regenerates in this action's style.
+    product.ai_content_hash = ai.content_hash(product.name, product.current_price, product.buy_score, product.average_price)
     db.commit()
     db.refresh(action)
     return action
@@ -345,6 +530,15 @@ def _pct_change(before: float, after: float) -> float | None:
 
 
 def _evaluate_content_action(db: Session, action: models.AiOptimizationAction) -> tuple[str, str] | None:
+    if action.action_type == "rewrite_product":
+        product = db.get(models.Product, action.product_id) if action.product_id else None
+        if product is None or product.ai_copy_source_action_id != action.id:
+            return (
+                "評価期間中に文面が別の生成処理（価格変動に伴う通常の再生成など）で置き換わったため、"
+                "この施策単独の効果は判定できません",
+                "inconclusive",
+            )
+
     baseline = db.execute(
         select(models.PageMetricsSnapshot)
         .where(
@@ -457,12 +651,11 @@ def run_daily_optimization(db: Session) -> OptimizationRunResult:
         actions.append(_apply_homepage_reorder(db, trending))
 
     remaining = DAILY_ACTION_CAP
-    if remaining > 0:
-        for finding in find_underperforming_products(db):
-            if remaining <= 0:
-                break
-            actions.append(_apply_product_rewrite(db, finding))
-            remaining -= 1
+    for opportunity in find_improvement_opportunities(db):
+        if remaining <= 0:
+            break
+        actions.append(_apply_product_rewrite(db, opportunity))
+        remaining -= 1
 
     if remaining > 0:
         for opportunity in find_new_guide_opportunities(db):

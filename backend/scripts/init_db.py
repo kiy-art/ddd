@@ -48,6 +48,7 @@ ADDED_COLUMNS = [
     ("products", "yahoo_price", "INTEGER"),
     ("products", "yahoo_url", "VARCHAR(1024)"),
     ("products", "yahoo_updated_at", "TIMESTAMP"),
+    ("products", "ai_copy_source_action_id", "INTEGER"),
 ]
 
 

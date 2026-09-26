@@ -11,23 +11,12 @@ import dataclasses
 import hashlib
 import json
 
-from app import analysis
+from app import analysis, marketing_playbook
 from app.config import get_settings
 
-SYSTEM_PROMPT = """あなたはゴルフ用品の価格情報サイトのライター兼ファクトチェッカーです。
-与えられた数値・判定結果のみを根拠に、日本語で短い紹介文を作成してください。
-
-厳守事項:
-- 与えられていない価格・割引率・在庫状況などを絶対に創作しない。
-- 数値は与えられた値をそのまま使い、言い換えで誤解を招く表現をしない。
-- 誇大広告・断定的な将来予測（「必ず値上がりする」等）をしない。
-- 出力は必ず次のJSON形式のみ: {"title": "...", "summary": "...", "caution": "..."}
-- titleはページタイトル・SNS共有見出しとして使う短い体言止めの見出し（20〜40文字程度、
-  商品名を含む）にする。「〜です。」「〜ます。」のような文章にしない。
-  例: 「PING G440 ドライバー 価格推移・買い時情報」
-- summaryには、titleに入れなかった判定理由の詳細を1〜2文で書く。
-- captionには「価格は変動する可能性があります」という主旨の注意書きを必ず含める。
-"""
+# Shared with app/content_rewriter.py so routine copy and optimizer
+# rewrites follow one professional playbook (STEP43).
+SYSTEM_PROMPT = marketing_playbook.product_copy_system_prompt(None)
 
 
 @dataclasses.dataclass
@@ -59,6 +48,26 @@ def _rule_based_content(product_name: str, result: analysis.AnalysisResult) -> A
     )
 
 
+def would_use_claude(result: analysis.AnalysisResult) -> bool:
+    """The one place deciding whether product copy for this verdict costs a
+    Claude call - also used by pipeline.sync_product_analysis so keeping an
+    optimizer rewrite's style alive never adds calls beyond this set."""
+    settings = get_settings()
+    return bool(
+        settings.anthropic_api_key
+        and result.buy_score != "insufficient_data"
+        and result.data_basis == "price_history"
+    )
+
+
+def _is_at_recorded_lowest(result: analysis.AnalysisResult) -> bool:
+    return (
+        result.lowest_price is not None
+        and result.current_price <= result.lowest_price
+        and result.history_span_days >= 7
+    )
+
+
 def generate_ai_content(product_name: str, brand: str, result: analysis.AnalysisResult) -> AiContent:
     """Raises on AI failure so the caller can log it to ErrorLog and decide
     whether to fall back to _rule_based_content."""
@@ -72,11 +81,7 @@ def generate_ai_content(product_name: str, brand: str, result: analysis.Analysis
     # absolute rule 1: no cost-incurring change without explicit go-ahead).
     # The deterministic rule_based_reason() wording already says plainly
     # that it's a provisional, MSRP-based call.
-    if (
-        not settings.anthropic_api_key
-        or result.buy_score == "insufficient_data"
-        or result.data_basis != "price_history"
-    ):
+    if not would_use_claude(result):
         return _rule_based_content(product_name, result)
 
     import anthropic
@@ -91,6 +96,7 @@ def generate_ai_content(product_name: str, brand: str, result: analysis.Analysis
         "lowest_price_jpy": result.lowest_price,
         "price_change_percent_vs_30d_avg": result.price_change_percent,
         "buy_score": result.buy_score,
+        "is_at_recorded_lowest_price": _is_at_recorded_lowest(result),
     }
     message = client.messages.create(
         model=settings.claude_model,
@@ -110,12 +116,26 @@ def generate_ai_content(product_name: str, brand: str, result: analysis.Analysis
     if text.startswith("```"):
         text = text.strip("`").split("\n", 1)[-1]
     data = json.loads(text)
-    return AiContent(
+    content = AiContent(
         title=str(data["title"])[:120],
         summary=str(data["summary"]),
         caution=str(data["caution"]),
         source="ai",
     )
+    # Raises ContentPolicyViolation -> generate_ai_content_safe falls back
+    # to the rule-based wording rather than publishing a non-compliant or
+    # number-inventing sentence.
+    marketing_playbook.validate_copy(
+        [content.title, content.summary, content.caution],
+        allowed_yen={
+            v
+            for v in (result.current_price, result.average_price, result.highest_price_30d, result.lowest_price)
+            if v
+        },
+        allowed_percents={result.price_change_percent} if result.price_change_percent is not None else set(),
+        allow_lowest_price_claim=_is_at_recorded_lowest(result),
+    )
+    return content
 
 
 def generate_ai_content_safe(product_name: str, brand: str, result: analysis.AnalysisResult) -> tuple[AiContent, str | None]:

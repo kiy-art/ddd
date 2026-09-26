@@ -146,3 +146,40 @@ def get_top_queries(days: int = 28, limit: int = 25) -> list[QueryPerformance]:
             )
         )
     return results
+
+
+def get_queries_for_page(page_url: str, days: int = 28, limit: int = 5) -> list[QueryPerformance]:
+    """The real queries a single page already appears for - what a
+    search-CTR rewrite should align its title with (search intent the page
+    is actually being shown for), rather than guessed keywords."""
+    service, site_url = _client_and_site()
+    start_date, end_date = _date_range(days)
+
+    response = (
+        service.searchanalytics()
+        .query(
+            siteUrl=site_url,
+            body={
+                "startDate": start_date,
+                "endDate": end_date,
+                "dimensions": ["query"],
+                "dimensionFilterGroups": [
+                    {"filters": [{"dimension": "page", "operator": "equals", "expression": page_url}]}
+                ],
+                "rowLimit": limit,
+                "orderBy": [{"metric": "impressions", "sortOrder": "descending"}],
+            },
+        )
+        .execute()
+    )
+
+    return [
+        QueryPerformance(
+            query=row["keys"][0],
+            clicks=int(row.get("clicks", 0)),
+            impressions=int(row.get("impressions", 0)),
+            ctr=round(float(row.get("ctr", 0.0)), 4),
+            position=round(float(row.get("position", 0.0)), 1),
+        )
+        for row in response.get("rows", [])
+    ]
