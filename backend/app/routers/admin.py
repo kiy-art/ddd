@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, progress, schemas, title_migration, x_post
+from app import consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, progress, schemas, title_migration, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -302,6 +302,18 @@ def fetch_rakuten(db: Session = Depends(get_db)):
             f"反映{products_ranked}件（取得できたカテゴリ {popularity_categories_checked}/{len(popularity.CATEGORY_GENRE_IDS)}）",
         )
 
+        # STEP52: consumables corner prices (Rakuten, same match checks as
+        # product prices). Own try/except like every step here.
+        try:
+            consumables_updated, consumables_skipped = consumables_merchandiser.refresh_consumable_prices(db)
+            crud.create_error_log(
+                db, source="consumables", level="info",
+                message=f"消耗品コーナーの価格更新: 更新{consumables_updated}件 / スキップ{consumables_skipped}件",
+            )
+        except Exception as exc:  # noqa: BLE001 - keep the rest of the job alive
+            db.rollback()
+            crud.create_error_log(db, source="consumables", message=f"Consumables refresh failed: {exc}")
+
         progress.start_stage("analysis")
         all_products = db.execute(select(models.Product)).scalars().all()
         analyzed = 0
@@ -506,6 +518,20 @@ def x_post_preview(db: Session = Depends(get_db)):
     require X credentials to be configured; `text` is null when no product
     genuinely qualifies today (never a fabricated placeholder)."""
     return {"text": x_post.build_manual_post_text(db)}
+
+
+@router.post("/refresh-consumables")
+def refresh_consumables(db: Session = Depends(get_db)):
+    """Manual trigger for the consumables-corner price refresh that also
+    runs in the daily /fetch-rakuten job (Rakuten search API, free)."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.rakuten_app_id or not settings.rakuten_access_key:
+        raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID / RAKUTEN_ACCESS_KEY is not configured")
+    updated, skipped = consumables_merchandiser.refresh_consumable_prices(db)
+    _, _, picks = consumables_merchandiser.select_picks(db)
+    return {"updated": updated, "skipped": skipped, "picks_available": len(picks)}
 
 
 @router.post("/sync-popularity")

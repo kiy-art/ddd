@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, models, schemas
+from app import consumables_merchandiser, crud, models, schemas
 from app.database import get_db
 from app.models import CATEGORIES
 
@@ -154,3 +154,41 @@ def get_ai_guide(slug: str, db: Session = Depends(get_db)):
     if guide is None:
         raise HTTPException(status_code=404, detail="Guide not found")
     return _guide_to_schema(guide)
+
+
+@router.get("/consumables/picks", response_model=schemas.ConsumablePicksOut)
+def consumable_picks(limit: int = 6, exclude_product_id: int | None = None, db: Session = Depends(get_db)):
+    """STEP52 "AI厳選・高コスパ消耗品": 3-6 consumables picked for the current
+    season from real, fresh prices (see app/consumables_merchandiser.py).
+    Read-only and cheap (two small queries) - safe to render on every page."""
+    season, events, picks = consumables_merchandiser.select_picks(db, exclude_product_id=exclude_product_id, limit=limit)
+    return schemas.ConsumablePicksOut(
+        season=season,
+        season_label=consumables_merchandiser.SEASONS[season],
+        sale_events=[e.name for e in events],
+        picks=[
+            schemas.ConsumablePickOut(
+                key=p.key,
+                kind=p.kind,
+                kind_label=consumables_merchandiser.KIND_LABELS.get(p.kind, "消耗品"),
+                brand=p.brand,
+                name=p.name,
+                current_price=p.current_price,
+                reference_price=p.reference.price if p.reference else None,
+                reference_label=p.reference.label if p.reference else None,
+                discount_percent=p.discount_percent,
+                savings_yen=p.savings_yen,
+                discount_badge=p.discount_badge,
+                savings_text=p.savings_text,
+                ai_tag=p.ai_tag,
+                micro_copy=p.micro_copy,
+                image_url=p.image_url,
+                rakuten_url=p.rakuten_url,
+                amazon_query=p.amazon_query,
+                product_slug=p.product_slug,
+                product_id=p.product_id,
+                price_updated_at=p.price_updated_at,
+            )
+            for p in picks
+        ],
+    )

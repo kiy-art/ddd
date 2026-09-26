@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     # email address doesn't belong in committed source, unlike a public
     # affiliate tag - set via Render's dashboard, same as RESEND_API_KEY.
     daily_report_email: str = ""
+    # STEP52: real sale events for the consumables corner, as a JSON list the
+    # owner fills in from each shop's own announcement, e.g.
+    # [{"name": "楽天スーパーSALE", "shop": "rakuten", "start": "2026-12-04", "end": "2026-12-11"}]
+    # Never inferred or guessed - with this empty the corner simply makes no
+    # sale-event claim.
+    consumable_sale_events: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -39,6 +39,10 @@ services:
         sync: false
       - key: RAKUTEN_AFFILIATE_ID
         sync: false
+      # STEP52: optional owner-entered sale periods for the consumables
+      # corner (JSON list - see backend/.env.example). Empty = no event.
+      - key: CONSUMABLE_SALE_EVENTS
+        sync: false
       - key: YAHOO_CLIENT_ID
         sync: false
       - key: YAHOO_AFFILIATE_ID

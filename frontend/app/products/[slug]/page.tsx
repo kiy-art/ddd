@@ -7,6 +7,7 @@ import CtaArrow from "@/components/CtaArrow";
 import ScoreExplanation from "@/components/ScoreExplanation";
 import CompareButton from "@/components/CompareButton";
 import CompareStrip from "@/components/CompareStrip";
+import ConsumablesCorner from "@/components/ConsumablesCorner";
 import DataSourceNote from "@/components/DataSourceNote";
 import FadeIn from "@/components/FadeIn";
 import FavoriteButton from "@/components/FavoriteButton";
@@ -554,6 +555,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         <FadeIn id="store-comparison" className="mt-10 scroll-mt-20">
           <StoreComparisonTable product={product} lastUpdatedAt={lastPriceUpdatedAt} />
         </FadeIn>
+
+        {/* STEP52: AI-picked consumables, directly under the price
+            comparison table (this product itself is left out). */}
+        <ConsumablesCorner variant="product" excludeProductId={product.id} />
 
         <FadeIn className="mt-10">
           <PriceAlertForm slug={product.slug} currentPrice={product.current_price} />

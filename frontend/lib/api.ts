@@ -156,6 +156,48 @@ export function getTrendingProducts() {
   return apiFetch<TrendingProducts>(`/api/homepage/trending`);
 }
 
+// --- STEP52: AI-picked consumables corner --------------------------------
+// Backend: app/consumables_merchandiser.py. reference_price is always a
+// real basis (a verified maker list price, or PAR.'s own recorded 30-day
+// median) and reference_label names which - never an invented "通常価格".
+
+export interface ConsumablePick {
+  key: string;
+  kind: "ball" | "tee" | "glove" | "care" | string;
+  kind_label: string;
+  brand: string;
+  name: string;
+  current_price: number;
+  reference_price: number | null;
+  reference_label: string | null;
+  discount_percent: number | null;
+  savings_yen: number | null;
+  discount_badge: string | null;
+  savings_text: string | null;
+  ai_tag: string;
+  micro_copy: string;
+  image_url: string | null;
+  rakuten_url: string | null;
+  amazon_query: string;
+  product_slug: string | null;
+  product_id: number | null;
+  price_updated_at: string | null;
+}
+
+export interface ConsumablePicks {
+  season: string;
+  season_label: string;
+  sale_events: string[];
+  picks: ConsumablePick[];
+}
+
+export function getConsumablePicks(params?: { excludeProductId?: number }, init?: RequestInit) {
+  const qs = new URLSearchParams();
+  if (params?.excludeProductId) qs.set("exclude_product_id", String(params.excludeProductId));
+  const query = qs.toString();
+  return apiFetch<ConsumablePicks>(`/api/consumables/picks${query ? `?${query}` : ""}`, init);
+}
+
 export interface GuideSection {
   heading: string;
   paragraphs: string[];
@@ -342,6 +384,13 @@ export function adminApproveProduct(token: string, id: number) {
 export function adminDiscoverProducts(token: string) {
   return apiFetch<{ products_discovered: number; candidates_considered: number }>(
     `/api/admin/discover-products`,
+    { method: "POST", headers: adminHeaders(token) }
+  );
+}
+
+export function adminRefreshConsumables(token: string) {
+  return apiFetch<{ updated: number; skipped: number; picks_available: number }>(
+    `/api/admin/refresh-consumables`,
     { method: "POST", headers: adminHeaders(token) }
   );
 }

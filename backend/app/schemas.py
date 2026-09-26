@@ -322,3 +322,33 @@ class ImageBackfillResultOut(BaseModel):
     filled_from_yahoo: int
     still_missing: list[str]
     yahoo_quota_exhausted: bool
+
+
+class ConsumablePickOut(BaseModel):
+    key: str
+    kind: str
+    kind_label: str
+    brand: str
+    name: str
+    current_price: int
+    reference_price: int | None
+    reference_label: str | None  # "メーカー希望小売価格" | "直近30日の中央値"
+    discount_percent: int | None
+    savings_yen: int | None
+    discount_badge: str | None
+    savings_text: str | None
+    ai_tag: str
+    micro_copy: str
+    image_url: str | None
+    rakuten_url: str | None
+    amazon_query: str
+    product_slug: str | None
+    product_id: int | None
+    price_updated_at: datetime.datetime | None
+
+
+class ConsumablePicksOut(BaseModel):
+    season: str
+    season_label: str
+    sale_events: list[str]
+    picks: list[ConsumablePickOut]

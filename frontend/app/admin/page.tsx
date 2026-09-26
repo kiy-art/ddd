@@ -6,6 +6,7 @@ import {
   AiOptimizationAction,
   ImprovementOpportunity,
   adminDiscoverProducts,
+  adminRefreshConsumables,
   adminBackfillImages,
   adminSyncPopularity,
   adminFetchRakuten,
@@ -328,6 +329,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleRefreshConsumables = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await adminRefreshConsumables(token);
+      setMessage(
+        `消耗品の価格更新完了: 更新${result.updated}件 / 見送り${result.skipped}件 / 現在コーナーに表示できる商品${result.picks_available}件` +
+          (result.picks_available < 3 ? "（3件未満のためコーナーは非表示です）" : "")
+      );
+    } catch (err) {
+      setMessage(
+        `消耗品の価格更新に失敗: ${err instanceof Error ? err.message : String(err)}（RAKUTEN_APP_IDとRAKUTEN_ACCESS_KEYが設定されているか確認してください）`
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleCleanTitles = async () => {
     if (!token) return;
     const confirmed = window.confirm(
@@ -442,6 +462,22 @@ export default function AdminDashboard() {
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ検出
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">消耗品コーナーの価格更新</h2>
+        <p className="text-sm text-foreground/50">
+          「AIアナリティクス厳選」消耗品コーナー（トップページ下部・商品ページ下部）の価格を楽天市場から取得し直します。
+          毎日の自動更新でも実行されます。「〇% OFF」は、確認済みのメーカー希望小売価格か、PAR.が記録した直近30日の中央値に
+          対してのみ表示されます（記録が5日分たまるまでは割引表示なし）。表示できる商品が3件未満のときはコーナー自体を表示しません。
+        </p>
+        <button
+          onClick={handleRefreshConsumables}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          消耗品の価格を更新
         </button>
       </div>
 

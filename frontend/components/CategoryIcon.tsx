@@ -44,6 +44,31 @@ const ICONS: Record<string, React.ReactNode> = {
       <circle cx="61" cy="68" r="1.6" fill="currentColor" stroke="none" />
     </>
   ),
+  // STEP52 consumables corner (not product categories - same line style).
+  tee: (
+    <>
+      <path d="M44 30 C44 24 68 24 68 30 C68 34 60 36 56 36 C52 36 44 34 44 30 Z" strokeLinejoin="round" />
+      <path d="M53 36 L55 76 L57 76 L59 36" strokeLinejoin="round" />
+      <path d="M40 80 L72 80" strokeLinecap="round" opacity="0.4" />
+    </>
+  ),
+  glove: (
+    <>
+      <path
+        d="M40 78 L40 46 C40 42 46 42 46 46 L46 30 C46 26 52 26 52 30 L52 26 C52 22 58 22 58 26 L58 28 C58 24 64 24 64 28 L64 34 C64 30 70 30 70 34 L70 60 C70 70 64 78 56 78 Z"
+        strokeLinejoin="round"
+      />
+      <path d="M46 64 L66 64" strokeLinecap="round" opacity="0.5" />
+    </>
+  ),
+  care: (
+    <>
+      <rect x="42" y="36" width="28" height="42" rx="6" />
+      <path d="M50 36 L50 28 L62 28 L62 36" strokeLinejoin="round" />
+      <path d="M62 30 L72 26" strokeLinecap="round" />
+      <path d="M48 54 L64 54" strokeLinecap="round" opacity="0.5" />
+    </>
+  ),
 };
 
 export default function CategoryIcon({ category, className }: { category: string; className?: string }) {

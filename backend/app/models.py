@@ -316,3 +316,54 @@ class GuideArticle(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class ConsumableItem(Base):
+    """A consumable (tee, glove, care item, value ball...) for the STEP52
+    "AI厳選・高コスパ消耗品" corner - kept apart from Product on purpose:
+    these aren't tracked as buy-timing products (no category pages, no buy
+    score), just price-checked daily so the corner can show a real, current
+    price. Seeded from app/consumables_catalog.py; prices come only from a
+    Rakuten listing that passes the same accessory / non-retail checks as
+    product prices plus this item's own name tokens (see
+    app/consumables_merchandiser.py refresh_consumable_prices).
+
+    msrp is the maker's list price and is ONLY ever set from researched,
+    verifiable data (never estimated) - it's what a "〇% OFF" against a list
+    price is computed from, so an invented value would be a false
+    二重価格表示 (景品表示法)."""
+
+    __tablename__ = "consumable_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    kind: Mapped[str] = mapped_column(String(20), index=True)
+    brand: Mapped[str] = mapped_column(String(120))
+    name: Mapped[str] = mapped_column(String(255))
+    search_keyword: Mapped[str] = mapped_column(String(255))
+    # "|"-separated alternatives per group, groups separated by ",": every
+    # group must appear in a listing's name for it to count as this item.
+    match_tokens: Mapped[str] = mapped_column(String(255))
+    # Comma-separated season keys this item is especially relevant to.
+    seasons: Mapped[str] = mapped_column(String(100), default="")
+    msrp: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    current_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rakuten_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    price_updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    price_history: Mapped[list["ConsumablePriceHistory"]] = relationship(
+        back_populates="item", cascade="all, delete-orphan", order_by="ConsumablePriceHistory.recorded_at"
+    )
+
+
+class ConsumablePriceHistory(Base):
+    __tablename__ = "consumable_price_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("consumable_items.id", ondelete="CASCADE"), index=True)
+    price: Mapped[int] = mapped_column(Integer)
+    recorded_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+
+    item: Mapped["ConsumableItem"] = relationship(back_populates="price_history")

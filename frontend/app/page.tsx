@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
+import ConsumablesCorner from "@/components/ConsumablesCorner";
 import FadeIn from "@/components/FadeIn";
 import ForecastPreviewCard from "@/components/ForecastPreviewCard";
 import Hero from "@/components/Hero";
@@ -441,6 +442,10 @@ export default async function Home({
           </div>
         </section>
       )}
+
+      {/* STEP52: AI-picked consumables - renders nothing unless >= 3 real,
+          freshly priced picks exist (components/ConsumablesCorner.tsx). */}
+      <ConsumablesCorner variant="home" />
 
       <HowItWorks />
       <Newsletter />

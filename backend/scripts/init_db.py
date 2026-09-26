@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
 from app.database import Base, SessionLocal, engine  # noqa: E402
-from app import crud, models, rakuten  # noqa: E402,F401  (import registers the models on Base)
+from app import consumables_merchandiser, crud, models, rakuten  # noqa: E402,F401  (import registers the models on Base)
 
 # Columns added after the initial schema. Keep this list append-only.
 ADDED_COLUMNS = [
@@ -147,6 +147,9 @@ def main():
     with SessionLocal() as db:
         fix_known_bad_products(db)
         wrap_existing_affiliate_links(db)
+        # STEP52: insert any new consumables-corner catalog items (never
+        # overwrites existing rows - prices, history, admin-set msrp stay).
+        consumables_merchandiser.seed_catalog(db)
     print("Tables created.")
 
 
