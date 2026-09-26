@@ -7,6 +7,7 @@ import {
   ImprovementOpportunity,
   adminDiscoverProducts,
   adminBackfillImages,
+  adminSyncPopularity,
   adminFetchRakuten,
   adminGetImprovementOpportunities,
   adminGetXPostPreview,
@@ -161,6 +162,25 @@ export default function AdminDashboard() {
       setMessage(
         `取得失敗: ${err instanceof Error ? err.message : String(err)}（RAKUTEN_APP_IDが設定されているか確認してください）`
       );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSyncPopularity = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage("楽天の人気ランキングを取得しています...");
+    try {
+      const r = await adminSyncPopularity(token);
+      setMessage(
+        r.categories_checked === 0
+          ? `人気ランキングを取得できませんでした（0/${r.categories_total}カテゴリ）。ログ（source: popularity）のエラー内容を確認してください。`
+          : `人気ランキングを更新しました：取得できたカテゴリ ${r.categories_checked}/${r.categories_total}、ランキング入りした掲載商品 ${r.products_ranked}件`
+      );
+      await load();
+    } catch (err) {
+      setMessage(`更新失敗: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setBusy(false);
     }
@@ -374,6 +394,21 @@ export default function AdminDashboard() {
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ価格を取得
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">人気ランキングを更新</h2>
+        <p className="text-sm text-foreground/50">
+          楽天市場のカテゴリ別売れ筋ランキングを取得し、掲載商品の順位を更新します（毎朝の自動更新と同じ処理）。
+          サイトには直近3日以内に確認できた順位だけを表示します。
+        </p>
+        <button
+          onClick={handleSyncPopularity}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand disabled:opacity-50"
+        >
+          今すぐランキングを更新
         </button>
       </div>
 

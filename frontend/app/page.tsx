@@ -11,6 +11,7 @@ import { BUY_SCORE_LABELS, Product, TrendingProducts, getProducts, getTrendingPr
 import { computeDeals } from "@/lib/deals";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { GUIDES } from "@/lib/guides";
+import { freshPopularityRank } from "@/lib/popularity";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -98,12 +99,12 @@ export default async function Home({
   const topDeals = computeDeals(allProducts).slice(0, 3);
   const popularAndDropping = allProducts
     .filter((p) => {
-      if (p.popularity_rank === null) return false;
+      if (freshPopularityRank(p) === null) return false;
       if (p.msrp !== null && p.current_price !== null && p.current_price < p.msrp) return true;
       const reliable = p.buy_score !== "insufficient_data" && p.history_span_days >= THIN_DATA_DAYS;
       return reliable && p.price_change_percent !== null && p.price_change_percent < 0;
     })
-    .sort((a, b) => (a.popularity_rank ?? 999) - (b.popularity_rank ?? 999))
+    .sort((a, b) => (freshPopularityRank(a) ?? 999) - (freshPopularityRank(b) ?? 999))
     .slice(0, 3);
   const forecastPicks = allProducts
     .filter(

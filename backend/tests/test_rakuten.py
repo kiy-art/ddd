@@ -168,8 +168,22 @@ def test_fetch_ranking_raises_when_app_id_missing(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_fetch_ranking_raises_when_access_key_missing(monkeypatch):
+    # The new Rakuten API needs BOTH keys - an applicationId-only request is
+    # rejected, which is what silently froze the popularity ranking.
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    with pytest.raises(rakuten.RakutenNotConfigured):
+        rakuten.fetch_ranking(201706)
+    get_settings.cache_clear()
+
+
 def test_fetch_ranking_parses_items_in_rank_order(monkeypatch):
     monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -184,6 +198,7 @@ def test_fetch_ranking_parses_items_in_rank_order(monkeypatch):
     def fake_get(url, params=None, headers=None, timeout=None):
         assert url == rakuten.RANKING_URL
         assert params["applicationId"] == "test-app-id"
+        assert params["accessKey"] == "test-access-key"
         assert params["genreId"] == 201706
         return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
 
@@ -198,6 +213,7 @@ def test_fetch_ranking_parses_items_in_rank_order(monkeypatch):
 
 def test_fetch_ranking_skips_malformed_entries(monkeypatch):
     monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
     from app.config import get_settings
 
     get_settings.cache_clear()

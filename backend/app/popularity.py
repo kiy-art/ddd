@@ -66,19 +66,25 @@ def sync_popularity_rankings(db: Session) -> tuple[int, int]:
     latest ranking has its rank cleared (never left showing a stale "still
     popular" claim from a previous run).
 
-    Returns (products_ranked, categories_checked)."""
+    Returns (products_ranked, categories_fetched) - categories_fetched
+    counts only categories whose ranking was actually retrieved, so a
+    failing API shows up as "0 of 5" rather than looking like success
+    (STEP51: every call was being rejected for a missing accessKey, and the
+    old count said all 5 categories were "checked")."""
     ranked_count = 0
     checked = 0
+    failures: list[str] = []
 
     for i, (category, genre_id) in enumerate(CATEGORY_GENRE_IDS.items()):
         if i > 0:
             time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
-        checked += 1
         try:
             ranking_items = rakuten.fetch_ranking(genre_id, hits=RANKING_HITS)
         except Exception as exc:  # noqa: BLE001 - keep checking other categories
             crud.create_error_log(db, source="popularity", message=f"{category}: {exc}")
+            failures.append(category)
             continue
+        checked += 1
 
         products = list(
             db.execute(select(models.Product).where(models.Product.category == category)).scalars()
@@ -92,4 +98,16 @@ def sync_popularity_rankings(db: Session) -> tuple[int, int]:
                 ranked_count += 1
         db.commit()
 
+    if failures and checked == 0:
+        # Nothing was refreshed at all - say so plainly, once, so the daily
+        # report / admin logs show "ranking is not updating" instead of five
+        # per-category lines that are easy to read past.
+        crud.create_error_log(
+            db,
+            source="popularity",
+            message=(
+                f"楽天の人気ランキングを1カテゴリも取得できませんでした（{len(failures)}カテゴリ失敗）。"
+                "サイト上の人気ランキングは更新されていません。RAKUTEN_APP_ID / RAKUTEN_ACCESS_KEY と楽天側のアプリ設定を確認してください。"
+            ),
+        )
     return ranked_count, checked

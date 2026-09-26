@@ -5,6 +5,7 @@ import FadeIn from "@/components/FadeIn";
 import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getProducts } from "@/lib/api";
+import { POPULARITY_MAX_AGE_DAYS, freshPopularityRank, latestPopularityUpdate } from "@/lib/popularity";
 
 export const revalidate = 0;
 
@@ -24,6 +25,17 @@ function isPriceDropping(p: Product): boolean {
   return reliable && p.price_change_percent !== null && p.price_change_percent < 0;
 }
 
+// Only ranks re-confirmed within the last few days (lib/popularity.ts) - a
+// rank left over from a sync that has since stopped succeeding isn't
+// "popular now". A plain helper (not inline in the component) so the
+// clock read inside freshPopularityRank doesn't trip the purity lint rule;
+// the page re-renders per request anyway (revalidate = 0).
+function freshlyRanked(products: Product[]) {
+  const ranks = new Map(products.map((p) => [p.id, freshPopularityRank(p)]));
+  const rankOf = (p: Product) => ranks.get(p.id) ?? 999;
+  return { ranked: products.filter((p) => ranks.get(p.id) != null), rankOf };
+}
+
 export default async function PopularPage() {
   let products: Product[] = [];
   let error: string | null = null;
@@ -33,14 +45,13 @@ export default async function PopularPage() {
     error = "商品情報の取得に失敗しました。しばらくしてから再度お試しください。";
   }
 
-  const ranked = products.filter((p) => p.popularity_rank !== null);
-  const popularAndDropping = ranked
-    .filter(isPriceDropping)
-    .sort((a, b) => (a.popularity_rank ?? 999) - (b.popularity_rank ?? 999));
+  const { ranked, rankOf } = freshlyRanked(products);
+  const lastUpdated = latestPopularityUpdate(ranked);
+  const popularAndDropping = ranked.filter(isPriceDropping).sort((a, b) => rankOf(a) - rankOf(b));
 
   const byCategory = CATEGORIES.map((c) => ({
     category: c,
-    products: ranked.filter((p) => p.category === c).sort((a, b) => (a.popularity_rank ?? 999) - (b.popularity_rank ?? 999)),
+    products: ranked.filter((p) => p.category === c).sort((a, b) => rankOf(a) - rankOf(b)),
   })).filter((g) => g.products.length > 0);
 
   return (
@@ -48,7 +59,11 @@ export default async function PopularPage() {
       <PageHeader
         eyebrow="Popular"
         title="人気ランキング"
-        description="楽天市場の実際のカテゴリ別売れ筋ランキングをもとにしています。当サイト独自の推測ではありません。"
+        description={`楽天市場の実際のカテゴリ別売れ筋ランキングをもとにしています。当サイト独自の推測ではありません。${
+          lastUpdated
+            ? `（ランキング最終取得：${lastUpdated.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}）`
+            : ""
+        }`}
         collageImages={ranked.map((p) => p.image_url)}
       />
 
@@ -84,7 +99,7 @@ export default async function PopularPage() {
       {!error && ranked.length === 0 && (
         <div className="mx-auto max-w-7xl px-6 py-16">
           <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-16 text-center text-sm text-foreground/50">
-            現在、楽天市場の売れ筋ランキングに入っている商品はありません。ランキングは毎日更新されます。
+            現在、直近{POPULARITY_MAX_AGE_DAYS}日以内に確認できた楽天市場の売れ筋ランキングに、当サイトの掲載商品は入っていません。ランキングは毎朝更新されます。
           </p>
         </div>
       )}

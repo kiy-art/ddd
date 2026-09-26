@@ -98,8 +98,22 @@ def test_sync_logs_and_continues_on_a_failing_category(db_session, monkeypatch):
     monkeypatch.setattr(rakuten, "fetch_ranking", fake_fetch_ranking)
 
     ranked, checked = popularity.sync_popularity_rankings(db_session)
-    assert checked == len(popularity.CATEGORY_GENRE_IDS)
+    # Only categories actually fetched count - the failing one doesn't.
+    assert checked == len(popularity.CATEGORY_GENRE_IDS) - 1
     assert ranked == 0
 
     logs = crud.list_error_logs(db_session)
     assert any("popularity" in log.source for log in logs)
+
+
+def test_sync_reports_plainly_when_no_category_could_be_fetched(db_session, monkeypatch):
+    def fake_fetch_ranking(genre_id, hits=30, timeout=10.0):
+        raise RuntimeError("Rakuten Ranking API 403: accessKey required")
+
+    monkeypatch.setattr(rakuten, "fetch_ranking", fake_fetch_ranking)
+    monkeypatch.setattr(popularity.time, "sleep", lambda s: None)
+
+    ranked, checked = popularity.sync_popularity_rankings(db_session)
+    assert (ranked, checked) == (0, 0)
+    messages = [log.message for log in crud.list_error_logs(db_session)]
+    assert any("1カテゴリも取得できませんでした" in m for m in messages)

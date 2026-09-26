@@ -450,6 +450,19 @@ export interface ImageBackfillResult {
   yahoo_quota_exhausted: boolean;
 }
 
+export interface PopularitySyncResult {
+  products_ranked: number;
+  categories_checked: number; // categories whose ranking was actually fetched
+  categories_total: number;
+}
+
+export function adminSyncPopularity(token: string) {
+  return apiFetch<PopularitySyncResult>(`/api/admin/sync-popularity`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
 export function adminBackfillImages(token: string) {
   return apiFetch<ImageBackfillResult>(`/api/admin/backfill-images`, {
     method: "POST",

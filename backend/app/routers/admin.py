@@ -297,7 +297,10 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         except Exception as exc:  # noqa: BLE001 - popularity sync failing shouldn't fail the whole job
             db.rollback()
             crud.create_error_log(db, source="popularity", message=f"Popularity sync failed: {exc}")
-        progress.finish_stage("popularity", f"反映{products_ranked}件")
+        progress.finish_stage(
+            "popularity",
+            f"反映{products_ranked}件（取得できたカテゴリ {popularity_categories_checked}/{len(popularity.CATEGORY_GENRE_IDS)}）",
+        )
 
         progress.start_stage("analysis")
         all_products = db.execute(select(models.Product)).scalars().all()
@@ -512,17 +515,21 @@ def sync_popularity(db: Session = Depends(get_db)):
     from app.config import get_settings
 
     settings = get_settings()
-    if not settings.rakuten_app_id:
-        raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID is not configured")
+    if not settings.rakuten_app_id or not settings.rakuten_access_key:
+        raise HTTPException(status_code=400, detail="RAKUTEN_APP_ID / RAKUTEN_ACCESS_KEY is not configured")
 
     progress.start_run("sync_popularity", "人気ランキング同期（手動実行）")
     try:
         progress.start_stage("popularity")
         ranked, checked = popularity.sync_popularity_rankings(db)
-        progress.finish_stage("popularity", f"反映{ranked}件（{checked}カテゴリ確認）")
+        progress.finish_stage("popularity", f"反映{ranked}件（取得できたカテゴリ {checked}/{len(popularity.CATEGORY_GENRE_IDS)}）")
     finally:
         progress.finish_run()
-    return {"products_ranked": ranked, "categories_checked": checked}
+    return {
+        "products_ranked": ranked,
+        "categories_checked": checked,
+        "categories_total": len(popularity.CATEGORY_GENRE_IDS),
+    }
 
 
 @router.post("/discover-products")

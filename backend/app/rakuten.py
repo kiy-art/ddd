@@ -149,9 +149,17 @@ def fetch_ranking(genre_id: int, hits: int = 30, timeout: float = 10.0) -> list[
     settings = get_settings()
     if not settings.rakuten_app_id:
         raise RakutenNotConfigured("RAKUTEN_APP_ID is not configured")
+    if not settings.rakuten_access_key:
+        raise RakutenNotConfigured("RAKUTEN_ACCESS_KEY is not configured")
 
+    # The 2026 Rakuten Web Service platform (openapi.rakuten.co.jp) rejects
+    # any request that doesn't carry BOTH applicationId and accessKey - the
+    # same as the item search above. This call used to send applicationId
+    # only, so every daily ranking sync failed and the site kept showing
+    # whatever ranks it had last stored (STEP51).
     params = {
         "applicationId": settings.rakuten_app_id,
+        "accessKey": settings.rakuten_access_key,
         "genreId": genre_id,
         "format": "json",
     }

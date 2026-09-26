@@ -1,4 +1,5 @@
 import { Product } from "@/lib/api";
+import { freshPopularityRank } from "@/lib/popularity";
 
 // Same threshold used by ProductCard/AiBuySignal/product page: below this
 // many days of history, any confident claim (including a badge) would
@@ -55,8 +56,9 @@ const POPULARITY_BADGE_MAX_RANK = 10;
  * actually selling well elsewhere") from the buy-timing ones.
  */
 export function getPopularityBadge(product: Product): ProductBadge | null {
-  if (product.popularity_rank === null || product.popularity_rank > POPULARITY_BADGE_MAX_RANK) return null;
-  return { label: `楽天人気${product.popularity_rank}位`, tone: "strong" };
+  const rank = freshPopularityRank(product);
+  if (rank === null || rank > POPULARITY_BADGE_MAX_RANK) return null;
+  return { label: `楽天人気${rank}位`, tone: "strong" };
 }
 
 // Manufacturer-stated lineup positioning (see the comment on
