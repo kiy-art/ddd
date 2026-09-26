@@ -75,6 +75,29 @@ def test_build_daily_report_flags_a_worse_effect_verdict(db_session):
     assert "悪化と判定されました" in html
 
 
+def test_build_daily_report_reports_an_auto_reverted_change_as_done(db_session):
+    product = _make_product(db_session)
+    action = models.AiOptimizationAction(
+        action_type="rewrite_product",
+        target_path=f"/products/{product.slug}",
+        product_id=product.id,
+        decision_basis="x",
+        status="reverted",
+        revert_reason="auto_worse",
+    )
+    db_session.add(action)
+    db_session.commit()
+    action.created_at = datetime.datetime.utcnow() - datetime.timedelta(days=10)
+    action.effect_evaluated_at = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+    action.effect_summary = "ページビューが100件→40件（-60%） → 悪化と判定したため自動で元に戻し"
+    action.effect_verdict = "worse"
+    db_session.commit()
+
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "1件は悪化と判定したため自動で元に戻し" in html
+    assert "自動では戻していません" not in html
+
+
 def test_build_daily_report_reflects_real_click_trend(db_session):
     product = _make_product(db_session)
     _click(db_session, product.id, "amazon", hours_ago=2)

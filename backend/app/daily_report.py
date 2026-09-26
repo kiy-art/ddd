@@ -181,11 +181,22 @@ def build_daily_report(db: Session) -> tuple[str, str]:
             f'<p style="font-size: 13px; font-weight: 600; color: #6b6a63; margin: 12px 0 6px;">過去の変更の効果測定</p>'
             f'<ul style="padding-left: 18px; font-size: 14px; margin: 0;">{effect_items}</ul>'
         )
-        if worse:
+        # STEP44: a "worse" rewrite on a sufficient sample is undone
+        # automatically - report it as done, and only ask the president to
+        # judge the ones that weren't (thin sample, or a non-rewrite action).
+        auto_reverted = [a for a in worse if a.revert_reason == "auto_worse"]
+        needs_review = [a for a in worse if a.revert_reason != "auto_worse"]
+        if auto_reverted:
             optimization_block += (
                 f'<p style="font-size: 13px; color: #b3261e; margin: 8px 0 0;">'
-                f"⚠ {len(worse)}件は悪化と判定されました。管理画面の「AI自動改善ループ」から内容を確認し、"
-                f"必要であれば元に戻してください。</p>"
+                f"↩ {len(auto_reverted)}件は悪化と判定したため自動で元に戻し、最新の価格データで通常の文面に再生成しました。"
+                f"この判定結果は効果測定の記録として蓄積されています。</p>"
+            )
+        if needs_review:
+            optimization_block += (
+                f'<p style="font-size: 13px; color: #b3261e; margin: 8px 0 0;">'
+                f"⚠ {len(needs_review)}件は悪化と判定されましたが、サンプル数が少ないなどの理由で自動では戻していません。"
+                f"管理画面の「AI自動改善ループ」から内容を確認し、必要であれば元に戻してください。</p>"
             )
 
     html = f"""

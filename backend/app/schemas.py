@@ -267,11 +267,13 @@ class AiOptimizationActionOut(BaseModel):
     effect_summary: str | None
     effect_verdict: str | None
     reverted_at: datetime.datetime | None
+    revert_reason: str | None = None
 
 
 class ContentOptimizationRunResult(BaseModel):
     snapshot_captured: bool
     actions_evaluated: int
+    actions_auto_reverted: int = 0
     actions_applied: int
     actions: list[AiOptimizationActionOut]
 

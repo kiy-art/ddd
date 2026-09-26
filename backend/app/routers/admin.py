@@ -650,6 +650,7 @@ def run_content_optimization_now(db: Session = Depends(get_db)):
     return schemas.ContentOptimizationRunResult(
         snapshot_captured=result.ga4_available or result.search_console_available,
         actions_evaluated=result.actions_evaluated,
+        actions_auto_reverted=len(result.actions_auto_reverted),
         actions_applied=len(result.actions),
         actions=result.actions,
     )

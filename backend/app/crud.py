@@ -485,7 +485,7 @@ class OptimizationActionNotRevertible(Exception):
     pass
 
 
-def revert_optimization_action(db: Session, action_id: int) -> models.AiOptimizationAction:
+def revert_optimization_action(db: Session, action_id: int, reason: str = "manual") -> models.AiOptimizationAction:
     """Restores the product's ai_title/ai_summary/ai_caution from the
     action's own content_before snapshot - the concrete "if it was wrong,
     undo it" remedy the president asked for, alongside the effect-
@@ -515,9 +515,16 @@ def revert_optimization_action(db: Session, action_id: int) -> models.AiOptimiza
     product.ai_caution = before.get("ai_caution")
     if product.ai_copy_source_action_id == action.id:
         product.ai_copy_source_action_id = None
+    # content_before is the copy as it stood when the rewrite was made -
+    # possibly days old, so any price it quotes may no longer be current
+    # (景品表示法 risk). Clearing the hash makes the next
+    # pipeline.sync_product_analysis regenerate routine copy from today's
+    # real numbers instead of leaving the restored text in place indefinitely.
+    product.ai_content_hash = None
 
     action.status = "reverted"
     action.reverted_at = datetime.datetime.utcnow()
+    action.revert_reason = reason
     db.commit()
     db.refresh(action)
     return action

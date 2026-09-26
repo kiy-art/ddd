@@ -280,6 +280,10 @@ class AiOptimizationAction(Base):
     effect_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     effect_verdict: Mapped[str | None] = mapped_column(String(20), nullable=True)
     reverted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # "manual" (the president pressed 元に戻す in /admin) or "auto_worse"
+    # (STEP44: evaluate_past_actions measured a real, sufficiently-sampled
+    # decline and undid it on its own). NULL while not reverted.
+    revert_reason: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
     product: Mapped["Product"] = relationship()
 

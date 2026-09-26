@@ -235,7 +235,8 @@ export default function AdminDashboard() {
     try {
       const result = await adminRunContentOptimization(token);
       setMessage(
-        `AI自動改善を実行しました: 実施${result.actions_applied}件 / 効果測定${result.actions_evaluated}件`
+        `AI自動改善を実行しました: 実施${result.actions_applied}件 / 効果測定${result.actions_evaluated}件` +
+          (result.actions_auto_reverted > 0 ? ` / 悪化のため自動で元に戻した変更${result.actions_auto_reverted}件` : "")
       );
       await loadOptimizationActions();
     } catch (err) {
@@ -537,7 +538,9 @@ export default function AdminDashboard() {
                       action.status === "failed" ? "text-red-600" : "text-foreground/50"
                     }`}
                   >
-                    {OPTIMIZATION_STATUS_LABELS[action.status] ?? action.status}
+                    {action.status === "reverted" && action.revert_reason === "auto_worse"
+                      ? "自動で元に戻し済み"
+                      : (OPTIMIZATION_STATUS_LABELS[action.status] ?? action.status)}
                   </span>
                   <span className="text-xs text-foreground/40">
                     {new Date(action.created_at).toLocaleString("ja-JP")}
@@ -570,7 +573,11 @@ export default function AdminDashboard() {
                   </button>
                 )}
                 {action.status === "reverted" && (
-                  <p className="mt-2 text-xs text-foreground/40">元に戻し済みです。</p>
+                  <p className="mt-2 text-xs text-foreground/40">
+                    {action.revert_reason === "auto_worse"
+                      ? "効果測定で悪化と判定したため、AIが自動で元に戻し、最新の価格データで通常の文面に再生成しました。"
+                      : "元に戻し済みです。"}
+                  </p>
                 )}
               </div>
             ))}

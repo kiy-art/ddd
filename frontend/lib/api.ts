@@ -529,11 +529,15 @@ export interface AiOptimizationAction {
   effect_summary: string | null;
   effect_verdict: "improved" | "no_change" | "worse" | "inconclusive" | null;
   reverted_at: string | null;
+  // "manual" (元に戻す button) or "auto_worse" (STEP44: undone automatically
+  // after a real, sufficiently-sampled "worse" measurement).
+  revert_reason: string | null;
 }
 
 export interface ContentOptimizationRunResult {
   snapshot_captured: boolean;
   actions_evaluated: number;
+  actions_auto_reverted: number;
   actions_applied: number;
   actions: AiOptimizationAction[];
 }

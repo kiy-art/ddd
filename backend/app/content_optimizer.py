@@ -23,7 +23,7 @@ import re
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import ai, content_metrics, content_rewriter, crud, models, search_console
+from app import ai, content_metrics, content_rewriter, crud, models, pipeline, search_console
 from app.brands import match_brand
 from app.config import get_settings
 
@@ -107,21 +107,39 @@ class GuideOpportunity:
     impressions: int
 
 
+# STEP44: a rewrite_product action whose measured effect is "worse" is
+# undone automatically - but only when the before/after numbers rest on a
+# real sample, so one quiet day can't trigger it. Same minimums the
+# detectors already require before calling a page's numbers meaningful.
+AUTO_REVERT_MIN_SEARCH_IMPRESSIONS = MIN_BASELINE_SEARCH_IMPRESSIONS
+AUTO_REVERT_MIN_PAGEVIEWS = MIN_BASELINE_PAGEVIEWS
+
+
+@dataclasses.dataclass
+class EvaluationRunResult:
+    evaluated: int
+    auto_reverted: list[models.AiOptimizationAction] = dataclasses.field(default_factory=list)
+
+
 @dataclasses.dataclass
 class OptimizationRunResult:
     ga4_available: bool
     search_console_available: bool
     actions_evaluated: int
     actions: list[models.AiOptimizationAction]
+    actions_auto_reverted: list[models.AiOptimizationAction] = dataclasses.field(default_factory=list)
 
 
 def _recent_rewrite_exists(db: Session, product_id: int) -> bool:
+    """A product rewritten - or reverted (STEP44) - within the cooldown is
+    left alone: a revert puts routine copy back, and the next rewrite needs
+    fresh post-revert numbers to be judged against, not the same run's."""
     cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=REWRITE_COOLDOWN_DAYS)
     row = db.execute(
         select(models.AiOptimizationAction.id).where(
             models.AiOptimizationAction.action_type == "rewrite_product",
             models.AiOptimizationAction.product_id == product_id,
-            models.AiOptimizationAction.created_at >= cutoff,
+            (models.AiOptimizationAction.created_at >= cutoff) | (models.AiOptimizationAction.reverted_at >= cutoff),
         )
     ).first()
     return row is not None
@@ -529,7 +547,11 @@ def _pct_change(before: float, after: float) -> float | None:
     return (after - before) / before * 100
 
 
-def _evaluate_content_action(db: Session, action: models.AiOptimizationAction) -> tuple[str, str] | None:
+def _evaluate_content_action(db: Session, action: models.AiOptimizationAction) -> tuple[str, str, bool] | None:
+    """(summary, verdict, sample_sufficient). sample_sufficient says whether
+    both the before and after numbers rest on enough real traffic to act on
+    automatically (STEP44 auto-revert) - the verdict itself is recorded
+    either way, as knowledge."""
     if action.action_type == "rewrite_product":
         product = db.get(models.Product, action.product_id) if action.product_id else None
         if product is None or product.ai_copy_source_action_id != action.id:
@@ -537,6 +559,7 @@ def _evaluate_content_action(db: Session, action: models.AiOptimizationAction) -
                 "評価期間中に文面が別の生成処理（価格変動に伴う通常の再生成など）で置き換わったため、"
                 "この施策単独の効果は判定できません",
                 "inconclusive",
+                False,
             )
 
     baseline = db.execute(
@@ -562,10 +585,15 @@ def _evaluate_content_action(db: Session, action: models.AiOptimizationAction) -
         change = _pct_change(baseline.search_ctr, latest.search_ctr)
         metric_label = "検索クリック率"
         before_str, after_str = f"{baseline.search_ctr * 100:.1f}%", f"{latest.search_ctr * 100:.1f}%"
+        sample_sufficient = (
+            (baseline.search_impressions or 0) >= AUTO_REVERT_MIN_SEARCH_IMPRESSIONS
+            and (latest.search_impressions or 0) >= AUTO_REVERT_MIN_SEARCH_IMPRESSIONS
+        )
     elif baseline.pageviews is not None and latest.pageviews is not None and baseline.pageviews > 0:
         change = _pct_change(baseline.pageviews, latest.pageviews)
         metric_label = "ページビュー"
         before_str, after_str = f"{baseline.pageviews}件", f"{latest.pageviews}件"
+        sample_sufficient = baseline.pageviews >= AUTO_REVERT_MIN_PAGEVIEWS
     else:
         return None
 
@@ -573,7 +601,7 @@ def _evaluate_content_action(db: Session, action: models.AiOptimizationAction) -
         return None
     verdict = "improved" if change >= EFFECT_IMPROVE_THRESHOLD_PCT else "worse" if change <= -EFFECT_IMPROVE_THRESHOLD_PCT else "no_change"
     summary = f"{metric_label}が{before_str}→{after_str}（{'+' if change >= 0 else ''}{round(change)}%）"
-    return summary, verdict
+    return summary, verdict, sample_sufficient
 
 
 def _evaluate_homepage_action(db: Session, action: models.AiOptimizationAction) -> tuple[str, str] | None:
@@ -606,11 +634,63 @@ def _evaluate_homepage_action(db: Session, action: models.AiOptimizationAction) 
     return f"クリック数が{before}件→{after}件（{'+' if change >= 0 else ''}{round(change)}%）", verdict
 
 
-def evaluate_past_actions(db: Session, delay_days: int = EFFECT_EVALUATION_DELAY_DAYS) -> int:
+def _auto_revert_worse_rewrite(db: Session, action: models.AiOptimizationAction) -> bool:
+    """STEP44: undo a rewrite whose real measured effect was "worse".
+
+    crud.revert_optimization_action restores content_before and clears the
+    product's content hash; sync_product_analysis then immediately
+    regenerates routine copy from today's real price data, so the restored
+    (possibly days-old) text never sits on the page quoting a stale price.
+    That regeneration can cost one Claude call, which run_daily_optimization
+    deducts from the same DAILY_ACTION_CAP budget - total calls per day stay
+    within what the president approved.
+
+    If the revert itself fails, it's logged and the action stays "applied"
+    (verdict "worse") for the president to handle from /admin. If only the
+    regeneration fails, the revert still stands and the cleared hash makes
+    the next daily sync retry it. Neither ever blocks the rest of the run."""
+    try:
+        crud.revert_optimization_action(db, action.id, reason="auto_worse")
+    except Exception as exc:  # noqa: BLE001 - one failed revert must not stop the daily run
+        db.rollback()
+        crud.create_error_log(
+            db, source="content_optimizer", product_id=action.product_id,
+            message=f"Auto-revert of optimization action {action.id} failed: {exc}",
+        )
+        return False
+
+    regenerated_note = "最新の価格データで通常の文面に再生成しました"
+    product = db.get(models.Product, action.product_id)
+    try:
+        if product is not None:
+            pipeline.sync_product_analysis(db, product)
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        regenerated_note = "文面の再生成は次回の日次更新で再試行します"
+        crud.create_error_log(
+            db, source="content_optimizer", product_id=action.product_id,
+            message=f"Regeneration after auto-revert of action {action.id} failed: {exc}",
+        )
+
+    db.refresh(action)
+    action.effect_summary = f"{action.effect_summary} → 悪化と判定したため自動で元に戻し、{regenerated_note}"
+    db.commit()
+    crud.create_error_log(
+        db, source="content_optimizer", level="warning", product_id=action.product_id,
+        message=f"自動差し戻し: {action.target_path} の文面変更を元に戻しました（{action.effect_summary}）",
+    )
+    return True
+
+
+def evaluate_past_actions(db: Session, delay_days: int = EFFECT_EVALUATION_DELAY_DAYS) -> EvaluationRunResult:
     """Fills in effect_summary/effect_verdict on any applied action old
     enough to judge, using real snapshot/click data from before vs after -
     never a guess. An action without enough data yet is simply skipped and
-    retried on a later run."""
+    retried on a later run.
+
+    STEP44: a rewrite_product judged "worse" on a sufficient real sample
+    (AUTO_REVERT_MIN_*) is undone automatically. A "worse" verdict on a thin
+    sample is still recorded, but left for the president to judge."""
     cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=delay_days)
     pending = db.execute(
         select(models.AiOptimizationAction).where(
@@ -621,28 +701,35 @@ def evaluate_past_actions(db: Session, delay_days: int = EFFECT_EVALUATION_DELAY
     ).scalars().all()
 
     evaluated = 0
+    to_revert: list[models.AiOptimizationAction] = []
     for action in pending:
-        result = (
-            _evaluate_homepage_action(db, action)
-            if action.action_type == "reorder_homepage"
-            else _evaluate_content_action(db, action)
-        )
+        if action.action_type == "reorder_homepage":
+            homepage_result = _evaluate_homepage_action(db, action)
+            result = None if homepage_result is None else (*homepage_result, False)
+        else:
+            result = _evaluate_content_action(db, action)
         if result is None:
             continue
-        summary, verdict = result
+        summary, verdict, sample_sufficient = result
         action.effect_evaluated_at = datetime.datetime.utcnow()
-        action.effect_summary = summary
         action.effect_verdict = verdict
+        if verdict == "worse" and action.action_type == "rewrite_product" and not sample_sufficient:
+            summary += "（サンプル数が少ないため自動では元に戻していません）"
+        action.effect_summary = summary
         evaluated += 1
+        if verdict == "worse" and action.action_type == "rewrite_product" and sample_sufficient:
+            to_revert.append(action)
 
     if evaluated:
         db.commit()
-    return evaluated
+
+    auto_reverted = [action for action in to_revert if _auto_revert_worse_rewrite(db, action)]
+    return EvaluationRunResult(evaluated=evaluated, auto_reverted=auto_reverted)
 
 
 def run_daily_optimization(db: Session) -> OptimizationRunResult:
     snapshot = content_metrics.capture_daily_snapshot(db)
-    evaluated = evaluate_past_actions(db)
+    evaluation = evaluate_past_actions(db)
 
     actions: list[models.AiOptimizationAction] = []
 
@@ -650,7 +737,9 @@ def run_daily_optimization(db: Session) -> OptimizationRunResult:
     if trending:
         actions.append(_apply_homepage_reorder(db, trending))
 
-    remaining = DAILY_ACTION_CAP
+    # Each auto-revert's routine regeneration may have spent a Claude call -
+    # it comes out of the same approved daily budget.
+    remaining = DAILY_ACTION_CAP - len(evaluation.auto_reverted)
     for opportunity in find_improvement_opportunities(db):
         if remaining <= 0:
             break
@@ -667,6 +756,7 @@ def run_daily_optimization(db: Session) -> OptimizationRunResult:
     return OptimizationRunResult(
         ga4_available=snapshot.ga4_available,
         search_console_available=snapshot.search_console_available,
-        actions_evaluated=evaluated,
+        actions_evaluated=evaluation.evaluated,
         actions=actions,
+        actions_auto_reverted=evaluation.auto_reverted,
     )

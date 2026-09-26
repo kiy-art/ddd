@@ -113,6 +113,7 @@ def test_run_content_optimization_endpoint_returns_shape(client, admin_headers, 
     assert resp.json() == {
         "snapshot_captured": False,
         "actions_evaluated": 0,
+        "actions_auto_reverted": 0,
         "actions_applied": 0,
         "actions": [],
     }
@@ -171,10 +172,14 @@ def test_revert_optimization_action_restores_previous_content(client, admin_head
     resp = client.post(f"/api/admin/optimization-actions/{action.id}/revert", headers=admin_headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "reverted"
+    assert resp.json()["revert_reason"] == "manual"
 
     db_session.refresh(product)
     assert product.ai_title == "旧タイトル"
     assert product.ai_copy_source_action_id is None
+    # The restored text may quote an old price - the next daily sync
+    # regenerates it from current data.
+    assert product.ai_content_hash is None
 
 
 def test_revert_optimization_action_404_for_unknown_id(client, admin_headers):

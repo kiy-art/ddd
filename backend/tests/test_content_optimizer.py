@@ -1,4 +1,5 @@
 import datetime
+import json
 
 import pytest
 
@@ -264,7 +265,7 @@ def test_evaluate_past_actions_skips_actions_too_young_to_judge(db_session):
     db_session.add(action)
     db_session.commit()
 
-    evaluated = content_optimizer.evaluate_past_actions(db_session)
+    evaluated = content_optimizer.evaluate_past_actions(db_session).evaluated
     assert evaluated == 0
     db_session.refresh(action)
     assert action.effect_evaluated_at is None
@@ -288,7 +289,7 @@ def test_evaluate_past_actions_detects_improvement(db_session):
     _snapshot(db_session, path, old_created_at.date(), product_id=product.id, pageviews=50)
     _snapshot(db_session, path, datetime.date.today(), product_id=product.id, pageviews=100)  # +100%
 
-    evaluated = content_optimizer.evaluate_past_actions(db_session)
+    evaluated = content_optimizer.evaluate_past_actions(db_session).evaluated
     assert evaluated == 1
     db_session.refresh(action)
     assert action.effect_verdict == "improved"
@@ -311,7 +312,7 @@ def test_evaluate_past_actions_detects_no_real_data_yet_and_retries_later(db_ses
     db_session.commit()
     # No snapshots at all - nothing to compare yet.
 
-    evaluated = content_optimizer.evaluate_past_actions(db_session)
+    evaluated = content_optimizer.evaluate_past_actions(db_session).evaluated
     assert evaluated == 0
     db_session.refresh(action)
     assert action.effect_evaluated_at is None
@@ -332,7 +333,7 @@ def test_evaluate_past_actions_marks_inconclusive_when_copy_was_replaced(db_sess
     _snapshot(db_session, path, old_created_at.date(), product_id=product.id, pageviews=50)
     _snapshot(db_session, path, datetime.date.today(), product_id=product.id, pageviews=100)
 
-    assert content_optimizer.evaluate_past_actions(db_session) == 1
+    assert content_optimizer.evaluate_past_actions(db_session).evaluated == 1
     db_session.refresh(action)
     assert action.effect_verdict == "inconclusive"
 
@@ -434,3 +435,152 @@ def test_run_daily_optimization_spends_the_cap_on_the_highest_priority_first(db_
     assert calls == [(pricey.id, content_optimizer.GOAL_SEARCH_CTR)]
     db_session.refresh(pricey)
     assert pricey.ai_copy_source_action_id is not None
+
+
+# --- STEP44: auto-revert of rewrites measured as "worse" ---------------------
+
+
+def _aged_rewrite(db, product, content_before=None, days_ago=10):
+    action = models.AiOptimizationAction(
+        action_type="rewrite_product", target_path=f"/products/{product.slug}", product_id=product.id,
+        decision_basis="x", status="applied",
+        content_before=json.dumps(
+            content_before or {"ai_title": "旧タイトル", "ai_summary": "旧サマリー", "ai_caution": "旧注意書き"},
+            ensure_ascii=False,
+        ),
+    )
+    db.add(action)
+    db.commit()
+    action.created_at = datetime.datetime.utcnow() - datetime.timedelta(days=days_ago)
+    product.ai_copy_source_action_id = action.id
+    product.ai_title = "最適化タイトル"
+    product.ai_content_hash = "optimized-hash"
+    db.commit()
+    return action
+
+
+def test_worse_rewrite_on_sufficient_sample_is_auto_reverted_and_regenerated(db_session):
+    product = _make_product(db_session)
+    path = f"/products/{product.slug}"
+    action = _aged_rewrite(db_session, product)
+    _snapshot(db_session, path, action.created_at.date(), product_id=product.id, pageviews=50)
+    _snapshot(db_session, path, datetime.date.today(), product_id=product.id, pageviews=20)  # -60%
+
+    result = content_optimizer.evaluate_past_actions(db_session)
+    assert result.evaluated == 1
+    assert [a.id for a in result.auto_reverted] == [action.id]
+
+    db_session.refresh(action)
+    db_session.refresh(product)
+    assert action.effect_verdict == "worse"
+    assert action.status == "reverted"
+    assert action.revert_reason == "auto_worse"
+    assert "自動で元に戻し" in action.effect_summary
+    assert "50件" in action.effect_summary and "20件" in action.effect_summary
+    assert product.ai_copy_source_action_id is None
+    # Regenerated from today's real data - neither the optimizer's copy nor
+    # the possibly-stale content_before is left on the page.
+    assert product.ai_title not in ("最適化タイトル", "旧タイトル")
+    assert product.ai_content_hash not in (None, "optimized-hash")
+
+    logs = crud.list_error_logs(db_session)
+    assert any(log.level == "warning" and "自動差し戻し" in log.message for log in logs)
+
+
+def test_worse_search_ctr_rewrite_on_sufficient_impressions_is_auto_reverted(db_session):
+    product = _make_product(db_session)
+    path = f"/products/{product.slug}"
+    action = _aged_rewrite(db_session, product)
+    _snapshot(db_session, path, action.created_at.date(), product_id=product.id,
+              search_impressions=500, search_clicks=25, search_ctr=0.05)
+    _snapshot(db_session, path, datetime.date.today(), product_id=product.id,
+              search_impressions=500, search_clicks=10, search_ctr=0.02)
+
+    result = content_optimizer.evaluate_past_actions(db_session)
+    assert len(result.auto_reverted) == 1
+    db_session.refresh(action)
+    assert action.status == "reverted"
+    assert "検索クリック率" in action.effect_summary
+
+
+def test_worse_rewrite_on_thin_sample_is_recorded_but_not_auto_reverted(db_session):
+    product = _make_product(db_session)
+    path = f"/products/{product.slug}"
+    action = _aged_rewrite(db_session, product)
+    # 5 -> 2 pageviews is -60%, but 5 is below AUTO_REVERT_MIN_PAGEVIEWS.
+    _snapshot(db_session, path, action.created_at.date(), product_id=product.id, pageviews=5)
+    _snapshot(db_session, path, datetime.date.today(), product_id=product.id, pageviews=2)
+
+    result = content_optimizer.evaluate_past_actions(db_session)
+    assert result.evaluated == 1
+    assert result.auto_reverted == []
+
+    db_session.refresh(action)
+    db_session.refresh(product)
+    assert action.effect_verdict == "worse"
+    assert action.status == "applied"
+    assert "サンプル数が少ない" in action.effect_summary
+    assert product.ai_title == "最適化タイトル"
+
+
+def test_improved_rewrite_is_never_auto_reverted(db_session):
+    product = _make_product(db_session)
+    path = f"/products/{product.slug}"
+    action = _aged_rewrite(db_session, product)
+    _snapshot(db_session, path, action.created_at.date(), product_id=product.id, pageviews=50)
+    _snapshot(db_session, path, datetime.date.today(), product_id=product.id, pageviews=100)
+
+    result = content_optimizer.evaluate_past_actions(db_session)
+    assert result.auto_reverted == []
+    db_session.refresh(action)
+    assert action.status == "applied"
+
+
+def test_auto_revert_keeps_the_revert_when_regeneration_fails(db_session, monkeypatch):
+    product = _make_product(db_session)
+    path = f"/products/{product.slug}"
+    action = _aged_rewrite(db_session, product)
+    _snapshot(db_session, path, action.created_at.date(), product_id=product.id, pageviews=50)
+    _snapshot(db_session, path, datetime.date.today(), product_id=product.id, pageviews=20)
+
+    def _boom(db, product):
+        raise RuntimeError("regeneration exploded")
+
+    monkeypatch.setattr(content_optimizer.pipeline, "sync_product_analysis", _boom)
+
+    result = content_optimizer.evaluate_past_actions(db_session)
+    assert len(result.auto_reverted) == 1
+    db_session.refresh(action)
+    db_session.refresh(product)
+    assert action.status == "reverted"
+    assert "次回の日次更新で再試行" in action.effect_summary
+    assert product.ai_title == "旧タイトル"
+    assert product.ai_content_hash is None  # next daily sync regenerates
+    assert any("regeneration exploded" in log.message for log in crud.list_error_logs(db_session))
+
+
+def test_run_daily_optimization_deducts_auto_reverts_from_the_cap_and_skips_the_reverted_product(db_session, monkeypatch):
+    monkeypatch.setattr(content_optimizer.content_metrics, "capture_daily_snapshot", lambda db: content_optimizer.content_metrics.SnapshotCaptureResult(False, False, 0))
+    monkeypatch.setattr(content_optimizer, "DAILY_ACTION_CAP", 2)
+
+    reverted_product = _make_product(db_session, name="reverted", slug="reverted")
+    action = _aged_rewrite(db_session, reverted_product)
+    _snapshot(db_session, "/products/reverted", action.created_at.date(), product_id=reverted_product.id, pageviews=100)
+    _snapshot(db_session, "/products/reverted", datetime.date.today(), product_id=reverted_product.id, pageviews=40)
+
+    for i in range(3):
+        p = _make_product(db_session, name=f"underperformer {i}", slug=f"underperformer-{i}")
+        _snapshot(db_session, f"/products/{p.slug}", datetime.date.today() - datetime.timedelta(days=10), product_id=p.id, pageviews=100)
+        _snapshot(db_session, f"/products/{p.slug}", datetime.date.today(), product_id=p.id, pageviews=50)
+
+    monkeypatch.setattr(
+        content_rewriter,
+        "rewrite_product_copy",
+        lambda product, reason, **kwargs: content_rewriter.RewrittenProductCopy(title="t", summary="s", caution="c"),
+    )
+
+    result = content_optimizer.run_daily_optimization(db_session)
+    assert [a.id for a in result.actions_auto_reverted] == [action.id]
+    rewrite_actions = [a for a in result.actions if a.action_type == "rewrite_product"]
+    assert len(rewrite_actions) == 1  # cap 2 minus 1 auto-revert regeneration
+    assert all(a.product_id != reverted_product.id for a in rewrite_actions)

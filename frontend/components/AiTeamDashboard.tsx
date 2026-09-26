@@ -258,9 +258,17 @@ function buildPlanningSession(data: {
   );
   if (recentlyEvaluated.length > 0) {
     const worse = recentlyEvaluated.filter((a) => a.effect_verdict === "worse");
+    // STEP44: a "worse" rewrite on a sufficient real sample is undone
+    // automatically; only the rest still need the president's judgment.
+    const autoReverted = worse.filter((a) => a.revert_reason === "auto_worse");
+    const needsReview = worse.length - autoReverted.length;
+    const worseNotes = [
+      autoReverted.length > 0 ? `${autoReverted.length}件は悪化と判定したため自動で元に戻しました` : null,
+      needsReview > 0 ? `${needsReview}件は悪化ですが自動では戻していません（サンプル不足など） - 見直しを検討してください` : null,
+    ].filter(Boolean);
     editorLines.push(
       `効果測定: 過去の自動改善${recentlyEvaluated.length}件の効果測定が完了しました${
-        worse.length > 0 ? `（うち${worse.length}件は悪化 - 元に戻すか見直しを検討してください）` : "。"
+        worseNotes.length > 0 ? `（うち${worseNotes.join("、")}）` : "。"
       }`
     );
   }
