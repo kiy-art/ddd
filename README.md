@@ -203,6 +203,9 @@ Base URL: `${API_URL}/api`
 | POST   | /admin/run-update                     | 分析+AI生成パイプライン手動実行 |
 | POST   | /admin/fetch-rakuten                  | 楽天市場から全商品の価格を取得（`RAKUTEN_APP_ID`/`RAKUTEN_ACCESS_KEY`必須） |
 | GET    | /admin/analytics/top-pages            | GA4の実アクセスデータ（人気ページ・直帰率）を取得（`GA4_PROPERTY_ID`/`GA4_SERVICE_ACCOUNT_JSON`必須） |
+| POST   | /admin/run-content-optimization       | AI自動改善ループを手動実行（実データに基づくリライト・新規ガイド・注目商品入れ替え、STEP42） |
+| GET    | /admin/optimization-actions           | AI自動改善の実施履歴・判断根拠・効果測定結果を取得（STEP42） |
+| POST   | /admin/optimization-actions/{id}/revert | リライトを変更前の内容に戻す（STEP42） |
 
 ## 6. 環境変数
 
@@ -218,6 +221,7 @@ RAKUTEN_APP_ID=
 RAKUTEN_ACCESS_KEY=
 GA4_PROPERTY_ID=
 GA4_SERVICE_ACCOUNT_JSON=
+SEARCH_CONSOLE_SITE_URL=
 ```
 
 `RAKUTEN_APP_ID` / `RAKUTEN_ACCESS_KEY` は楽天ウェブサービス（https://webservice.rakuten.co.jp/ ）
@@ -232,8 +236,21 @@ GA4_SERVICE_ACCOUNT_JSON=
 GCPで作成したサービスアカウント（GA4プロパティに閲覧者権限を付与したもの）のJSON鍵ファイルの
 中身をそのまま1行の文字列として設定する。**この値は絶対にリポジトリやチャットに貼り付けず、
 Renderの環境変数としてのみ設定すること。**
-このデータを使ってサイトを改善する自動デイリージョブは意図的に用意していない（コストと
-安全性を考慮し、管理者がチャットで明示的に依頼した時だけ分析・改修を行う運用にしている）。
+
+`SEARCH_CONSOLE_SITE_URL`（STEP42）は Google Search Console の実データ（検索クリック数・
+インプレッション・CTR・掲載順位）を読み取るための設定で、`GA4_SERVICE_ACCOUNT_JSON` と
+同じサービスアカウントを再利用する。ただしGA4プロパティへの権限付与とは別に、
+そのサービスアカウントのメールアドレスを **Search Console側でも「ユーザーを追加」** し、
+自分が管理しているプロパティのURL（例: `sc-domain:par-gear.com` またはURLプレフィックス
+プロパティの場合は `https://par-gear.com/`）をこの値に設定する必要がある。
+
+GA4/Search Consoleの実データを使ってサイトを自動改善するデイリージョブ（STEP42、
+`app/content_optimizer.py`）が`POST /admin/fetch-rakuten`の末尾で毎日実行される。
+実データに基づくクリック率・PVの低下を検知した商品説明のAIリライト、検索クエリに基づく
+新規ガイド記事の自動作成、実クリック数に基づくトップページ注目商品の入れ替えを行い、
+判断根拠・変更内容・後日の効果測定結果はすべて`GET /admin/optimization-actions`と
+管理画面に記録される。記事生成はClaude APIの実費用を伴うため1日あたり数件までに制限されている
+（`app/content_optimizer.py`の`DAILY_ACTION_CAP`）。
 
 ### frontend/.env
 

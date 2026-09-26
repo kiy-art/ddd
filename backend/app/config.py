@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     site_url: str = "https://par-gear.com"
     ga4_property_id: str = ""
     ga4_service_account_json: str = ""
+    # Google Search Console API (see app/search_console.py) - real per-page
+    # click/impression/CTR/position data, which GA4 doesn't provide. Reuses
+    # the same GCP service account as GA4_SERVICE_ACCOUNT_JSON (that
+    # account's email just also needs to be added as a user on the Search
+    # Console property, a separate one-time grant from GA4 property access -
+    # see README). site_url is either a URL-prefix property
+    # ("https://par-gear.com/") or a domain property ("sc-domain:par-gear.com"),
+    # exactly as it appears in Search Console.
+    search_console_site_url: str = ""
     # X (Twitter) API v2 - OAuth 1.0a user-context credentials for the site's
     # own posting account (see app/x_post.py). All four are required together;
     # posting is skipped entirely (not an error) when any is unset, matching

@@ -1,11 +1,32 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import crud, models, schemas
 from app.database import get_db
 from app.models import CATEGORIES
 
 router = APIRouter(tags=["public"])
+
+
+def _guide_to_schema(guide: models.GuideArticle) -> schemas.GuideArticleOut:
+    sections = [schemas.GuideSectionSchema(**s) for s in json.loads(guide.sections_json)]
+    related = [c.strip() for c in (guide.related_categories or "").split(",") if c.strip()]
+    return schemas.GuideArticleOut(
+        slug=guide.slug,
+        title=guide.title,
+        description=guide.description,
+        published_at=guide.published_at,
+        related_categories=related,
+        featured_kind=guide.featured_kind,
+        featured_category=guide.featured_category,
+        featured_heading=guide.featured_heading,
+        featured_limit=guide.featured_limit,
+        sections=sections,
+        source=guide.source,
+    )
 
 
 @router.get("/health")
@@ -92,3 +113,44 @@ def create_price_alert(slug: str, data: schemas.PriceAlertCreate, db: Session = 
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return crud.create_price_alert(db, product, data)
+
+
+@router.get("/homepage/trending", response_model=schemas.TrendingProductsOut)
+def get_trending_products(db: Session = Depends(get_db)):
+    """The most recent day's real click-based "注目ギア" pick (see
+    app/content_optimizer.py's reorder_homepage action) - a stored, dated
+    decision rather than a live-recomputed query, so it stays stable for
+    the day and has a real "before" to measure effect against later.
+    Returns an empty list (never a fabricated/padded one) when no such
+    decision has been made yet (e.g. zero real clicks recorded so far)."""
+    action = db.execute(
+        select(models.AiOptimizationAction)
+        .where(models.AiOptimizationAction.action_type == "reorder_homepage")
+        .order_by(models.AiOptimizationAction.created_at.desc())
+    ).scalars().first()
+    if action is None or not action.content_after:
+        return schemas.TrendingProductsOut(decision_basis=None, products=[])
+
+    product_ids = json.loads(action.content_after).get("product_ids", [])
+    if not product_ids:
+        return schemas.TrendingProductsOut(decision_basis=action.decision_basis, products=[])
+
+    products = crud.list_products_by_ids(db, product_ids, published_only=True)
+    return schemas.TrendingProductsOut(decision_basis=action.decision_basis, products=products)
+
+
+@router.get("/guides", response_model=list[schemas.GuideArticleOut])
+def list_ai_guides(db: Session = Depends(get_db)):
+    """AI-authored guide articles only (see app/content_optimizer.py's
+    new_guide action / models.GuideArticle) - the site's original,
+    hand/AI-authored guides still live as static content in
+    frontend/lib/guides.ts and aren't served here."""
+    return [_guide_to_schema(g) for g in crud.list_guide_articles(db)]
+
+
+@router.get("/guides/{slug}", response_model=schemas.GuideArticleOut)
+def get_ai_guide(slug: str, db: Session = Depends(get_db)):
+    guide = crud.get_guide_article_by_slug(db, slug)
+    if guide is None:
+        raise HTTPException(status_code=404, detail="Guide not found")
+    return _guide_to_schema(guide)

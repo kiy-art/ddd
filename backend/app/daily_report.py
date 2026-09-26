@@ -23,6 +23,12 @@ from app.config import get_settings
 
 SHOP_LABELS = {"amazon": "Amazon", "rakuten": "楽天", "yahoo": "Yahoo!", "official": "公式サイト"}
 
+OPTIMIZATION_ACTION_LABELS = {
+    "rewrite_product": "商品説明のリライト",
+    "new_guide": "新規ガイド作成",
+    "reorder_homepage": "トップページ注目商品の入れ替え",
+}
+
 
 class DailyReportNotConfigured(Exception):
     pass
@@ -133,6 +139,17 @@ def build_daily_report(db: Session) -> tuple[str, str]:
     # コピペ投稿できるテキストを毎朝この報告に含める - 自動投稿の代替導線。
     manual_post_text = x_post.build_manual_post_text(db)
 
+    # STEP42: app/content_optimizer.py's autonomous decisions from the last
+    # 24h - what it changed and why (always shown), plus any effect
+    # measurements that just came in for older changes (only when there
+    # are any) - "何を・なぜ変更したか" と "うまくいったか" を毎朝報告する
+    # という社長の要望に応える。
+    optimization_actions = crud.list_optimization_actions(db, limit=100)
+    recent_actions = [a for a in optimization_actions if a.created_at >= day_start]
+    recently_evaluated = [
+        a for a in optimization_actions if a.effect_evaluated_at is not None and a.effect_evaluated_at >= day_start
+    ]
+
     subject = f"【PAR.】本日のAI会議レポート（{today_jst_label}）"
     body_items = "".join(f'<li style="margin-bottom: 10px; line-height: 1.6;">{line}</li>' for line in lines)
     action_items = "".join(f'<li style="margin-bottom: 6px; line-height: 1.6;">{a}</li>' for a in actions)
@@ -143,6 +160,34 @@ def build_daily_report(db: Session) -> tuple[str, str]:
         else '<p style="font-size: 13px; color: #6b6a63; margin: 0 0 24px;">本日は投稿対象となる商品がありません。</p>'
     )
 
+    if recent_actions:
+        optimization_items = "".join(
+            f'<li style="margin-bottom: 8px; line-height: 1.6;">'
+            f"[{OPTIMIZATION_ACTION_LABELS.get(a.action_type, a.action_type)}] {a.target_path}<br>"
+            f'<span style="color: #6b6a63; font-size: 13px;">判断根拠: {a.decision_basis}</span></li>'
+            for a in recent_actions
+        )
+        optimization_block = f'<ul style="padding-left: 18px; font-size: 14px; margin: 0 0 12px;">{optimization_items}</ul>'
+    else:
+        optimization_block = '<p style="font-size: 13px; color: #6b6a63; margin: 0 0 12px;">本日は自動改善の対象がありませんでした。</p>'
+
+    if recently_evaluated:
+        worse = [a for a in recently_evaluated if a.effect_verdict == "worse"]
+        effect_items = "".join(
+            f'<li style="margin-bottom: 6px; line-height: 1.6;">{a.target_path}: {a.effect_summary}</li>'
+            for a in recently_evaluated
+        )
+        optimization_block += (
+            f'<p style="font-size: 13px; font-weight: 600; color: #6b6a63; margin: 12px 0 6px;">過去の変更の効果測定</p>'
+            f'<ul style="padding-left: 18px; font-size: 14px; margin: 0;">{effect_items}</ul>'
+        )
+        if worse:
+            optimization_block += (
+                f'<p style="font-size: 13px; color: #b3261e; margin: 8px 0 0;">'
+                f"⚠ {len(worse)}件は悪化と判定されました。管理画面の「AI自動改善ループ」から内容を確認し、"
+                f"必要であれば元に戻してください。</p>"
+            )
+
     html = f"""
     <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; color: #14130f;">
       <p style="font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #a5670e;">PAR. AI Executive War Room</p>
@@ -152,6 +197,9 @@ def build_daily_report(db: Session) -> tuple[str, str]:
 
       <p style="font-size: 13px; font-weight: 600; color: #6b6a63; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">改善施策</p>
       <ul style="padding-left: 18px; font-size: 14px; margin: 0 0 24px;">{action_items}</ul>
+
+      <p style="font-size: 13px; font-weight: 600; color: #6b6a63; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">本日のAI自動改善</p>
+      <div style="margin: 0 0 24px;">{optimization_block}</div>
 
       <p style="font-size: 13px; font-weight: 600; color: #6b6a63; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">X投稿用テキスト（コピペ用）</p>
       {manual_post_block}

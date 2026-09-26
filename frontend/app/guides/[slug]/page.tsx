@@ -6,14 +6,14 @@ import FadeIn from "@/components/FadeIn";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProducts } from "@/lib/api";
 import { computeDeals } from "@/lib/deals";
-import { GUIDES, getGuide } from "@/lib/guides";
+import { GUIDES, Guide, getGuideBySlug } from "@/lib/guides";
 
 export const revalidate = 0;
 
 const DEFAULT_FEATURED_LIMIT = 6;
 
 async function loadFeaturedProducts(
-  featured: NonNullable<ReturnType<typeof getGuide>>["featured"]
+  featured: Guide["featured"]
 ): Promise<{ product: Product; caption?: string }[]> {
   if (!featured) return [];
   const limit = featured.limit ?? DEFAULT_FEATURED_LIMIT;
@@ -50,7 +50,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params;
-  const guide = getGuide(slug);
+  const guide = await getGuideBySlug(slug);
   if (!guide) return {};
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -67,7 +67,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
 export default async function GuidePage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
-  const guide = getGuide(slug);
+  const guide = await getGuideBySlug(slug);
   if (!guide) notFound();
 
   const featuredProducts = await loadFeaturedProducts(guide.featured);
@@ -107,9 +107,16 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
       </Link>
 
       <h1 className="mt-4 font-display text-3xl font-semibold leading-snug text-foreground">{guide.title}</h1>
-      <p className="mt-3 text-sm text-foreground/50">
-        {new Date(guide.publishedAt).toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
-      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-foreground/50">
+        <span>
+          {new Date(guide.publishedAt).toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
+        </span>
+        {guide.isAiGenerated && (
+          <span className="rounded-full border border-border px-2 py-0.5 text-xs font-medium text-foreground/60">
+            AIが実データをもとに自動生成した記事です
+          </span>
+        )}
+      </div>
 
       {guide.featured && (
         <div className="mt-10">

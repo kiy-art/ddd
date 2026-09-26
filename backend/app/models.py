@@ -1,9 +1,15 @@
 import datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+# app/content_optimizer.py's decision log (STEP42) - what it decided, why,
+# and (once evaluated) whether it actually helped.
+OPTIMIZATION_ACTION_TYPES = ["rewrite_product", "new_guide", "reorder_homepage"]
+OPTIMIZATION_ACTION_STATUSES = ["applied", "reverted", "failed"]
+OPTIMIZATION_VERDICTS = ["improved", "no_change", "worse"]
 
 CATEGORIES = ["driver", "iron", "wedge", "putter", "ball"]
 
@@ -204,3 +210,96 @@ class ErrorLog(Base):
     )
     message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class PageMetricsSnapshot(Base):
+    """One page's real GA4/Search Console numbers for one calendar day (see
+    app/content_metrics.py). This is what makes "このページのCTRが落ちてい
+    る" a checkable claim instead of a single-point-in-time guess - without
+    a stored history there is no "before" to compare a "now" against, and
+    app/content_optimizer.py refuses to flag a page as declining until at
+    least two real snapshots exist for it (STEP42 - see
+    docs/ai_company_guidelines.md's anti-fabrication rule)."""
+
+    __tablename__ = "page_metrics_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    snapshot_date: Mapped[datetime.date] = mapped_column(Date, index=True)
+    path: Mapped[str] = mapped_column(String(500), index=True)
+    product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    guide_slug: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    pageviews: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    active_users: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bounce_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    avg_engagement_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    search_clicks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    search_impressions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    search_ctr: Mapped[float | None] = mapped_column(Float, nullable=True)
+    search_position: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("snapshot_date", "path", name="uq_page_metrics_snapshot_date_path"),)
+
+
+class AiOptimizationAction(Base):
+    """A single autonomous content/layout change app/content_optimizer.py
+    made, why (decision_basis quotes the real metrics that triggered it),
+    what changed (content_before/content_after), and - filled in days
+    later by evaluate_past_actions() - whether it actually helped
+    (effect_summary/effect_verdict), using real PageMetricsSnapshot rows
+    rather than a guess. This table is the "ナレッジ" the president asked
+    for: a growing, queryable record of what the AI tried and whether it
+    worked, not just a one-time log line (STEP42)."""
+
+    __tablename__ = "ai_optimization_actions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    action_type: Mapped[str] = mapped_column(String(30), index=True)
+    target_path: Mapped[str] = mapped_column(String(500))
+    product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    guide_slug: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    decision_basis: Mapped[str] = mapped_column(Text)
+    content_before: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_after: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="applied")
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    effect_evaluated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    effect_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    effect_verdict: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    reverted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+    product: Mapped["Product"] = relationship()
+
+
+class GuideArticle(Base):
+    """A "購入ガイド" article this AI wrote itself (see app/content_rewriter.py's
+    draft_new_guide), stored in the DB - unlike the 11 hand/AI-authored
+    guides in frontend/lib/guides.ts (static source files the backend has
+    no way to edit or redeploy), a DB row here can genuinely be created and
+    later revised by the daily optimization run without a deploy (STEP42).
+    Rendered by frontend/app/guides/[slug]/page.tsx as a fallback when a
+    slug isn't found in the static GUIDES array."""
+
+    __tablename__ = "guide_articles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    published_at: Mapped[datetime.date] = mapped_column(Date)
+    related_categories: Mapped[str | None] = mapped_column(String(255), nullable=True)  # comma-separated
+    featured_kind: Mapped[str | None] = mapped_column(String(50), nullable=True)  # "top_buy_signal" | "price_drops"
+    featured_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    featured_heading: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    featured_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sections_json: Mapped[str] = mapped_column(Text)  # JSON list of {heading, paragraphs}
+    source: Mapped[str] = mapped_column(String(30), default="ai_generated")
+    based_on_query: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )

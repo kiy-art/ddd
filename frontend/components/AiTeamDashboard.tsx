@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AffiliateClickRecent,
   AffiliateClickSummary,
+  AiOptimizationAction,
   ErrorLog,
   PageStat,
   adminAutoFixLogs,
@@ -12,6 +13,7 @@ import {
   adminGetAffiliateClickSummary,
   adminGetLogs,
   adminGetTopPages,
+  adminListOptimizationActions,
 } from "@/lib/api";
 import { useLiveJobUpdates, type LiveJobStage } from "@/lib/useLiveJobUpdates";
 
@@ -87,6 +89,12 @@ const SHOP_LABELS: Record<string, string> = {
   official: "公式サイト",
 };
 
+const OPTIMIZATION_ACTION_SHORT_LABELS: Record<string, string> = {
+  rewrite_product: "商品説明リライト",
+  new_guide: "新規ガイド作成",
+  reorder_homepage: "注目商品の入れ替え",
+};
+
 const CLICK_POLL_INTERVAL_MS = 10000;
 const DEPLOYING_DURATION_MS = 2500;
 const MEETING_STEP_DELAY_MS = 1100;
@@ -143,6 +151,7 @@ function buildPlanningSession(data: {
   clicks: AffiliateClickSummary | null;
   logs: ErrorLog[];
   topPages: PageStat[] | null;
+  optimizationActions: AiOptimizationAction[] | null;
 }): { persona: PersonaId; lines: string[] }[] {
   const steps: { persona: PersonaId; lines: string[] }[] = [];
 
@@ -204,13 +213,37 @@ function buildPlanningSession(data: {
   // never a separate/invented number).
   const discoveredMatch = dailyJobLog?.message.match(/新商品発見(\d+)件/);
   const discoveredCount = discoveredMatch ? parseInt(discoveredMatch[1], 10) : null;
-  steps.push({
-    persona: "editor",
-    lines:
-      discoveredCount !== null && discoveredCount > 0
-        ? [`振り返り: 直近の自動実行で新たに${discoveredCount}件の商品が追加されました。関連ブランド・カテゴリのガイド記事更新を検討しましょう。`]
-        : ["振り返り: 新着商品はまだありません。既存ガイド記事の鮮度を確認しておきます。"],
-  });
+  const editorLines: string[] = [
+    discoveredCount !== null && discoveredCount > 0
+      ? `振り返り: 直近の自動実行で新たに${discoveredCount}件の商品が追加されました。関連ブランド・カテゴリのガイド記事更新を検討しましょう。`
+      : "振り返り: 新着商品はまだありません。既存ガイド記事の鮮度を確認しておきます。",
+  ];
+
+  // STEP42: app/content_optimizer.py's autonomous decisions - real actions
+  // it actually took (with their real decision basis) and any effect
+  // measurements that just came in, never a summary invented from nothing.
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const recentActions = (data.optimizationActions ?? []).filter((a) => new Date(a.created_at).getTime() >= dayAgo);
+  if (recentActions.length > 0) {
+    editorLines.push(
+      `振り返り: 本日のAI自動改善は${recentActions.length}件です（` +
+        recentActions.map((a) => `${OPTIMIZATION_ACTION_SHORT_LABELS[a.action_type] ?? a.action_type}: ${a.target_path}`).join("、") +
+        "）。判断根拠と結果は管理画面の「AI自動改善ループ」で確認できます。"
+    );
+  }
+  const recentlyEvaluated = (data.optimizationActions ?? []).filter(
+    (a) => a.effect_evaluated_at && new Date(a.effect_evaluated_at).getTime() >= dayAgo
+  );
+  if (recentlyEvaluated.length > 0) {
+    const worse = recentlyEvaluated.filter((a) => a.effect_verdict === "worse");
+    editorLines.push(
+      `効果測定: 過去の自動改善${recentlyEvaluated.length}件の効果測定が完了しました${
+        worse.length > 0 ? `（うち${worse.length}件は悪化 - 元に戻すか見直しを検討してください）` : "。"
+      }`
+    );
+  }
+
+  steps.push({ persona: "editor", lines: editorLines });
 
   // Compliance reads price_fetch's own "warning"-level rows - the exact
   // real log lines pipeline.py already writes when a Rakuten/Yahoo match
@@ -335,6 +368,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
   const clicksRef = useRef<AffiliateClickSummary | null>(null);
   const logsRef = useRef<ErrorLog[]>([]);
   const topPagesRef = useRef<PageStat[] | null>(null);
+  const optimizationActionsRef = useRef<AiOptimizationAction[] | null>(null);
 
   const addMessages = (additions: Omit<ChatMessage, "fresh">[]) => {
     if (additions.length === 0) return;
@@ -353,7 +387,8 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
       adminGetLogs(token).catch(() => [] as ErrorLog[]),
       adminGetAffiliateClickSummary(token).catch(() => null),
       adminGetTopPages(token).catch(() => null),
-    ]).then(([logsData, clicksData, topPagesData]) => {
+      adminListOptimizationActions(token).catch(() => null),
+    ]).then(([logsData, clicksData, topPagesData, optimizationActionsData]) => {
       logsRef.current = logsData;
       seenLogIdsRef.current = new Set(logsData.map((l) => l.id));
       setClicks(clicksData);
@@ -364,6 +399,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
       setTopPages(topPagesData);
       topPagesRef.current = topPagesData;
       setGa4Configured(topPagesData !== null);
+      optimizationActionsRef.current = optimizationActionsData;
 
       if (!seededRef.current) {
         const seeded = [...logsData]
@@ -532,7 +568,12 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
       },
     ]);
 
-    const steps = buildPlanningSession({ clicks: clicksRef.current, logs: logsRef.current, topPages: topPagesRef.current });
+    const steps = buildPlanningSession({
+      clicks: clicksRef.current,
+      logs: logsRef.current,
+      topPages: topPagesRef.current,
+      optimizationActions: optimizationActionsRef.current,
+    });
     for (const step of steps) {
       setMeetingThinking(step.persona);
       await new Promise((r) => setTimeout(r, THINKING_BEFORE_MESSAGE_MS));

@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { GUIDES } from "@/lib/guides";
+import { listAllGuides } from "@/lib/guides";
+
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "購入ガイド",
   description: "ゴルフクラブの買い替えタイミングや型落ち・中古の選び方など、購入前に知っておきたい情報をまとめました。",
 };
 
-export default function GuidesIndexPage() {
-  const featuredGuides = GUIDES.filter((guide) => guide.featured);
-  const evergreenGuides = GUIDES.filter((guide) => !guide.featured);
+export default async function GuidesIndexPage() {
+  const guides = await listAllGuides();
+  const featuredGuides = guides.filter((guide) => guide.featured);
+  const evergreenGuides = guides.filter((guide) => !guide.featured);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
@@ -32,7 +35,14 @@ export default function GuidesIndexPage() {
                 href={`/guides/${guide.slug}`}
                 className="rounded-2xl border border-brand/30 bg-card p-6 transition-colors hover:border-brand/60 sm:p-8"
               >
-                <h3 className="font-display text-lg font-semibold text-foreground">{guide.title}</h3>
+                <h3 className="font-display text-lg font-semibold text-foreground">
+                  {guide.title}
+                  {guide.isAiGenerated && (
+                    <span className="ml-2 rounded-full border border-border px-2 py-0.5 align-middle text-xs font-medium text-foreground/50">
+                      AI自動生成
+                    </span>
+                  )}
+                </h3>
                 <p className="mt-2 text-sm leading-relaxed text-foreground/60">{guide.description}</p>
               </Link>
             ))}
@@ -49,7 +59,14 @@ export default function GuidesIndexPage() {
               href={`/guides/${guide.slug}`}
               className="rounded-2xl border border-border bg-card p-6 transition-colors hover:border-foreground/20 sm:p-8"
             >
-              <h3 className="font-display text-lg font-semibold text-foreground">{guide.title}</h3>
+              <h3 className="font-display text-lg font-semibold text-foreground">
+                {guide.title}
+                {guide.isAiGenerated && (
+                  <span className="ml-2 rounded-full border border-border px-2 py-0.5 align-middle text-xs font-medium text-foreground/50">
+                    AI自動生成
+                  </span>
+                )}
+              </h3>
               <p className="mt-2 text-sm leading-relaxed text-foreground/60">{guide.description}</p>
             </Link>
           ))}

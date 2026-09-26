@@ -7,7 +7,7 @@ import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
 import Newsletter from "@/components/Newsletter";
 import ProductCard from "@/components/ProductCard";
-import { BUY_SCORE_LABELS, Product, getProducts } from "@/lib/api";
+import { BUY_SCORE_LABELS, Product, TrendingProducts, getProducts, getTrendingProducts } from "@/lib/api";
 import { computeDeals } from "@/lib/deals";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { GUIDES } from "@/lib/guides";
@@ -47,6 +47,17 @@ export default async function Home({
     listProducts = activeTab === "all" ? allProducts : await getProducts({ buy_score: activeTab });
   } catch {
     error = "商品情報の取得に失敗しました。しばらくしてから再度お試しください。";
+  }
+
+  // STEP42: real, dated AI decision (see app/content_optimizer.py's
+  // reorder_homepage action) - not a live re-ranking, so it stays stable
+  // for the day. Empty (never padded) until the daily optimization run has
+  // produced a decision with real click data behind it.
+  let trending: TrendingProducts = { decision_basis: null, products: [] };
+  try {
+    trending = await getTrendingProducts();
+  } catch {
+    // best-effort - a failed fetch just means the section doesn't render
   }
 
   const withPct = allProducts.filter((p) => p.price_change_percent !== null);
@@ -216,6 +227,30 @@ export default async function Home({
               {popularAndDropping.map((product, i) => (
                 <FadeIn key={product.id} delay={i * 90}>
                   <ProductCard product={product} listSource="homepage_popular_dropping" />
+                </FadeIn>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!error && trending.products.length > 0 && (
+        <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
+          <div className="mx-auto max-w-7xl">
+            <FadeIn className="flex flex-col gap-3">
+              <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Trending Now</span>
+              <h2 className="max-w-lg font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+                今、注目されているギア
+              </h2>
+              <p className="max-w-lg text-sm text-foreground/55">
+                実際のクリック数をもとに、直近よく見られている商品をまとめました。
+              </p>
+            </FadeIn>
+
+            <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {trending.products.map((product, i) => (
+                <FadeIn key={product.id} delay={i * 90}>
+                  <ProductCard product={product} listSource="homepage_trending" />
                 </FadeIn>
               ))}
             </div>

@@ -23,6 +23,11 @@ export interface Guide {
   relatedCategories?: string[];
   featured?: GuideFeatured;
   sections: GuideSection[];
+  // True only for a guide app/content_optimizer.py drafted itself (see
+  // aiGuideToGuide below) - every other guide here is static, hand/AI-
+  // authored source content (STEP42's anti-fabrication disclosure: an
+  // autonomously-published page must say so, not blend in silently).
+  isAiGenerated?: boolean;
 }
 
 // Generic, well-established golf-equipment-buying knowledge, in the same
@@ -411,4 +416,57 @@ export const GUIDES: Guide[] = [
 
 export function getGuide(slug: string): Guide | undefined {
   return GUIDES.find((g) => g.slug === slug);
+}
+
+// STEP42: AI-authored guides (see app/content_optimizer.py's new_guide
+// action) live in the DB, not this static file, so they're fetched
+// separately and converted to the same shape the rest of this app already
+// renders - one rendering path, not two that could drift apart.
+function aiGuideToGuide(g: import("./api").AiGuideArticle): Guide {
+  return {
+    slug: g.slug,
+    title: g.title,
+    description: g.description,
+    publishedAt: g.published_at,
+    relatedCategories: g.related_categories.length > 0 ? g.related_categories : undefined,
+    featured:
+      g.featured_kind && g.featured_category
+        ? {
+            kind: g.featured_kind,
+            category: g.featured_category,
+            heading: g.featured_heading ?? "関連する注目商品",
+            limit: g.featured_limit ?? undefined,
+          }
+        : undefined,
+    sections: g.sections,
+    isAiGenerated: true,
+  };
+}
+
+// Static lookup first (fast, no network) - only falls back to the AI-
+// authored DB-backed guides (fetched via GET /api/guides/{slug}) when the
+// slug isn't one of the hand/AI-authored guides above. Returns undefined
+// (never throws) when neither has it, so callers can notFound().
+export async function getGuideBySlug(slug: string): Promise<Guide | undefined> {
+  const staticGuide = getGuide(slug);
+  if (staticGuide) return staticGuide;
+
+  const { getAiGuide } = await import("./api");
+  try {
+    return aiGuideToGuide(await getAiGuide(slug));
+  } catch {
+    return undefined;
+  }
+}
+
+// Same "static first, then AI-authored" merge for the /guides index page.
+export async function listAllGuides(): Promise<Guide[]> {
+  const { getAiGuides } = await import("./api");
+  let aiGuides: Guide[] = [];
+  try {
+    aiGuides = (await getAiGuides()).map(aiGuideToGuide);
+  } catch {
+    aiGuides = [];
+  }
+  return [...GUIDES, ...aiGuides];
 }

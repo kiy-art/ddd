@@ -457,3 +457,82 @@ def cleanup_error_logs(db: Session, retention_days: dict[str, int]) -> dict[str,
         deleted[level] = result.rowcount or 0
     db.commit()
     return deleted
+
+
+# --- STEP42: content optimization loop (guides, optimization actions) ------
+
+
+def list_guide_articles(db: Session) -> list[models.GuideArticle]:
+    query = select(models.GuideArticle).order_by(models.GuideArticle.published_at.desc())
+    return list(db.execute(query).scalars().all())
+
+
+def get_guide_article_by_slug(db: Session, slug: str) -> models.GuideArticle | None:
+    return db.execute(select(models.GuideArticle).where(models.GuideArticle.slug == slug)).scalar_one_or_none()
+
+
+def list_optimization_actions(db: Session, limit: int = 50, offset: int = 0) -> list[models.AiOptimizationAction]:
+    query = (
+        select(models.AiOptimizationAction)
+        .order_by(models.AiOptimizationAction.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    return list(db.execute(query).scalars().all())
+
+
+class OptimizationActionNotRevertible(Exception):
+    pass
+
+
+def revert_optimization_action(db: Session, action_id: int) -> models.AiOptimizationAction:
+    """Restores the product's ai_title/ai_summary/ai_caution from the
+    action's own content_before snapshot - the concrete "if it was wrong,
+    undo it" remedy the president asked for, alongside the effect-
+    evaluation knowledge trail (see app/content_optimizer.py). Only
+    rewrite_product actions can be reverted this way (a new_guide action
+    is undone by deleting/unpublishing the GuideArticle instead, and
+    reorder_homepage is self-correcting the next time the daily loop runs)."""
+    import json as _json
+
+    action = db.get(models.AiOptimizationAction, action_id)
+    if action is None:
+        raise ValueError("Optimization action not found")
+    if action.action_type != "rewrite_product" or action.status != "applied":
+        raise OptimizationActionNotRevertible("Only an applied rewrite_product action can be reverted")
+    if action.reverted_at is not None:
+        raise OptimizationActionNotRevertible("This action was already reverted")
+    if not action.content_before:
+        raise OptimizationActionNotRevertible("No prior content was recorded for this action")
+
+    product = db.get(models.Product, action.product_id) if action.product_id else None
+    if product is None:
+        raise OptimizationActionNotRevertible("The product this action changed no longer exists")
+
+    before = _json.loads(action.content_before)
+    product.ai_title = before.get("ai_title")
+    product.ai_summary = before.get("ai_summary")
+    product.ai_caution = before.get("ai_caution")
+
+    action.status = "reverted"
+    action.reverted_at = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(action)
+    return action
+
+
+def list_products_by_ids(db: Session, product_ids: list[int], published_only: bool = True) -> list[models.Product]:
+    """Same product rows as list_products, but in the exact order given
+    (a real, already-decided ranking - see app/content_optimizer.py's
+    reorder_homepage action) rather than list_products' own price-change
+    ordering. Only pending_review is excluded here (not insufficient_data
+    buy_score) - a genuinely popular, real-click product shouldn't be
+    hidden from a "trending now" list just because its price history is
+    still thin."""
+    if not product_ids:
+        return []
+    query = select(models.Product).where(models.Product.id.in_(product_ids))
+    if published_only:
+        query = query.where(models.Product.pending_review.is_(False))
+    by_id = {p.id: p for p in db.execute(query).scalars()}
+    return [by_id[pid] for pid in product_ids if pid in by_id]

@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 
 import {
+  AiOptimizationAction,
   adminDiscoverProducts,
   adminFetchRakuten,
   adminGetXPostPreview,
   adminImportCsv,
+  adminListOptimizationActions,
   adminListProducts,
   adminPostToX,
+  adminRevertOptimizationAction,
+  adminRunContentOptimization,
   adminRunMigrationCleanTitles,
   adminRunUpdate,
   adminSendDailyReport,
@@ -19,6 +23,18 @@ import { useAdminAuth } from "@/lib/adminAuth";
 import AiTeamDashboard from "@/components/AiTeamDashboard";
 import LiveJobDashboard from "@/components/LiveJobDashboard";
 
+const OPTIMIZATION_ACTION_LABELS: Record<string, string> = {
+  rewrite_product: "商品説明のリライト",
+  new_guide: "新規ガイド作成",
+  reorder_homepage: "トップページ注目商品の入れ替え",
+};
+
+const OPTIMIZATION_STATUS_LABELS: Record<string, string> = {
+  applied: "実施済み",
+  reverted: "元に戻し済み",
+  failed: "失敗",
+};
+
 export default function AdminDashboard() {
   const { token } = useAdminAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -27,12 +43,22 @@ export default function AdminDashboard() {
   const [busy, setBusy] = useState(false);
   const [xPostPreview, setXPostPreview] = useState<string | null | undefined>(undefined);
   const [xCopyMessage, setXCopyMessage] = useState<string | null>(null);
+  const [optimizationActions, setOptimizationActions] = useState<AiOptimizationAction[]>([]);
 
   const load = async () => {
     if (!token) return;
     const data = await adminListProducts(token);
     setProducts(data);
     setLoading(false);
+  };
+
+  const loadOptimizationActions = async () => {
+    if (!token) return;
+    try {
+      setOptimizationActions(await adminListOptimizationActions(token));
+    } catch {
+      // best-effort - the rest of the dashboard still works without this
+    }
   };
 
   useEffect(() => {
@@ -50,6 +76,13 @@ export default function AdminDashboard() {
       })
       .catch(() => {
         if (!ignore) setXPostPreview(null);
+      });
+    adminListOptimizationActions(token)
+      .then((data) => {
+        if (!ignore) setOptimizationActions(data);
+      })
+      .catch(() => {
+        // best-effort
       });
     return () => {
       ignore = true;
@@ -172,6 +205,41 @@ export default function AdminDashboard() {
       setXCopyMessage("コピーしました。");
     } catch {
       setXCopyMessage("コピーに失敗しました。テキストを選択して手動でコピーしてください。");
+    }
+  };
+
+  const handleRunContentOptimization = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await adminRunContentOptimization(token);
+      setMessage(
+        `AI自動改善を実行しました: 実施${result.actions_applied}件 / 効果測定${result.actions_evaluated}件`
+      );
+      await loadOptimizationActions();
+    } catch (err) {
+      setMessage(`実行失敗: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRevertAction = async (actionId: number) => {
+    if (!token) return;
+    const confirmed = window.confirm("この変更を元に戻します（変更前の紹介文に戻します）。よろしいですか？");
+    if (!confirmed) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await adminRevertOptimizationAction(token, actionId);
+      setMessage("変更を元に戻しました。");
+      await loadOptimizationActions();
+      await load();
+    } catch (err) {
+      setMessage(`元に戻す処理に失敗: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -388,6 +456,79 @@ export default function AdminDashboard() {
         >
           今すぐ投稿（API経由・無料プランでは失敗します）
         </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">AI自動改善ループ（STEP42）</h2>
+        <p className="text-sm text-foreground/50">
+          実際のGA4/Search Console/クリックデータをもとに、AIが商品説明のリライトや新規ガイド記事の作成、
+          トップページの注目商品入れ替えを自動で行います。何を・なぜ変更したか、後日の効果測定結果まで、
+          すべて下の一覧に記録されます。毎日の自動更新の最後にも実行されます（記事生成にはClaude APIの実費用が発生し、
+          1日あたり数件までに制限されています）。
+        </p>
+        <button
+          onClick={handleRunContentOptimization}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          今すぐ実行
+        </button>
+
+        {optimizationActions.length === 0 ? (
+          <p className="text-sm text-foreground/50">まだ実行記録がありません。</p>
+        ) : (
+          <div className="mt-2 flex flex-col gap-3">
+            {optimizationActions.map((action) => (
+              <div key={action.id} className="rounded-xl border border-border bg-background p-4 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-border px-2 py-0.5 text-xs font-medium text-foreground/60">
+                    {OPTIMIZATION_ACTION_LABELS[action.action_type] ?? action.action_type}
+                  </span>
+                  <span className="text-xs text-foreground/40">{action.target_path}</span>
+                  <span
+                    className={`text-xs font-medium ${
+                      action.status === "failed" ? "text-red-600" : "text-foreground/50"
+                    }`}
+                  >
+                    {OPTIMIZATION_STATUS_LABELS[action.status] ?? action.status}
+                  </span>
+                  <span className="text-xs text-foreground/40">
+                    {new Date(action.created_at).toLocaleString("ja-JP")}
+                  </span>
+                </div>
+                <p className="mt-2 text-foreground/70">判断根拠: {action.decision_basis}</p>
+                {action.effect_summary && (
+                  <p className="mt-1 text-foreground/70">
+                    効果測定:{" "}
+                    <span
+                      className={
+                        action.effect_verdict === "improved"
+                          ? "font-medium text-signal-high"
+                          : action.effect_verdict === "worse"
+                            ? "font-medium text-red-600"
+                            : "text-foreground/60"
+                      }
+                    >
+                      {action.effect_summary}
+                    </span>
+                  </p>
+                )}
+                {action.action_type === "rewrite_product" && action.status === "applied" && (
+                  <button
+                    onClick={() => handleRevertAction(action.id)}
+                    disabled={busy}
+                    className="mt-2 w-fit rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 disabled:opacity-50"
+                  >
+                    この変更を元に戻す
+                  </button>
+                )}
+                {action.status === "reverted" && (
+                  <p className="mt-2 text-xs text-foreground/40">元に戻し済みです。</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {message && <p className="text-sm text-foreground/70">{message}</p>}

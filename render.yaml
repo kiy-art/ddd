@@ -43,6 +43,15 @@ services:
         sync: false
       - key: YAHOO_AFFILIATE_ID
         sync: false
+      # GA4 Data API + Search Console API (see README section 6) - power
+      # /admin/analytics and the STEP42 autonomous content-optimization
+      # daily job. Both optional; a no-op until set.
+      - key: GA4_PROPERTY_ID
+        sync: false
+      - key: GA4_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: SEARCH_CONSOLE_SITE_URL
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL

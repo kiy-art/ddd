@@ -248,3 +248,55 @@ class PageStatOut(BaseModel):
     active_users: int
     bounce_rate: float
     avg_engagement_seconds: float
+
+
+class AiOptimizationActionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    action_type: str
+    target_path: str
+    product_id: int | None
+    guide_slug: str | None
+    decision_basis: str
+    content_before: str | None
+    content_after: str | None
+    status: str
+    created_at: datetime.datetime
+    effect_evaluated_at: datetime.datetime | None
+    effect_summary: str | None
+    effect_verdict: str | None
+    reverted_at: datetime.datetime | None
+
+
+class ContentOptimizationRunResult(BaseModel):
+    snapshot_captured: bool
+    actions_evaluated: int
+    actions_applied: int
+    actions: list[AiOptimizationActionOut]
+
+
+class GuideSectionSchema(BaseModel):
+    heading: str
+    paragraphs: list[str]
+
+
+class GuideArticleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    slug: str
+    title: str
+    description: str
+    published_at: datetime.date
+    related_categories: list[str]
+    featured_kind: str | None
+    featured_category: str | None
+    featured_heading: str | None
+    featured_limit: int | None
+    sections: list[GuideSectionSchema]
+    source: str
+
+
+class TrendingProductsOut(BaseModel):
+    decision_basis: str | None
+    products: list[ProductOut]

@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from app import crud, daily_report, email, schemas
+from app import crud, daily_report, email, models, schemas
 
 
 def _make_product(db_session, name="テスト用ドライバー", brand="TestBrand", category="driver"):
@@ -26,6 +26,53 @@ def test_build_daily_report_with_no_data(db_session):
     assert "本日のAI会議レポート" in subject
     assert "直近24時間で0件" in html
     assert "実データ" in html
+
+
+def test_build_daily_report_says_no_optimization_when_none_happened(db_session):
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "本日は自動改善の対象がありませんでした" in html
+
+
+def test_build_daily_report_lists_todays_optimization_actions(db_session):
+    product = _make_product(db_session)
+    db_session.add(
+        models.AiOptimizationAction(
+            action_type="rewrite_product",
+            target_path=f"/products/{product.slug}",
+            product_id=product.id,
+            decision_basis="CTRが平均より40%低下",
+            status="applied",
+        )
+    )
+    db_session.commit()
+
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "商品説明のリライト" in html
+    assert f"/products/{product.slug}" in html
+    assert "CTRが平均より40%低下" in html
+
+
+def test_build_daily_report_flags_a_worse_effect_verdict(db_session):
+    product = _make_product(db_session)
+    action = models.AiOptimizationAction(
+        action_type="rewrite_product",
+        target_path=f"/products/{product.slug}",
+        product_id=product.id,
+        decision_basis="x",
+        status="applied",
+    )
+    db_session.add(action)
+    db_session.commit()
+    action.created_at = datetime.datetime.utcnow() - datetime.timedelta(days=10)
+    action.effect_evaluated_at = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+    action.effect_summary = "ページビューが100件→60件（-40%）"
+    action.effect_verdict = "worse"
+    db_session.commit()
+
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "過去の変更の効果測定" in html
+    assert "ページビューが100件→60件" in html
+    assert "悪化と判定されました" in html
 
 
 def test_build_daily_report_reflects_real_click_trend(db_session):

@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, daily_report, discovery, models, pipeline, popularity, progress, schemas, title_migration, x_post
+from app import content_optimizer, crud, daily_report, discovery, models, pipeline, popularity, progress, schemas, title_migration, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -366,6 +366,19 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         ),
     )
 
+    # STEP42: autonomous content-optimization loop (real GA4/Search Console/
+    # click data -> rule-based decisions -> Claude-generated rewrites/new
+    # guides, each logged to AiOptimizationAction). Runs after prices/
+    # analysis/discovery are fresh for this cycle, and before the daily
+    # report so the report can summarize what it just did. Never allowed
+    # to fail the job - a broken optimization run shouldn't block price
+    # updates or the daily report.
+    try:
+        content_optimizer.run_daily_optimization(db)
+    except Exception as exc:  # noqa: BLE001 - optimization failing must never fail the daily job itself
+        db.rollback()
+        crud.create_error_log(db, source="content_optimizer", message=f"Daily optimization run failed: {exc}")
+
     # Daily "AI会議" report email (see app/daily_report.py) - runs last so
     # it reports on the daily_job summary row just written above. A no-op
     # (raises DailyReportNotConfigured) when DAILY_REPORT_EMAIL isn't set,
@@ -612,3 +625,42 @@ def get_affiliate_click_summary(db: Session = Depends(get_db)):
     products, and a recent feed. Powers the AI Team dashboard's metrics and
     the CRO AI persona's data-driven commentary; never estimated."""
     return crud.get_affiliate_click_summary(db)
+
+
+@router.post("/run-content-optimization", response_model=schemas.ContentOptimizationRunResult)
+def run_content_optimization_now(db: Session = Depends(get_db)):
+    """Manual trigger for the same STEP42 content-optimization run (real
+    GA4/Search Console/click snapshot -> rule-based decisions -> Claude-
+    generated rewrites/new guides) that also runs at the end of the daily
+    /fetch-rakuten job - useful for testing without waiting for the next
+    scheduled run. Rewrites/new guides call the Claude API (real cost,
+    capped at content_optimizer.DAILY_ACTION_CAP actions)."""
+    result = content_optimizer.run_daily_optimization(db)
+    return schemas.ContentOptimizationRunResult(
+        snapshot_captured=result.ga4_available or result.search_console_available,
+        actions_evaluated=result.actions_evaluated,
+        actions_applied=len(result.actions),
+        actions=result.actions,
+    )
+
+
+@router.get("/optimization-actions", response_model=list[schemas.AiOptimizationActionOut])
+def list_optimization_actions(limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
+    """The STEP42 "ナレッジ" log: every autonomous content/layout decision,
+    why it was made, what changed, and (once enough time has passed) the
+    real measured effect. Powers the admin optimization panel and the
+    War Room chat's real-data commentary."""
+    return crud.list_optimization_actions(db, limit=limit, offset=offset)
+
+
+@router.post("/optimization-actions/{action_id}/revert", response_model=schemas.AiOptimizationActionOut)
+def revert_optimization_action(action_id: int, db: Session = Depends(get_db)):
+    """Restores a rewritten product's previous ai_title/ai_summary/
+    ai_caution from the action's own content_before snapshot - the
+    concrete undo path for an AI decision that turned out to be wrong."""
+    try:
+        return crud.revert_optimization_action(db, action_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except crud.OptimizationActionNotRevertible as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -143,6 +143,44 @@ export function getCategoryProducts(category: string) {
   return apiFetch<Product[]>(`/api/categories/${category}`);
 }
 
+// --- STEP42: autonomous content-optimization loop -----------------------
+
+export interface TrendingProducts {
+  decision_basis: string | null;
+  products: Product[];
+}
+
+export function getTrendingProducts() {
+  return apiFetch<TrendingProducts>(`/api/homepage/trending`);
+}
+
+export interface GuideSection {
+  heading: string;
+  paragraphs: string[];
+}
+
+export interface AiGuideArticle {
+  slug: string;
+  title: string;
+  description: string;
+  published_at: string;
+  related_categories: string[];
+  featured_kind: "top_buy_signal" | "price_drops" | null;
+  featured_category: string | null;
+  featured_heading: string | null;
+  featured_limit: number | null;
+  sections: GuideSection[];
+  source: string;
+}
+
+export function getAiGuides() {
+  return apiFetch<AiGuideArticle[]>(`/api/guides`);
+}
+
+export function getAiGuide(slug: string) {
+  return apiFetch<AiGuideArticle>(`/api/guides/${slug}`);
+}
+
 export interface BrandSummary {
   brand: string;
   product_count: number;
@@ -474,6 +512,48 @@ export function adminPostToX(token: string) {
 
 export function adminGetXPostPreview(token: string) {
   return apiFetch<{ text: string | null }>(`/api/admin/x-post-preview`, { headers: adminHeaders(token) });
+}
+
+export interface AiOptimizationAction {
+  id: number;
+  action_type: "rewrite_product" | "new_guide" | "reorder_homepage";
+  target_path: string;
+  product_id: number | null;
+  guide_slug: string | null;
+  decision_basis: string;
+  content_before: string | null;
+  content_after: string | null;
+  status: "applied" | "reverted" | "failed";
+  created_at: string;
+  effect_evaluated_at: string | null;
+  effect_summary: string | null;
+  effect_verdict: "improved" | "no_change" | "worse" | null;
+  reverted_at: string | null;
+}
+
+export interface ContentOptimizationRunResult {
+  snapshot_captured: boolean;
+  actions_evaluated: number;
+  actions_applied: number;
+  actions: AiOptimizationAction[];
+}
+
+export function adminRunContentOptimization(token: string) {
+  return apiFetch<ContentOptimizationRunResult>(`/api/admin/run-content-optimization`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
+export function adminListOptimizationActions(token: string) {
+  return apiFetch<AiOptimizationAction[]>(`/api/admin/optimization-actions`, { headers: adminHeaders(token) });
+}
+
+export function adminRevertOptimizationAction(token: string, actionId: number) {
+  return apiFetch<AiOptimizationAction>(`/api/admin/optimization-actions/${actionId}/revert`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
 }
 
 export async function verifyAdminToken(token: string): Promise<boolean> {
