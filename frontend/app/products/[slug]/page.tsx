@@ -24,6 +24,7 @@ import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { MODEL_CYCLE_DISCLAIMER, MODEL_CYCLE_FACT_NOTE, getModelCycleInsight } from "@/lib/modelCycle";
 import { normalizeImageUrl } from "@/lib/imageUrl";
+import { buildProductJsonLd } from "@/lib/productJsonLd";
 import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
@@ -87,15 +88,6 @@ function seoDescription(product: Product): string {
   const lowestPart = product.lowest_price !== null ? `（過去最安値 ${yen(product.lowest_price)}）` : "";
   const currentPart = product.current_price !== null ? yen(product.current_price) : "価格情報";
   return `${product.brand} ${product.name}の価格推移${lowestPart}をもとに、今が買い時かをAIが分析。値下がりしやすい時期の目安も掲載しています。現在価格は${currentPart}です。`;
-}
-
-// A plain helper (not called directly in the component body) so the
-// Date.now() fallback doesn't trip the "components must be pure" lint rule
-// - this page re-renders live on every request anyway (`revalidate = 0`),
-// so the impurity is intentional and harmless, just not allowed inline.
-function computePriceValidUntil(lastPriceUpdatedAt: string | null): string {
-  const base = lastPriceUpdatedAt ? new Date(lastPriceUpdatedAt).getTime() : Date.now();
-  return new Date(base + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 async function loadProduct(slug: string) {
@@ -203,69 +195,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   // unusable) - never an http:// or malformed value in the JSON-LD.
   const imageUrl = normalizeImageUrl(product.image_url);
 
-  // Google recommends priceValidUntil on Offer/AggregateOffer for the price
-  // to be eligible for rich results. This page is fully dynamic (no cache,
-  // see `revalidate = 0` above) and re-renders live from the DB on every
-  // crawl, so a short, honest window - "current as of the last recorded
-  // price fetch, good for about a week" - matches this site's own daily
-  // refresh cadence rather than overclaiming a price that far outlives it.
-  const priceValidUntil = computePriceValidUntil(lastPriceUpdatedAt);
-
-  // Two independent, real price sources (Rakuten via current_price, Yahoo!
-  // via yahoo_price - see StoreComparisonTable) become an AggregateOffer
-  // when both are known, matching Google's guidance for a product sold
-  // through multiple listings; a single known price stays a plain Offer.
-  const offerSources: { price: number; url: string }[] = [];
-  if (product.current_price !== null) {
-    offerSources.push({
-      price: product.current_price,
-      url: product.affiliate_url || product.product_url || `${siteUrl}/products/${product.slug}`,
-    });
-  }
-  if (product.yahoo_price !== null && product.yahoo_url) {
-    offerSources.push({ price: product.yahoo_price, url: product.yahoo_url });
-  }
-
-  const offers =
-    offerSources.length === 1
-      ? {
-          "@type": "Offer",
-          priceCurrency: "JPY",
-          price: offerSources[0].price,
-          availability: "https://schema.org/InStock",
-          url: offerSources[0].url,
-          priceValidUntil,
-        }
-      : offerSources.length >= 2
-        ? {
-            "@type": "AggregateOffer",
-            priceCurrency: "JPY",
-            lowPrice: Math.min(...offerSources.map((o) => o.price)),
-            highPrice: Math.max(...offerSources.map((o) => o.price)),
-            offerCount: offerSources.length,
-            priceValidUntil,
-            offers: offerSources.map((o) => ({
-              "@type": "Offer",
-              priceCurrency: "JPY",
-              price: o.price,
-              availability: "https://schema.org/InStock",
-              url: o.url,
-            })),
-          }
-        : null;
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    description: seoDescription(product),
-    sku: product.model_number || String(product.id),
-    brand: { "@type": "Brand", name: product.brand },
-    ...(product.model_number ? { mpn: product.model_number } : {}),
-    ...(imageUrl ? { image: [imageUrl] } : {}),
-    url: `${siteUrl}/products/${product.slug}`,
-    ...(offers ? { offers } : {}),
-  };
+  // Product markup (product-snippet shape - see lib/productJsonLd.ts for
+  // why this is an AggregateOffer and carries no shipping/return policy).
+  const jsonLd = buildProductJsonLd({ product, siteUrl, description: seoDescription(product) });
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
