@@ -634,8 +634,19 @@ def run_content_optimization_now(db: Session = Depends(get_db)):
     generated rewrites/new guides) that also runs at the end of the daily
     /fetch-rakuten job - useful for testing without waiting for the next
     scheduled run. Rewrites/new guides call the Claude API (real cost,
-    capped at content_optimizer.DAILY_ACTION_CAP actions)."""
-    result = content_optimizer.run_daily_optimization(db)
+    capped at content_optimizer.DAILY_ACTION_CAP actions).
+
+    Unlike the daily batch (which swallows a failure here so it never
+    blocks price updates), a manual run surfaces the real exception -
+    e.g. a Search Console permission error - as a 502 with its actual
+    message, so a misconfiguration can be diagnosed from this button
+    alone rather than a bare "Internal Server Error"."""
+    try:
+        result = content_optimizer.run_daily_optimization(db)
+    except Exception as exc:  # noqa: BLE001 - surface the real cause to the caller
+        db.rollback()
+        crud.create_error_log(db, source="content_optimizer", message=f"Manual optimization run failed: {exc}")
+        raise HTTPException(status_code=502, detail=f"Content optimization run failed: {exc}") from exc
     return schemas.ContentOptimizationRunResult(
         snapshot_captured=result.ga4_available or result.search_console_available,
         actions_evaluated=result.actions_evaluated,

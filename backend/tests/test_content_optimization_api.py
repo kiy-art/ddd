@@ -118,6 +118,20 @@ def test_run_content_optimization_endpoint_returns_shape(client, admin_headers, 
     }
 
 
+def test_run_content_optimization_endpoint_surfaces_real_error_message(client, admin_headers, monkeypatch):
+    def _boom(db):
+        raise RuntimeError("Search Console API error: User does not have sufficient permission for site")
+
+    monkeypatch.setattr(content_optimizer, "run_daily_optimization", _boom)
+
+    resp = client.post("/api/admin/run-content-optimization", headers=admin_headers)
+    assert resp.status_code == 502
+    assert "sufficient permission" in resp.json()["detail"]
+
+    logs = client.get("/api/admin/logs", headers=admin_headers).json()
+    assert any(log["source"] == "content_optimizer" for log in logs)
+
+
 def test_list_optimization_actions_requires_admin_auth(client):
     resp = client.get("/api/admin/optimization-actions")
     assert resp.status_code in (401, 403)
