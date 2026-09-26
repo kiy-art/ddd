@@ -10,6 +10,7 @@ import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
 import { curateTodaysPicks } from "@/lib/curatePicks";
 import { GUIDES } from "@/lib/guides";
+import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
 
@@ -53,7 +54,7 @@ export async function generateMetadata({
   const label = CATEGORY_LABELS[category];
   if (!label) return {};
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = SITE_URL;
   const url = `${siteUrl}/category/${category}`;
   // No manual "- PAR." suffix here: the root layout's title.template
   // ("%s | PAR.") already appends it to the <title> field. openGraph/

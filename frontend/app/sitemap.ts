@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 import { CATEGORIES, getBrands, getProducts } from "@/lib/api";
 import { GUIDES } from "@/lib/guides";
+import { SITE_URL } from "@/lib/siteUrl";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 // Regenerated at most once per hour (ISR) instead of on every crawl
 // request. Render's free-tier backend sleeps after ~15 minutes idle and

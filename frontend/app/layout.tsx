@@ -10,6 +10,7 @@ import { CATEGORIES, CATEGORY_LABELS } from "@/lib/api";
 import { GA_MEASUREMENT_ID } from "@/lib/analytics";
 
 import "./globals.css";
+import { SITE_URL } from "@/lib/siteUrl";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +28,6 @@ const fraunces = Fraunces({
   axes: ["opsz", "SOFT", "WONK"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const SITE_NAME = "PAR.";
 const TITLE = "PAR. | AIゴルフ価格インテリジェンス";
 const DESCRIPTION =

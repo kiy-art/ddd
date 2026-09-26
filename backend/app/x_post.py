@@ -7,17 +7,23 @@ codebase's existing direct-httpx style (see rakuten.py/yahoo.py/email.py).
 A no-op (posts nothing, no error) whenever the four X_* env vars aren't all
 set, the same pattern already used for YAHOO_CLIENT_ID/RESEND_API_KEY.
 
-Product selection and tweet wording only ever use real, already-computed
-facts (current_price/msrp/buy_score/buy_signal_score) - Claude is given
-those facts and nothing else, and is never allowed to write the URL itself
-(that's built from the real slug in code) - the same "AI never invents a
-number" rule the rest of the site follows (see app/ai.py).
+Product selection and wording only ever use real, already-computed facts
+(current_price/msrp/lowest_price/buy_signal_score/popularity_rank). The
+post is built by a deterministic template (STEP45) rather than Claude: a
+fixed hook -> product -> price -> CTA -> hashtags structure that's been
+designed for SNS click-through, where every emotive hook ("ほぼ半額",
+"過去14日間の最安値", "楽天ドライバーランキング3位") is only emitted when the
+stored numbers make it literally true, and the result is re-checked by
+marketing_playbook.validate_copy (景品表示法) before it's used. Zero API
+cost, and the same input always gives the same, reviewable text.
 """
 
 import base64
+import dataclasses
+import datetime
 import hashlib
 import hmac
-import json
+import re
 import secrets
 import time
 import urllib.parse
@@ -26,7 +32,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, models
+from app import crud, marketing_playbook, models
 from app.config import get_settings
 
 POST_URL = "https://api.x.com/2/tweets"
@@ -46,19 +52,24 @@ X_MAX_WEIGHTED_LENGTH = 280
 # characters against the 280 limit, regardless of the real URL's length.
 X_URL_WEIGHTED_LENGTH = 23
 
-SYSTEM_PROMPT = """あなたはゴルフ用品価格比較サイト「PAR.」の公式X(Twitter)アカウント運用担当です。
-与えられた事実（商品名・価格・割引率など）のみを根拠に、X投稿用の短い紹介文を1件作成してください。
+CATEGORY_LABELS = {"driver": "ドライバー", "iron": "アイアン", "wedge": "ウェッジ", "putter": "パター", "ball": "ゴルフボール"}
+CATEGORY_HASHTAGS = {"driver": "#ドライバー", "iron": "#アイアン", "wedge": "#ウェッジ", "putter": "#パター", "ball": "#ゴルフボール"}
 
-厳守事項:
-- 与えられていない価格・割引率・在庫状況を絶対に創作しない。
-- 誇大広告や煽り文句（「今だけ」「絶対お得」等）は使わず、事実ベースで、かつ興味を引く文体にする。
-- 日本語で書き、絵文字は0〜2個まで。
-- ハッシュタグを2〜3個含める（#ゴルフ #ゴルフクラブ 等、内容に合ったもの）。
-- URLは書かない（システム側で別途、投稿の末尾に付与する）。
-- 本文全体を90文字以内（日本語の文字数）に収める。
-- 出力は必ず次のJSON形式のみ: {"text": "..."}
-"""
+# A Rakuten bestseller rank older than this isn't "now" any more - not
+# worth quoting as a live fact in a post.
+POPULARITY_MAX_AGE_DAYS = 3
+# Only a top-N rank is a hook worth leading with.
+POPULARITY_HOOK_MAX_RANK = 30
+# Minimum real history before "過去N日間の最安値" / a 30-day-average
+# comparison is a claim this post will make - the same bar the rest of the
+# site uses (crud.RELIABLE_TREND_MIN_HISTORY_DAYS, frontend THIN_DATA_DAYS,
+# content_rewriter._is_at_recorded_lowest).
+MIN_HISTORY_DAYS_FOR_TREND_CLAIMS = 7
+# price_change_percent vs the 30-day average needs to be at least this
+# negative to be called out as a drop.
+AVERAGE_DROP_HOOK_PCT = -5.0
 
+CTA_LINE = "相場推移と取扱店舗はここからチェック👇"
 
 class XNotConfigured(Exception):
     pass
@@ -167,92 +178,238 @@ def _x_weighted_length(text: str) -> int:
     return sum(2 if ord(ch) > 0x2000 else 1 for ch in text)
 
 
-def _truncate_for_x(body: str) -> str:
-    budget = X_MAX_WEIGHTED_LENGTH - 1 - X_URL_WEIGHTED_LENGTH  # -1 for the newline before the URL
-    if _x_weighted_length(body) <= budget:
-        return body
-    # Reserve room for the "…" itself (weight 2) before trimming, so the
-    # final result - body plus ellipsis - actually stays within budget.
-    trim_budget = budget - _x_weighted_length("…")
-    while body and _x_weighted_length(body) > trim_budget:
-        body = body[:-1]
-    return body.rstrip() + "…"
+@dataclasses.dataclass
+class PostFacts:
+    """Every number/claim a post may state about one product - computed
+    once from stored data so the wording below can't drift from it."""
+
+    savings_yen: int | None  # vs the recorded MSRP, only when actually below it
+    savings_percent: int | None  # rounded, for display only
+    savings_ratio: float | None  # exact - every threshold ("半額以下" etc.) uses this, never the rounded value
+    at_recorded_lowest: bool  # current <= lowest recorded, with >= 7 days of history
+    average_drop_percent: float | None  # vs 30-day average, only a real, reliable drop
+    buy_signal_score: int | None  # only when resting on enough history
+    popularity_rank: int | None  # Rakuten bestseller rank, only when fresh
 
 
-def _product_facts(product: models.Product) -> dict:
-    discount_percent = None
-    if product.msrp and product.current_price is not None:
-        discount_percent = round((product.current_price - product.msrp) / product.msrp * 100, 1)
-    return {
-        "name": product.name,
-        "brand": product.brand,
-        "current_price_jpy": product.current_price,
-        "msrp_jpy": product.msrp,
-        "discount_percent_vs_msrp": discount_percent,
-        "price_change_percent_vs_30d_avg": product.price_change_percent,
-        "buy_score": product.buy_score,
-    }
+def _post_facts(product: models.Product) -> PostFacts:
+    current = product.current_price
+    reliable_history = (product.history_span_days or 0) >= MIN_HISTORY_DAYS_FOR_TREND_CLAIMS
 
+    savings_yen = savings_percent = savings_ratio = None
+    if current is not None and product.msrp and product.msrp > current:
+        savings_yen = product.msrp - current
+        savings_ratio = savings_yen / product.msrp
+        savings_percent = round(savings_ratio * 100)
 
-def _generate_tweet_body_ai(products: list[models.Product]) -> str:
-    import anthropic
-
-    settings = get_settings()
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    facts = [_product_facts(p) for p in products]
-    message = client.messages.create(
-        model=settings.claude_model,
-        max_tokens=300,
-        system=SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": "以下の事実だけを根拠にJSONを生成してください:\n" + json.dumps(facts, ensure_ascii=False),
-            }
-        ],
+    at_recorded_lowest = bool(
+        reliable_history
+        and current is not None
+        and product.lowest_price is not None
+        and current <= product.lowest_price
     )
-    text = "".join(block.text for block in message.content if block.type == "text").strip()
-    if text.startswith("```"):
-        text = text.strip("`").split("\n", 1)[-1]
-    data = json.loads(text)
-    return str(data["text"])
+
+    average_drop_percent = None
+    if (
+        reliable_history
+        and product.buy_score != "insufficient_data"
+        and product.price_change_percent is not None
+        and product.price_change_percent <= AVERAGE_DROP_HOOK_PCT
+    ):
+        average_drop_percent = product.price_change_percent
+
+    buy_signal_score = (
+        product.buy_signal_score
+        if reliable_history and product.buy_score in RELIABLE_BUY_SCORES and product.buy_signal_score is not None
+        else None
+    )
+
+    popularity_rank = None
+    if product.popularity_rank is not None and product.popularity_updated_at is not None:
+        age = datetime.datetime.utcnow() - product.popularity_updated_at
+        if age <= datetime.timedelta(days=POPULARITY_MAX_AGE_DAYS):
+            popularity_rank = product.popularity_rank
+
+    return PostFacts(
+        savings_yen=savings_yen,
+        savings_percent=savings_percent,
+        savings_ratio=savings_ratio,
+        at_recorded_lowest=at_recorded_lowest,
+        average_drop_percent=average_drop_percent,
+        buy_signal_score=buy_signal_score,
+        popularity_rank=popularity_rank,
+    )
 
 
-def _generate_tweet_body_rule_based(products: list[models.Product]) -> str:
-    lines = ["本日のお買い得情報"]
-    for p in products:
-        price = f"¥{p.current_price:,}" if p.current_price is not None else "価格情報なし"
-        facts = _product_facts(p)
-        if facts["discount_percent_vs_msrp"] is not None:
-            lines.append(f"{p.brand} {p.name} が{price}（定価より{facts['discount_percent_vs_msrp']}%）")
-        else:
-            lines.append(f"{p.brand} {p.name} が{price}")
-    lines.append("#ゴルフ #ゴルフクラブ")
-    return "\n".join(lines)
+def _hook(product: models.Product, facts: PostFacts) -> str:
+    """The thumb-stopping first line - the single strongest statement that
+    is literally true for this product. Same ladder as the share-image
+    headline chip (frontend lib/og.tsx productShareFacts), so the post and
+    its link card tell one story."""
+    label = CATEGORY_LABELS.get(product.category, "ゴルフギア")
+    subject = (
+        f"楽天ランキング{facts.popularity_rank}位の{label}"
+        if facts.popularity_rank is not None and facts.popularity_rank <= POPULARITY_HOOK_MAX_RANK
+        else f"注目の{label}"
+    )
+    # Thresholds on the exact ratio: 49.7% off rounds to "50%" but is not
+    # "半額以下" - that rounding gap is exactly a 有利誤認 risk.
+    ratio = facts.savings_ratio
+
+    if facts.at_recorded_lowest:
+        return f"📉 {subject}が過去{product.history_span_days}日間の最安値に"
+    if ratio is not None and ratio >= 0.5:
+        return f"😳 {subject}が定価の半額以下に"
+    if ratio is not None and ratio >= 0.45:
+        return f"😳 {subject}がほぼ半額に"
+    if ratio is not None and ratio >= 0.3:
+        return f"💥 {subject}が定価から{facts.savings_yen:,}円引き"
+    if facts.average_drop_percent is not None:
+        return f"📉 {subject}が30日平均より{abs(facts.average_drop_percent):g}%ダウン"
+    if facts.savings_yen is not None:
+        return f"💰 {subject}が定価より{facts.savings_yen:,}円お得"
+    return f"⛳️ 今日の買い時{label}"
+
+
+def _price_line(product: models.Product, facts: PostFacts) -> str:
+    price = f"¥{product.current_price:,}" if product.current_price is not None else "価格情報なし"
+    if facts.savings_yen is not None:
+        return f"💰 {price}（定価より¥{facts.savings_yen:,}安い／-{facts.savings_percent}%）"
+    if facts.average_drop_percent is not None and product.average_price:
+        # The hook already states the % - show the real reference price instead.
+        return f"💰 {price}（30日平均 ¥{product.average_price:,}）"
+    return f"💰 {price}"
+
+
+def _hashtag(text: str) -> str | None:
+    """#TaylorMade, #ゼクシオ - hashtags break on spaces/punctuation, so
+    keep only word characters (kana/kanji included)."""
+    cleaned = re.sub(r"[^\w]", "", text)
+    return f"#{cleaned}" if cleaned and not cleaned.isdigit() else None
+
+
+def _hashtags(products: list[models.Product]) -> str:
+    tags = ["#ゴルフ"]
+    for tag in [CATEGORY_HASHTAGS.get(p.category) for p in products] + [
+        _hashtag(products[0].brand)
+    ]:
+        if tag and tag not in tags:
+            tags.append(tag)
+    return " ".join(tags[:4])
+
+
+def _shorten(name: str, max_len: int | None) -> str:
+    """Trims at a word boundary where possible ("STEALTH 2 PLUS…", not
+    "STEALTH 2 PLUS ドライ…")."""
+    if max_len is None or len(name) <= max_len:
+        return name
+    cut = name[: max_len - 1]
+    space = cut.rfind(" ")
+    if space >= max_len // 2:
+        cut = cut[:space]
+    return cut.rstrip() + "…"
+
+
+def _teaser_line(product: models.Product, facts: PostFacts, name_max: int | None = None) -> str:
+    name = _shorten(f"{product.brand} {product.name}", name_max)
+    if facts.savings_percent is not None:
+        return f"➕ {name}も定価より-{facts.savings_percent}%"
+    price = f"¥{product.current_price:,}" if product.current_price is not None else ""
+    return f"➕ もう1本：{name}（{price}）" if price else f"➕ もう1本：{name}"
+
+
+def _post_weighted_length(text_without_url: str) -> int:
+    # The URL is its own line; X counts it as a fixed 23 regardless of length.
+    return _x_weighted_length(text_without_url) + X_URL_WEIGHTED_LENGTH
+
+
+def _compose(
+    lead: models.Product,
+    lead_facts: PostFacts,
+    others: list[tuple[models.Product, PostFacts]],
+    url: str,
+    hashtags: str,
+    include_signal: bool,
+    include_teaser: bool,
+    name_max: int | None,
+) -> tuple[str, int]:
+    name = _shorten(f"{lead.brand} {lead.name}", name_max)
+
+    blocks = [_hook(lead, lead_facts), "", name, _price_line(lead, lead_facts)]
+    if include_signal and lead_facts.buy_signal_score is not None:
+        blocks.append(f"📊 PAR.買い時スコア {lead_facts.buy_signal_score}/100")
+    if include_teaser:
+        for product, facts in others:
+            blocks += ["", _teaser_line(product, facts, name_max)]
+    blocks += ["", CTA_LINE]
+    head = "\n".join(blocks)
+    tail = hashtags
+    text = f"{head}\n{url}\n\n{tail}"
+    return text, _post_weighted_length(f"{head}\n\n\n{tail}")
+
+
+def _generate_post_text(products: list[models.Product], url: str) -> str:
+    """Hook -> product -> price -> (signal) -> (runner-up) -> CTA -> URL ->
+    hashtags. Richest version that fits X's limit wins; elements are shed
+    least-important first (long names, then the runner-up, then the score
+    line), never the hook, price or CTA."""
+    lead, rest = products[0], products[1:]
+    lead_facts = _post_facts(lead)
+    others = [(p, _post_facts(p)) for p in rest]
+    hashtags = _hashtags(products)
+
+    attempts = [
+        dict(include_signal=True, include_teaser=True, name_max=None),
+        dict(include_signal=True, include_teaser=True, name_max=30),
+        dict(include_signal=True, include_teaser=False, name_max=None),
+        dict(include_signal=True, include_teaser=False, name_max=30),
+        dict(include_signal=False, include_teaser=False, name_max=30),
+    ]
+    for kwargs in attempts:
+        text, weighted = _compose(lead, lead_facts, others, url, hashtags, **kwargs)
+        if weighted <= X_MAX_WEIGHTED_LENGTH:
+            return text
+    # Pathological names only - keep the structure, hard-trim the name.
+    text, _ = _compose(lead, lead_facts, others, url, "#ゴルフ", include_signal=False, include_teaser=False, name_max=12)
+    return text
+
+
+def _allowed_facts(products: list[models.Product]) -> tuple[set[int], set[float], bool]:
+    yen: set[int] = set()
+    percents: set[float] = set()
+    lowest_claim = False
+    for product in products:
+        facts = _post_facts(product)
+        yen |= {v for v in (product.current_price, product.msrp, product.average_price, facts.savings_yen) if v is not None}
+        percents |= {float(v) for v in (facts.savings_percent, facts.average_drop_percent) if v is not None}
+        if facts.average_drop_percent is not None:
+            percents.add(abs(facts.average_drop_percent))
+        lowest_claim = lowest_claim or facts.at_recorded_lowest
+    return yen, percents, lowest_claim
 
 
 def _build_tweet_text(db: Session, products: list[models.Product]) -> str:
     settings = get_settings()
+    # One post, one link: the lead product's own page, whose share card
+    # (frontend app/products/[slug]/opengraph-image.tsx) shows its photo,
+    # price and the same hook - the strongest possible link preview. A
+    # runner-up is mentioned in the text, not given a competing link.
+    url = f"{settings.site_url}/products/{products[0].slug}"
+    text = _generate_post_text(products, url)
 
-    if len(products) == 1:
-        url = f"{settings.site_url}/products/{products[0].slug}"
-    else:
-        # Multiple picks: link to the shared category page rather than
-        # arbitrarily picking one product's own URL.
-        url = f"{settings.site_url}/category/{products[0].category}"
-
-    body: str | None = None
-    if settings.anthropic_api_key:
-        try:
-            body = _generate_tweet_body_ai(products)
-        except Exception as exc:  # noqa: BLE001 - fall back to rule-based wording
-            crud.create_error_log(db, source="x_post", level="warning", message=f"AI tweet generation failed, using rule-based wording: {exc}")
-            body = None
-    if body is None:
-        body = _generate_tweet_body_rule_based(products)
-
-    body = _truncate_for_x(body)
-    return f"{body}\n{url}"
+    allowed_yen, allowed_percents, lowest_claim = _allowed_facts(products)
+    try:
+        marketing_playbook.validate_copy(
+            [text.replace(url, "")], allowed_yen, allowed_percents, allow_lowest_price_claim=lowest_claim
+        )
+    except marketing_playbook.ContentPolicyViolation as exc:
+        # Should be impossible (the template only states computed facts) -
+        # if it ever happens, log it and fall back to the plainest version.
+        crud.create_error_log(db, source="x_post", level="warning", message=f"X post text failed compliance check: {exc}")
+        lead = products[0]
+        price = f"¥{lead.current_price:,}" if lead.current_price is not None else ""
+        text = f"⛳️ {lead.brand} {lead.name} {price}\n{CTA_LINE}\n{url}\n\n#ゴルフ"
+    return text
 
 
 def build_manual_post_text(db: Session) -> str | None:

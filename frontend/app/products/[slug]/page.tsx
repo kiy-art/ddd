@@ -24,6 +24,7 @@ import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib
 import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { MODEL_CYCLE_DISCLAIMER, MODEL_CYCLE_FACT_NOTE, getModelCycleInsight } from "@/lib/modelCycle";
+import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
 
@@ -110,7 +111,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const product = await loadProduct(slug);
   if (!product) return {};
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = SITE_URL;
   const url = `${siteUrl}/products/${product.slug}`;
   const title = seoTitle(product);
   const description = seoDescription(product);
@@ -197,7 +198,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
       .slice(0, 2),
   ];
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = SITE_URL;
 
   // Google recommends priceValidUntil on Offer/AggregateOffer for the price
   // to be eligible for rich results. This page is fully dynamic (no cache,

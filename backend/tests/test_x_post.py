@@ -90,19 +90,6 @@ def test_select_deals_mixes_reliable_and_fallback_to_fill_count(db_session):
     assert {p.id for p in picked} == {reliable.id, fallback.id}
 
 
-def test_truncate_for_x_keeps_short_text_unchanged():
-    body = "短い本文です #ゴルフ"
-    assert x_post._truncate_for_x(body) == body
-
-
-def test_truncate_for_x_shortens_long_text_and_stays_within_budget():
-    body = "あ" * 300  # every char weighted 2 - far over budget on its own
-    truncated = x_post._truncate_for_x(body)
-    budget = x_post.X_MAX_WEIGHTED_LENGTH - 1 - x_post.X_URL_WEIGHTED_LENGTH
-    assert x_post._x_weighted_length(truncated) <= budget
-    assert truncated.endswith("…")
-
-
 def test_x_weighted_length_counts_japanese_as_two():
     assert x_post._x_weighted_length("ab") == 2
     assert x_post._x_weighted_length("あい") == 4
@@ -307,3 +294,123 @@ def test_post_daily_deals_failure_logs_error_and_does_not_raise(db_session, monk
         assert any(log.source == "x_post" and log.level == "error" for log in logs)
     finally:
         get_settings.cache_clear()
+
+
+# --- STEP45: CTR-oriented post format ----------------------------------------
+
+import datetime  # noqa: E402
+
+from app import marketing_playbook  # noqa: E402
+
+
+def _text_for(db, *products):
+    return x_post._build_tweet_text(db, list(products))
+
+
+def _url_line(text):
+    return next(line for line in text.split("\n") if line.startswith("http"))
+
+
+def test_post_leads_with_recorded_lowest_only_on_enough_history(db_session):
+    at_low = _make_product(
+        db_session, name="lowdriver", current_price=99000, msrp=158400, lowest_price=99000,
+        history_span_days=14, buy_score="strong_buy", buy_signal_score=82,
+    )
+    text = _text_for(db_session, at_low)
+    assert text.split("\n")[0] == "📉 注目のドライバーが過去14日間の最安値に"
+    assert "💰 ¥99,000（定価より¥59,400安い／-38%）" in text
+    assert "📊 PAR.買い時スコア 82/100" in text
+
+    thin = _make_product(
+        db_session, name="thindriver", current_price=99000, msrp=110000, lowest_price=99000, history_span_days=3,
+    )
+    assert "最安値" not in _text_for(db_session, thin)
+
+
+def test_half_price_hooks_use_the_exact_ratio_not_the_rounded_percent(db_session):
+    # 3,940 / 7,920 = 49.7% off: displays as -50%, but is NOT 半額以下.
+    almost = _make_product(db_session, name="almost", category="ball", current_price=3980, msrp=7920)
+    text = _text_for(db_session, almost)
+    assert "半額以下" not in text
+    assert "ほぼ半額" in text
+    assert "-50%" in text
+
+    half = _make_product(db_session, name="half", category="ball", current_price=3900, msrp=7920)
+    assert "定価の半額以下" in _text_for(db_session, half)
+
+
+def test_large_discount_hook_states_the_real_yen_amount(db_session):
+    product = _make_product(db_session, name="big", current_price=64800, msrp=97900)  # 33.8% off
+    assert _text_for(db_session, product).split("\n")[0] == "💥 注目のドライバーが定価から33,100円引き"
+
+
+def test_average_drop_hook_quotes_the_real_average_price(db_session):
+    product = _make_product(
+        db_session, name="iron", category="iron", current_price=118000, msrp=None, lowest_price=110000,
+        average_price=128500, history_span_days=21, buy_score="buy", buy_signal_score=70, price_change_percent=-8.2,
+    )
+    text = _text_for(db_session, product)
+    assert text.split("\n")[0] == "📉 注目のアイアンが30日平均より8.2%ダウン"
+    assert "💰 ¥118,000（30日平均 ¥128,500）" in text
+
+
+def test_rakuten_rank_is_quoted_only_while_fresh(db_session):
+    fresh = _make_product(
+        db_session, name="fresh", current_price=46800, msrp=88000,
+        popularity_rank=3, popularity_updated_at=datetime.datetime.utcnow(),
+    )
+    assert "楽天ランキング3位のドライバー" in _text_for(db_session, fresh)
+
+    stale = _make_product(
+        db_session, name="stale", current_price=46800, msrp=88000,
+        popularity_rank=3, popularity_updated_at=datetime.datetime.utcnow() - datetime.timedelta(days=10),
+    )
+    assert "ランキング" not in _text_for(db_session, stale)
+
+
+def test_post_has_cta_product_link_and_clean_hashtags(db_session):
+    lead = _make_product(db_session, name="lead", brand="Bridge stone", current_price=46800, msrp=88000)
+    runner_up = _make_product(db_session, name="ball", category="ball", current_price=3900, msrp=7920)
+    text = _text_for(db_session, lead, runner_up)
+
+    assert x_post.CTA_LINE in text
+    # One post, one link - the lead product's own page (its share card
+    # carries the photo), never a category page.
+    assert _url_line(text).endswith(f"/products/{lead.slug}")
+    assert text.split("\n")[-1].startswith("#ゴルフ #ドライバー")
+    assert "#Bridgestone" in text
+
+
+def test_post_always_fits_x_limit_and_keeps_hook_price_and_cta(db_session):
+    long_name = "STEALTH 2 PLUS ドライバー ヘッド単品 カスタムシャフト VENTUS TR BLUE 装着モデル 2023年モデル 日本正規品"
+    lead = _make_product(
+        db_session, name=long_name, current_price=64800, msrp=97900, lowest_price=64800, history_span_days=30,
+        buy_score="strong_buy", buy_signal_score=88, popularity_rank=12, popularity_updated_at=datetime.datetime.utcnow(),
+    )
+    runner_up = _make_product(db_session, name="ELYTE MAX FAST ドライバー 長い名前のモデル", current_price=107800, msrp=134750)
+    text = _text_for(db_session, lead, runner_up)
+
+    url = _url_line(text)
+    assert x_post._post_weighted_length(text.replace(url, "")) <= x_post.X_MAX_WEIGHTED_LENGTH
+    assert "最安値" in text.split("\n")[0]
+    assert "¥64,800" in text
+    assert x_post.CTA_LINE in text
+
+
+def test_generated_post_passes_the_ad_law_validator_for_every_hook(db_session):
+    products = [
+        _make_product(db_session, name="a", current_price=99000, msrp=158400, lowest_price=99000, history_span_days=14,
+                      buy_score="strong_buy", buy_signal_score=82),
+        _make_product(db_session, name="b", category="ball", current_price=3900, msrp=7920),
+        _make_product(db_session, name="c", current_price=46800, msrp=88000),
+        _make_product(db_session, name="d", current_price=64800, msrp=97900),
+        _make_product(db_session, name="e", category="iron", current_price=118000, average_price=128500,
+                      history_span_days=21, buy_score="buy", buy_signal_score=70, price_change_percent=-8.2),
+        _make_product(db_session, name="f", current_price=50000, msrp=52000),
+    ]
+    for product in products:
+        text = _text_for(db_session, product)
+        yen, percents, lowest = x_post._allowed_facts([product])
+        marketing_playbook.validate_copy([text.replace(_url_line(text), "")], yen, percents, allow_lowest_price_claim=lowest)
+    # The template never needed its compliance fallback.
+    assert not [log for log in crud.list_error_logs(db_session) if "compliance" in log.message]

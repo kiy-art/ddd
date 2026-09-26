@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProducts } from "@/lib/api";
 import { computeDeals } from "@/lib/deals";
 import { GUIDES, Guide, getGuideBySlug } from "@/lib/guides";
+import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
 
@@ -53,7 +54,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const guide = await getGuideBySlug(slug);
   if (!guide) return {};
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = SITE_URL;
   const url = `${siteUrl}/guides/${guide.slug}`;
 
   return {
@@ -72,7 +73,7 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
 
   const featuredProducts = await loadFeaturedProducts(guide.featured);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = SITE_URL;
   const url = `${siteUrl}/guides/${guide.slug}`;
 
   const articleJsonLd = {

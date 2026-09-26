@@ -135,12 +135,12 @@ export function getProducts(params?: { category?: string; buy_score?: string; li
   return apiFetch<Product[]>(`/api/products${query ? `?${query}` : ""}`);
 }
 
-export function getProduct(slug: string) {
-  return apiFetch<ProductDetail>(`/api/products/${slug}`);
+export function getProduct(slug: string, init?: RequestInit) {
+  return apiFetch<ProductDetail>(`/api/products/${slug}`, init);
 }
 
-export function getCategoryProducts(category: string) {
-  return apiFetch<Product[]>(`/api/categories/${category}`);
+export function getCategoryProducts(category: string, init?: RequestInit) {
+  return apiFetch<Product[]>(`/api/categories/${category}`, init);
 }
 
 // --- STEP42: autonomous content-optimization loop -----------------------

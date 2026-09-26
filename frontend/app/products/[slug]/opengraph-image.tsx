@@ -3,51 +3,89 @@ import { ImageResponse } from "next/og";
 import { getProduct } from "@/lib/api";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { getModelCycleInsight } from "@/lib/modelCycle";
+import {
+  BrandMark,
+  Footer,
+  HookChip,
+  OG_API_TIMEOUT_MS,
+  OG_COLORS,
+  OG_SIZE,
+  PhotoTile,
+  fetchImageDataUri,
+  productShareFacts,
+  truncate,
+  withTimeout,
+  yen,
+} from "@/lib/og";
 
-export const alt = "PAR. BUY SIGNAL";
-export const size = { width: 1200, height: 630 };
+export const alt = "PAR. 価格推移と買い時判定";
+export const size = OG_SIZE;
 export const contentType = "image/png";
-
-// Same threshold used across the site (AiBuySignal.tsx, ProductCard.tsx,
-// the product page) for "enough price history to claim a trend".
-const THIN_DATA_DAYS = 7;
-
-function yen(value: number | null): string {
-  if (value === null) return "-";
-  return `¥${value.toLocaleString("ja-JP")}`;
-}
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const product = await getProduct(slug).catch(() => null);
+  const product = await withTimeout(getProduct(slug, { signal: AbortSignal.timeout(OG_API_TIMEOUT_MS) }));
 
-  const name = product?.name ?? "PAR.";
-  const brand = product?.brand ?? "";
-  const price = product ? yen(product.current_price) : "";
+  if (!product) {
+    // Backend asleep/unreachable or unknown slug: still a branded card,
+    // never an error (an error is what X renders as a grey placeholder).
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            background: OG_COLORS.ink,
+            padding: "72px",
+          }}
+        >
+          <BrandMark />
+          <span style={{ display: "flex", fontSize: 60, fontWeight: 700, color: OG_COLORS.paper, lineHeight: 1.25 }}>
+            そのギア、今が買い時？
+          </span>
+          <Footer right="価格推移と買い時判定を毎日更新" />
+        </div>
+      ),
+      { ...size }
+    );
+  }
 
-  const hasReliableTrend =
-    product !== null && product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
-  const pct = hasReliableTrend ? product.price_change_percent : null;
-  const pctLabel = pct !== null ? `${pct > 0 ? "+" : ""}${pct}% vs 30日平均` : "";
-  const score = hasReliableTrend ? (product?.buy_signal_score ?? null) : null;
+  const facts = productShareFacts(product);
+  const photo = await fetchImageDataUri(product.image_url);
 
-  // Same fallback ladder shown on the product page itself (see
-  // AiBuySignal.tsx / PriceTimeline.tsx): a real MSRP-based score first,
-  // then a release-date/model-cycle read, so a not-yet-trend-established
-  // product still shares something concrete when its page gets shared,
-  // instead of a bare price with no buy-time context at all.
-  const fallback =
-    !hasReliableTrend && product
-      ? getFallbackValueScore({
-          msrp: product.msrp,
-          current_price: product.current_price,
-          release_date: product.release_date,
-        })
-      : null;
+  const score = facts.hasReliableTrend ? product.buy_signal_score : null;
+  // Same fallback ladder the product page itself uses (AiBuySignal.tsx /
+  // PriceTimeline.tsx): a real MSRP-based score, then a model-cycle read.
+  const fallback = !facts.hasReliableTrend
+    ? getFallbackValueScore({
+        msrp: product.msrp,
+        current_price: product.current_price,
+        release_date: product.release_date,
+      })
+    : null;
   const cycleInsight =
-    !hasReliableTrend && !fallback && product
+    !facts.hasReliableTrend && !fallback
       ? getModelCycleInsight({ release_date: product.release_date, is_current_generation: product.is_current_generation })
       : null;
+
+  const signalLabel =
+    score !== null
+      ? `BUY SIGNAL ${score}/100`
+      : fallback
+        ? `定価比較スコア ${fallback.score}/100`
+        : cycleInsight
+          ? `${cycleInsight.stageLabel}（${cycleInsight.tier === "fact" ? "FACT" : "AI推測"}）`
+          : null;
+
+  const savingsLine =
+    facts.savingsYen !== null
+      ? `定価より${yen(facts.savingsYen)}安い（-${facts.savingsPercent}%）`
+      : facts.hasReliableTrend && product.price_change_percent !== null && product.price_change_percent !== 0
+        ? `30日平均比 ${product.price_change_percent > 0 ? "+" : ""}${product.price_change_percent}%`
+        : null;
 
   return new ImageResponse(
     (
@@ -58,71 +96,57 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#14130F",
-          padding: "80px",
+          background: OG_COLORS.ink,
+          padding: "56px 64px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <svg width="40" height="40" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="13.5" stroke="#FAF9F6" strokeWidth="2" opacity="0.35" />
-            <path d="M16 2.5 A13.5 13.5 0 0 1 27.8 22" stroke="#FAF9F6" strokeWidth="2" strokeLinecap="round" />
-            <circle cx="27.8" cy="22" r="2.4" fill="#C1521A" />
-          </svg>
-          <span style={{ fontSize: 32, fontWeight: 600, color: "#FAF9F6" }}>PAR. BUY SIGNAL</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <BrandMark size={36} />
+          {facts.hook && <HookChip text={facts.hook} />}
         </div>
 
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {brand && <span style={{ display: "flex", fontSize: 24, color: "#E2762F" }}>{brand}</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 48 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+            <span style={{ display: "flex", fontSize: 28, color: OG_COLORS.accentLight }}>{product.brand}</span>
             <span
-              style={{
-                display: "flex",
-                fontSize: 48,
-                fontWeight: 600,
-                color: "#FAF9F6",
-                lineHeight: 1.25,
-                maxWidth: 760,
-              }}
+              style={{ display: "flex", fontSize: 50, fontWeight: 700, color: OG_COLORS.paper, lineHeight: 1.2 }}
             >
-              {name}
+              {truncate(product.name, photo ? 30 : 40)}
             </span>
-            <span style={{ display: "flex", fontSize: 56, fontWeight: 700, color: "#FAF9F6" }}>{price}</span>
-            {pctLabel && <span style={{ display: "flex", fontSize: 24, color: "#E2762F" }}>{pctLabel}</span>}
+            <span style={{ display: "flex", fontSize: 88, fontWeight: 700, color: OG_COLORS.paper, marginTop: 8 }}>
+              {yen(product.current_price)}
+            </span>
+            {savingsLine && (
+              <span style={{ display: "flex", fontSize: 32, fontWeight: 600, color: OG_COLORS.accentLight }}>
+                {savingsLine}
+              </span>
+            )}
+            {photo && signalLabel && (
+              <span style={{ display: "flex", fontSize: 24, color: OG_COLORS.muted, marginTop: 4 }}>{signalLabel}</span>
+            )}
           </div>
 
-          {score !== null ? (
+          {photo ? (
+            <PhotoTile src={photo} size={380} />
+          ) : score !== null || fallback ? (
             <div
               style={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 200,
-                height: 200,
-                borderRadius: 100,
-                border: "8px solid #C1521A",
+                width: 240,
+                height: 240,
+                borderRadius: 120,
+                border: `10px ${score !== null ? "solid" : "dashed"} ${OG_COLORS.accent}`,
               }}
             >
-              <span style={{ display: "flex", fontSize: 64, fontWeight: 700, color: "#FAF9F6" }}>{score}</span>
-              <span style={{ display: "flex", fontSize: 16, color: "#E2762F", letterSpacing: 2 }}>BUY SIGNAL</span>
-            </div>
-          ) : fallback ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 200,
-                height: 200,
-                borderRadius: 100,
-                border: "8px dashed #C1521A",
-              }}
-            >
-              <span style={{ display: "flex", fontSize: 64, fontWeight: 700, color: "#FAF9F6" }}>
-                {fallback.score}
+              <span style={{ display: "flex", fontSize: 80, fontWeight: 700, color: OG_COLORS.paper }}>
+                {score !== null ? score : fallback?.score}
               </span>
-              <span style={{ display: "flex", fontSize: 16, color: "#E2762F", letterSpacing: 2 }}>定価比較</span>
+              <span style={{ display: "flex", fontSize: 18, color: OG_COLORS.accentLight, letterSpacing: 2 }}>
+                {score !== null ? "BUY SIGNAL" : "定価比較"}
+              </span>
             </div>
           ) : (
             cycleInsight && (
@@ -132,32 +156,34 @@ export default async function Image({ params }: { params: Promise<{ slug: string
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 260,
-                  minHeight: 200,
+                  width: 280,
+                  minHeight: 220,
                   borderRadius: 32,
-                  border: "8px dashed #C1521A",
+                  border: `8px dashed ${OG_COLORS.accent}`,
                   padding: "0 16px",
                 }}
               >
                 <span
                   style={{
                     display: "flex",
-                    fontSize: 34,
+                    fontSize: 36,
                     fontWeight: 700,
-                    color: "#FAF9F6",
+                    color: OG_COLORS.paper,
                     textAlign: "center",
                     lineHeight: 1.3,
                   }}
                 >
                   {cycleInsight.stageLabel}
                 </span>
-                <span style={{ display: "flex", fontSize: 16, color: "#E2762F", letterSpacing: 2, marginTop: 12 }}>
+                <span style={{ display: "flex", fontSize: 18, color: OG_COLORS.accentLight, letterSpacing: 2, marginTop: 12 }}>
                   {cycleInsight.tier === "fact" ? "FACT" : "AI推測"}
                 </span>
               </div>
             )
           )}
         </div>
+
+        <Footer right="相場推移・ショップ別価格・買い時判定" />
       </div>
     ),
     { ...size }
