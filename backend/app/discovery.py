@@ -87,7 +87,12 @@ CATEGORY_SEARCH_KEYWORDS = {
         "ゴルフボール 1ダース 新品",
         "Titleist Pro V1 ゴルフボール",
         "スリクソン Z-STAR ゴルフボール",
-        "ブリヂストン TOUR B ゴルフボール",
+        # NOT "ブリヂストン TOUR B ゴルフボール" - Rakuten rejects any
+        # space-separated keyword token shorter than 2 half-width chars (or
+        # 1+ full-width chars), and the lone "B" token failed that check
+        # with "keyword is not valid"/wrong_parameter on every run. "TOUR"
+        # alone already targets Bridgestone's TOUR B line closely enough.
+        "ブリヂストン TOUR ゴルフボール",
     ],
 }
 

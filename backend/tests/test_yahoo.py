@@ -131,6 +131,33 @@ def test_search_lowest_price_skips_hits_missing_required_fields(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_search_lowest_price_raises_quota_exceeded_on_429_appid_denied(monkeypatch):
+    """A real production error: 'total count of AppID reached the URL's
+    limit count' is a daily-quota exhaustion, not a transient rate limit -
+    it must surface as YahooQuotaExceeded (a RuntimeError subclass callers
+    can special-case) rather than the generic RuntimeError, and must not be
+    retried since every retry would fail identically."""
+    monkeypatch.setenv("YAHOO_CLIENT_ID", "test-client-id")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    calls = []
+    body = '{ "Status": 429, "Message":"The AppID is denied: total count of AppID reached the URL\'s limit count." }'
+
+    def fake_get(url, params=None, timeout=None):
+        calls.append(1)
+        return httpx.Response(429, text=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    with pytest.raises(yahoo.YahooQuotaExceeded):
+        yahoo.search_lowest_price("PING G440")
+    assert len(calls) == 1  # not retried - it's a permanent condition this run
+
+    get_settings.cache_clear()
+
+
 def test_to_affiliate_url_returns_none_when_not_configured(monkeypatch):
     monkeypatch.setenv("YAHOO_AFFILIATE_ID", "")
     from app.config import get_settings

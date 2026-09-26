@@ -13,6 +13,19 @@ def _no_real_sleep(monkeypatch):
     monkeypatch.setattr(discovery.time, "sleep", lambda *_args: None)
 
 
+def test_no_search_keyword_has_an_invalid_lone_half_width_token():
+    """Real production incident: Rakuten rejects any space-separated
+    keyword token that is a single half-width character (must be 2+
+    half-width chars, or 1+ full-width chars) with "keyword is not valid" -
+    the "B" in "ブリヂストン TOUR B ゴルフボール" hit this on every run.
+    Guards against reintroducing a keyword with that shape."""
+    for keywords in discovery.CATEGORY_SEARCH_KEYWORDS.values():
+        for keyword in keywords:
+            for token in keyword.split(" "):
+                is_full_width = any(ord(ch) > 0x2FFF for ch in token)
+                assert is_full_width or len(token) >= 2, f"invalid keyword token {token!r} in {keyword!r}"
+
+
 class _FakeItem:
     def __init__(self, item_name, price, item_url, image_url=None):
         self.item_name = item_name

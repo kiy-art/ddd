@@ -23,6 +23,28 @@ class YahooNotConfigured(Exception):
     pass
 
 
+class YahooQuotaExceeded(Exception):
+    """The Client ID's total daily call quota is exhausted (HTTP 429 with
+    "AppID is denied: total count of AppID reached the URL's limit count"),
+    not a transient per-second rate limit - retrying or continuing to call
+    the API for the rest of this batch run cannot succeed until Yahoo's
+    quota resets, so the caller should stop early rather than repeat this
+    for every remaining product."""
+
+    pass
+
+
+_QUOTA_EXCEEDED_MARKER = "AppID is denied"
+
+
+def _is_retryable(response) -> bool:
+    if response.status_code not in http_retry.RETRYABLE_STATUS_CODES:
+        return False
+    if response.status_code == 429 and _QUOTA_EXCEEDED_MARKER in response.text:
+        return False  # permanent quota exhaustion, not transient - retrying can't help
+    return True
+
+
 class YahooSearchResult:
     def __init__(self, price: int, item_url: str, image_url: str | None, item_name: str):
         self.price = price
@@ -71,8 +93,10 @@ def _fetch_candidates(keyword: str, hits: int, timeout: float) -> list[dict]:
         # of the actual product.
     }
 
-    response = http_retry.get_with_retry(SEARCH_URL, params=params, timeout=timeout)
+    response = http_retry.get_with_retry(SEARCH_URL, params=params, timeout=timeout, is_retryable=_is_retryable)
     if response.is_error:
+        if response.status_code == 429 and _QUOTA_EXCEEDED_MARKER in response.text:
+            raise YahooQuotaExceeded(f"Yahoo Shopping API 429: {response.text[:500]}")
         raise RuntimeError(f"Yahoo Shopping API {response.status_code}: {response.text[:500]}")
     data = response.json()
 

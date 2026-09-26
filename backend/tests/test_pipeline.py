@@ -221,6 +221,36 @@ def test_fetch_yahoo_prices_accepts_plausible_price(db_session, monkeypatch):
     assert product.yahoo_updated_at is not None
 
 
+def test_fetch_yahoo_prices_stops_early_on_quota_exceeded(db_session, monkeypatch):
+    """A real production incident: Yahoo's daily call quota being exhausted
+    mid-run used to produce one near-identical ErrorLog row per remaining
+    product (~25 in one real run) since each lookup failed independently.
+    Once YahooQuotaExceeded is raised, the whole run should stop immediately
+    with a single summary log instead of retrying it for every product."""
+    for i in range(3):
+        crud.create_product(
+            db_session,
+            schemas.ProductCreate(name=f"Product {i}", brand="PING", category="iron", initial_price=60000),
+        )
+
+    calls = []
+
+    def fake_search(keyword):
+        calls.append(keyword)
+        raise yahoo.YahooQuotaExceeded("Yahoo Shopping API 429: quota exhausted")
+
+    monkeypatch.setattr(yahoo, "search_lowest_price", fake_search)
+
+    updated, skipped = pipeline.fetch_yahoo_prices(db_session)
+    assert updated == 0
+    assert skipped == 3
+    assert len(calls) == 1  # stopped after the first quota-exhaustion hit
+
+    error_logs = crud.list_error_logs(db_session)
+    quota_logs = [log for log in error_logs if "quota exhausted" in log.message]
+    assert len(quota_logs) == 1
+
+
 def test_fetch_yahoo_prices_rejects_implausible_price(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
 

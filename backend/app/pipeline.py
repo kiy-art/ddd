@@ -266,6 +266,23 @@ def fetch_yahoo_prices(
             product.yahoo_updated_at = datetime.datetime.utcnow()
             db.commit()
             updated += 1
+        except yahoo.YahooQuotaExceeded as exc:
+            # Yahoo's daily call quota is exhausted for the whole batch, not
+            # just this product - every remaining lookup this run would fail
+            # identically, so stop now instead of logging the same error once
+            # per remaining product (this is what produced ~25 near-identical
+            # ErrorLog rows in a single run before this circuit breaker).
+            db.rollback()
+            remaining = len(products) - i
+            crud.create_error_log(
+                db,
+                source="price_fetch",
+                message=f"Yahoo: quota exhausted, stopping ({remaining} product(s) skipped this run): {exc}",
+            )
+            skipped += remaining
+            if on_progress is not None:
+                on_progress(len(products), len(products))
+            break
         except Exception as exc:  # noqa: BLE001 - keep the batch alive
             db.rollback()
             crud.create_error_log(

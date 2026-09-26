@@ -13,7 +13,7 @@ from app import http_retry
 from app.config import get_settings
 
 SEARCH_URL = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701"
-RANKING_URL = "https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20220601"
+RANKING_URL = "https://openapi.rakuten.co.jp/ichibaranking/api/IchibaItem/Ranking/20220601"
 AFFILIATE_LINK_BASE = "https://hb.afl.rakuten.co.jp/ichiba"
 
 

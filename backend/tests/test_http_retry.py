@@ -73,6 +73,30 @@ def test_raises_last_exception_when_every_attempt_fails_to_connect(monkeypatch):
         http_retry.get_with_retry("https://example.com", params={}, timeout=5.0, max_retries=2)
 
 
+def test_custom_is_retryable_can_stop_retrying_a_normally_retryable_status(monkeypatch):
+    """A custom `is_retryable` lets a caller treat a status normally in
+    RETRYABLE_STATUS_CODES (like 429) as permanent based on the response
+    body - e.g. Yahoo's quota-exhaustion 429, which retrying can't fix."""
+    calls = []
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        calls.append(1)
+        return httpx.Response(429, text="quota exhausted forever", request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    monkeypatch.setattr(http_retry.time, "sleep", lambda _seconds: None)
+
+    response = http_retry.get_with_retry(
+        "https://example.com",
+        params={},
+        timeout=5.0,
+        max_retries=2,
+        is_retryable=lambda r: "quota exhausted" not in r.text,
+    )
+    assert response.status_code == 429
+    assert len(calls) == 1
+
+
 def test_recovers_after_a_transient_connect_timeout(monkeypatch):
     calls = []
 
