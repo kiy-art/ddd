@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AiBuySignal from "@/components/AiBuySignal";
-import CategoryIcon from "@/components/CategoryIcon";
 import CompareButton from "@/components/CompareButton";
 import CompareStrip from "@/components/CompareStrip";
 import DataSourceNote from "@/components/DataSourceNote";
@@ -24,6 +23,7 @@ import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib
 import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { MODEL_CYCLE_DISCLAIMER, MODEL_CYCLE_FACT_NOTE, getModelCycleInsight } from "@/lib/modelCycle";
+import { normalizeImageUrl } from "@/lib/imageUrl";
 import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
@@ -199,6 +199,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   ];
 
   const siteUrl = SITE_URL;
+  // Same normalized URL the photo itself loads from (https, or null when
+  // unusable) - never an http:// or malformed value in the JSON-LD.
+  const imageUrl = normalizeImageUrl(product.image_url);
 
   // Google recommends priceValidUntil on Offer/AggregateOffer for the price
   // to be eligible for rich results. This page is fully dynamic (no cache,
@@ -259,7 +262,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
     sku: product.model_number || String(product.id),
     brand: { "@type": "Brand", name: product.brand },
     ...(product.model_number ? { mpn: product.model_number } : {}),
-    ...(product.image_url ? { image: [product.image_url] } : {}),
+    ...(imageUrl ? { image: [imageUrl] } : {}),
     url: `${siteUrl}/products/${product.slug}`,
     ...(offers ? { offers } : {}),
   };
@@ -296,18 +299,14 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
           <FadeIn className="flex flex-col gap-2">
             <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-card">
-              {product.image_url ? (
-                <SafeProductImage
-                  src={product.image_url}
-                  alt={product.name}
-                  category={product.category}
-                  className="object-contain p-10"
-                />
-              ) : (
-                <CategoryIcon category={product.category} />
-              )}
+              <SafeProductImage
+                src={product.image_url}
+                alt={product.name}
+                category={product.category}
+                className="object-contain p-10"
+              />
             </div>
-            {product.image_url?.includes("rakuten.co.jp") && (
+            {imageUrl && new URL(imageUrl, SITE_URL).hostname.endsWith("rakuten.co.jp") && (
               <p className="text-right text-[11px] text-foreground/35">画像提供: 楽天市場</p>
             )}
           </FadeIn>

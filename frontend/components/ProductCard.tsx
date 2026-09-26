@@ -3,7 +3,6 @@
 import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
-import CategoryIcon from "@/components/CategoryIcon";
 import CompareButton from "@/components/CompareButton";
 import FavoriteButton from "@/components/FavoriteButton";
 import MiniPriceRangeBar from "@/components/MiniPriceRangeBar";
@@ -101,16 +100,12 @@ export default function ProductCard({ product, listSource }: { product: Product;
           slug={product.slug}
           className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-2 text-foreground/60 shadow-sm backdrop-blur-sm transition-colors hover:text-brand"
         />
-        {product.image_url ? (
-          <SafeProductImage
+        <SafeProductImage
             src={product.image_url}
             alt={product.name}
             category={product.category}
             className="object-contain p-8 transition-transform duration-500 group-hover:scale-[1.04]"
           />
-        ) : (
-          <CategoryIcon category={product.category} />
-        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-4 p-6">

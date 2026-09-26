@@ -13,6 +13,7 @@
 //    discount only against the recorded MSRP).
 
 import type { ProductDetail } from "@/lib/api";
+import { normalizeImageUrl } from "@/lib/imageUrl";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
@@ -64,8 +65,12 @@ function sizedImageUrl(url: string): string {
   return url;
 }
 
-export async function fetchImageDataUri(url: string | null | undefined): Promise<string | null> {
-  if (!url) return null;
+export async function fetchImageDataUri(raw: string | null | undefined): Promise<string | null> {
+  // Same normalization as every on-page photo (http -> https, junk -> null);
+  // a same-site relative path can't be fetched from this server-side
+  // renderer, so it's treated as "no photo" here.
+  const url = normalizeImageUrl(raw);
+  if (!url || url.startsWith("/")) return null;
   try {
     const res = await fetch(sizedImageUrl(url), {
       signal: AbortSignal.timeout(OG_IMAGE_TIMEOUT_MS),

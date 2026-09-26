@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
-import CategoryIcon from "@/components/CategoryIcon";
 import PageHeader from "@/components/PageHeader";
 import RemoveFromCompareButton from "@/components/RemoveFromCompareButton";
 import SafeProductImage from "@/components/SafeProductImage";
@@ -91,11 +90,7 @@ export default async function ComparePage({
                       <th key={p.id} className="w-1/4 min-w-[180px] px-3 pb-6 text-left align-top">
                         <div className="flex flex-col gap-3">
                           <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-card">
-                            {p.image_url ? (
-                              <SafeProductImage src={p.image_url} alt={p.name} category={p.category} className="object-contain p-4" />
-                            ) : (
-                              <CategoryIcon category={p.category} />
-                            )}
+                            <SafeProductImage src={p.image_url} alt={p.name} category={p.category} className="object-contain p-4" compact />
                           </div>
                           <div>
                             <Link

@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizeImageUrl } from "@/lib/imageUrl";
+
 // A scattered backdrop of this site's own tracked product photography
 // (the same hotlinked retailer images already shown on every ProductCard/
 // product page, with the same attribution norms - see the "画像提供" note
@@ -28,7 +30,10 @@ const SLOTS: Slot[] = [
 ];
 
 export default function ProductPhotoCollage({ images }: { images: (string | null | undefined)[] }) {
-  const usable = images.filter((src): src is string => !!src).slice(0, SLOTS.length);
+  const usable = images
+    .map(normalizeImageUrl)
+    .filter((src): src is string => src !== null)
+    .slice(0, SLOTS.length);
   if (usable.length === 0) return null;
 
   return (
@@ -59,6 +64,7 @@ export default function ProductPhotoCollage({ images }: { images: (string | null
             <img
               src={src}
               alt=""
+              referrerPolicy="no-referrer"
               className="h-full w-full rounded-2xl object-contain p-3"
               onError={(e) => {
                 e.currentTarget.parentElement?.style.setProperty("display", "none");

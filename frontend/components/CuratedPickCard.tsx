@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-import CategoryIcon from "@/components/CategoryIcon";
 import SafeProductImage from "@/components/SafeProductImage";
 import { Product } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
@@ -33,16 +32,12 @@ export default function CuratedPickCard({
         {label}
       </span>
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-background">
-        {product.image_url ? (
-          <SafeProductImage
+        <SafeProductImage
             src={product.image_url}
             alt={product.name}
             category={product.category}
             className="object-contain p-4 transition-transform duration-300 group-hover:scale-[1.04]"
           />
-        ) : (
-          <CategoryIcon category={product.category} />
-        )}
       </div>
       <div>
         <span className="text-[10px] font-medium uppercase tracking-widest text-foreground/40">{product.brand}</span>

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
-import CategoryIcon from "@/components/CategoryIcon";
 import FadeIn from "@/components/FadeIn";
 import PageHeader from "@/components/PageHeader";
 import SafeProductImage from "@/components/SafeProductImage";
@@ -28,11 +27,7 @@ function yen(value: number | null): string {
 function ProductThumb({ product, className }: { product: Product; className?: string }) {
   return (
     <div className={`relative shrink-0 overflow-hidden rounded-xl bg-background ${className ?? ""}`}>
-      {product.image_url ? (
-        <SafeProductImage src={product.image_url} alt={product.name} category={product.category} className="object-contain p-3" />
-      ) : (
-        <CategoryIcon category={product.category} />
-      )}
+      <SafeProductImage src={product.image_url} alt={product.name} category={product.category} className="object-contain p-3" compact />
     </div>
   );
 }
@@ -51,11 +46,7 @@ function FeaturedRankCard({ product }: { product: Product }) {
         >
           01
         </span>
-        {product.image_url ? (
-          <SafeProductImage src={product.image_url} alt={product.name} category={product.category} className="object-contain p-8" />
-        ) : (
-          <CategoryIcon category={product.category} />
-        )}
+        <SafeProductImage src={product.image_url} alt={product.name} category={product.category} className="object-contain p-8" />
       </div>
       <div className="flex flex-col justify-center gap-4">
         <div className="flex items-center gap-2">
