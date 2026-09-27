@@ -1,44 +1,25 @@
 import CtaArrow from "@/components/CtaArrow";
 import TrackedCta from "@/components/TrackedCta";
-import { getAmazonSearchUrl } from "@/lib/amazon";
 import { Product } from "@/lib/api";
-import { getLowestOffer, getShopOffers } from "@/lib/shopOffers";
-import { getYahooSearchUrl } from "@/lib/yahoo";
+import { SHOP_MARKS, ShopRow, buildShopBoard, formatUpdatedAt } from "@/lib/shopRows";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
   return `¥${value.toLocaleString("ja-JP")}`;
 }
 
-function storeLabel(url: string): string {
-  try {
-    const host = new URL(url).hostname;
-    if (host.includes("rakuten.co.jp")) return "楽天市場";
-    if (host.includes("amazon.co.jp") || host.includes("amazon.com")) return "Amazon";
-    if (host.includes("yahoo.co.jp")) return "Yahoo!ショッピング";
-  } catch {
-    // fall through to the generic label below
-  }
-  return "販売ページ";
-}
-
 /**
- * Real price-source comparison, not a fabricated multi-store table. This
- * site tracks two independent live price sources per product (Rakuten
- * Ichiba via rakuten.py, Yahoo!ショッピング via yahoo.py) plus, when set,
- * the manufacturer's own product page (no price tracked there). Shipping
- * fee/points/stock count aren't collected at all, so those columns say
- * "要確認" rather than a guessed "送料無料" - see DataSourceNote for
- * what's real vs. not yet connected.
+ * STEP57 "shop price board" - sits directly under the product summary, so
+ * "where is it cheapest, and take me there" is the first thing after the
+ * product itself.
  *
- * Rakuten/Yahoo/Amazon rows are always shown (never conditionally hidden)
- * so the table can't visually read as favoring whichever mall happens to
- * have a confirmed price today - Yahoo/Amazon fall back to an honest
- * "no confirmed price yet, here's a search link" row instead of
- * disappearing. Display order is sorted by price (cheapest first, unknown
- * last) rather than a fixed source order, for the same reason: which mall
- * leads the table should depend on today's actual prices, not on which
- * one this component happens to list first in code.
+ * Real price sources only (lib/shopOffers.ts): Rakuten and Yahoo! show
+ * their fetched price; Amazon / Yahoo! without a matched listing are search
+ * links; the maker site is a plain link. When 2+ shops have a fresh price,
+ * the cheapest gets the dark "winner" banner with the page's biggest
+ * button - which shop that is depends only on today's prices, never on a
+ * fixed order in code. Shipping/points/stock aren't collected, so nothing
+ * here claims them.
  */
 export default function StoreComparisonTable({
   product,
@@ -47,210 +28,156 @@ export default function StoreComparisonTable({
   product: Product;
   lastUpdatedAt: string | null;
 }) {
-  type Row = {
-    label: string;
-    price: number | null;
-    priceDisplay?: string;
-    url: string;
-    isPriceSource: boolean;
-    // Separate from isPriceSource: a search-result link (Amazon/Yahoo
-    // fallback below) can still carry our affiliate tag and earn a
-    // commission on a resulting sale, so it needs the same "sponsored"
-    // rel/disclosure treatment as a real tracked price row even though it
-    // has no price to show.
-    sponsored: boolean;
-    // True for a row with no confirmed price where a real discount is
-    // plausible (a third-party marketplace search) - gets a bolder CTA to
-    // earn the click that would otherwise go to the price column. False
-    // for the manufacturer's own page (typically fixed MSRP, so implying
-    // "may be cheapest" there would be misleading).
-    worthChecking: boolean;
-    updatedAt: string | null;
-    detailNote?: string;
-    ctaLabel?: string;
-  };
-
-  const rows: Row[] = [];
-  if (product.affiliate_url) {
-    rows.push({
-      label: storeLabel(product.affiliate_url),
-      price: product.current_price,
-      url: product.affiliate_url,
-      isPriceSource: true,
-      sponsored: true,
-      worthChecking: false,
-      updatedAt: lastUpdatedAt,
-    });
-  }
-  // Yahoo!ショッピング商品検索API - a real, independently-fetched second
-  // price source (see app/yahoo.py). Always shown, same as every other row
-  // here: when this product has no confirmed Yahoo match (or
-  // YAHOO_CLIENT_ID isn't configured on the backend), it falls back to a
-  // plain (non-affiliate - see lib/yahoo.ts) search link rather than
-  // disappearing, so the table can't read as quietly dropping whichever
-  // mall doesn't currently have data.
-  if (product.yahoo_price !== null && product.yahoo_url) {
-    rows.push({
-      label: "Yahoo!ショッピング",
-      price: product.yahoo_price,
-      url: product.yahoo_url,
-      isPriceSource: true,
-      sponsored: true,
-      worthChecking: false,
-      updatedAt: product.yahoo_updated_at,
-    });
-  } else {
-    rows.push({
-      label: "Yahoo!ショッピング",
-      price: null,
-      priceDisplay: "-",
-      url: getYahooSearchUrl(product.name),
-      isPriceSource: false,
-      sponsored: false,
-      worthChecking: true,
-      updatedAt: null,
-      detailNote: "お得な出品が見つかる場合があります",
-      ctaLabel: "Yahoo!ショッピングで価格をチェック →",
-    });
-  }
-  if (product.product_url && product.product_url !== product.affiliate_url) {
-    rows.push({
-      label: "メーカー公式サイト",
-      price: null,
-      url: product.product_url,
-      isPriceSource: false,
-      sponsored: false,
-      worthChecking: false,
-      updatedAt: null,
-      ctaLabel: "公式サイトを見る →",
-    });
-  }
-  // Amazon: 実績作りフェーズ（PA-API未申請）につき価格は取得せず、商品名の
-  // 検索結果ページへのリンクのみを表示する。特定商品への直リンクではない
-  // ため、価格欄は空欄にし、文言でも「検索」であることを明記する。
-  rows.push({
-    label: "Amazon",
-    price: null,
-    priceDisplay: "-",
-    url: getAmazonSearchUrl(product.name),
-    isPriceSource: false,
-    sponsored: true,
-    worthChecking: true,
-    updatedAt: null,
-    detailNote: "Amazon内の価格をチェック（最安値の可能性あり）",
-    ctaLabel: "Amazonで最安値をチェック →",
-  });
-
+  const { rows, lowest, savings } = buildShopBoard(product, lastUpdatedAt);
   if (rows.length === 0) return null;
 
-  // Cheapest-first, unknown-price rows last - see the component docstring
-  // for why this (not a fixed source order) is what keeps the table from
-  // reading as favoring one mall.
-  const displayRows = [...rows].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
-
+  const pricedCount = rows.filter((row) => row.kind === "price" && row.price !== null).length;
+  const lowestRow = rows.find((row) => row.isLowest) ?? null;
   const hasSponsoredRow = rows.some((row) => row.sponsored);
-  const remainingStores = ["ゴルフ専門店"];
 
-  // Highlight the cheapest real price among actually-tracked sources
-  // (Rakuten/Yahoo!) - only meaningful with 2+ real prices to compare, and
-  // never involving the Amazon/official rows above, which have no price.
-  // STEP56: same rule as the product page's top price (lib/shopOffers.ts):
-  // only prices fetched in the last few days count, so the two can never
-  // name different shops as the cheapest.
-  const offers = getShopOffers(product, lastUpdatedAt);
-  const lowest = offers.length >= 2 ? getLowestOffer(offers) : null;
-  const cheapestRow = lowest ? rows.find((row) => row.isPriceSource && row.url === lowest.url) ?? null : null;
-  const priceDiff = lowest ? Math.max(...offers.map((offer) => offer.price)) - lowest.price : null;
+  const track = (row: ShopRow, placement: string) => ({
+    event: "cta_click",
+    params: {
+      product_id: product.id,
+      product_slug: product.slug,
+      product_name: product.name,
+      cta_type: row.ctaType,
+      shop: row.key,
+      buy_score: product.buy_score,
+    },
+    productId: product.id,
+    category: product.category,
+    placement,
+  });
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
-      <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Store Comparison</span>
-      <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">販売価格を比較</h2>
-
-      {cheapestRow && priceDiff !== null && priceDiff > 0 && (
-        <p className="mt-3 rounded-xl bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">
-          現在は{cheapestRow.label}が最安です（他店との差額 {yen(priceDiff)}）
+    <div className="card-lux overflow-hidden rounded-3xl">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-6 pt-6 sm:px-8 sm:pt-8">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Store Comparison</span>
+            <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-foreground/45">PR</span>
+          </div>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">販売価格を比較</h2>
+        </div>
+        <p className="text-xs text-foreground/45">
+          {pricedCount >= 2 ? `${pricedCount}店舗の価格を毎日取得` : "価格は毎日更新"}・{rows.length}ショップを掲載
         </p>
-      )}
-
-      <div className="mt-5 overflow-x-auto">
-        <table className="w-full min-w-[560px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-widest text-foreground/40">
-              <th className="pb-2 pr-4 font-medium">ショップ</th>
-              <th className="pb-2 pr-4 font-medium">価格</th>
-              <th className="pb-2 pr-4 font-medium">送料・ポイント・在庫</th>
-              <th className="pb-2 pr-4 font-medium">更新日時</th>
-              <th className="pb-2 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayRows.map((row) => (
-              <tr key={row.url} className="border-b border-border last:border-0">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  {row.label}
-                  {row === cheapestRow && (
-                    <span className="ml-2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-bold text-on-brand">
-                      最安
-                    </span>
-                  )}
-                </td>
-                <td className="py-3 pr-4 font-num font-semibold text-foreground">
-                  {row.priceDisplay ?? (row.isPriceSource ? yen(row.price) : "要確認")}
-                </td>
-                <td className="py-3 pr-4 text-xs text-foreground/40">
-                  {row.detailNote ?? "販売ページでご確認ください"}
-                </td>
-                <td className="py-3 pr-4 text-xs text-foreground/40">
-                  {row.updatedAt ? new Date(row.updatedAt).toLocaleString("ja-JP") : "-"}
-                </td>
-                <td className="py-3 text-right">
-                  <TrackedCta
-                    href={row.url}
-                    target="_blank"
-                    rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
-                    className={
-                      row.worthChecking
-                        ? "btn-shop whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold"
-                        : "btn-ghost whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold text-foreground/75 hover:text-foreground"
-                    }
-                    event="cta_click"
-                    params={{
-                      product_id: product.id,
-                      product_slug: product.slug,
-                      product_name: product.name,
-                      cta_type: row.isPriceSource
-                        ? "affiliate"
-                        : row.sponsored
-                          ? "affiliate_search"
-                          : row.worthChecking
-                            ? "marketplace_search"
-                            : "official",
-                      buy_score: product.buy_score,
-                    }}
-                    productId={product.id}
-                    category={product.category}
-                    placement="store_comparison"
-                  >
-                    {(row.ctaLabel ?? "見る").replace(/\s*→$/, "")}
-                    <CtaArrow className="h-3.5 w-3.5" />
-                  </TrackedCta>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
 
-      <p className="mt-4 text-xs text-foreground/35">
-        {remainingStores.length > 0 && `${remainingStores.join("・")}の価格比較は現在準備中です。`}
-        {hasSponsoredRow && (
-          <>
-            {" "}
-            ※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
-          </>
-        )}
+      {/* Winner banner: the cheapest fetched price, with the page's
+          biggest button. Only when there really is a comparison. */}
+      {lowest && lowestRow && (
+        <div className="terminal-panel relative mx-4 mt-5 overflow-hidden rounded-2xl px-5 py-5 sm:mx-6 sm:px-7 sm:py-6">
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <ShopMark row={lowestRow} size="lg" />
+              <div>
+                <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6ee7b7]">
+                  <span className="live-dot" aria-hidden="true" />
+                  今いちばん安いショップ
+                </span>
+                <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
+                  <span className="font-display text-lg font-semibold text-[#f2f6f4]">{lowestRow.label}</span>
+                  <span className="font-num text-3xl font-semibold text-[#34d399] sm:text-4xl">{yen(lowest.price)}</span>
+                </div>
+                {savings !== null && savings > 0 && (
+                  <span className="text-xs text-white/60">
+                    他店より <span className="font-num font-semibold text-white/85">{yen(savings)}</span> 安い
+                  </span>
+                )}
+              </div>
+            </div>
+            <TrackedCta
+              href={lowestRow.url}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="btn-shop tap w-full shrink-0 whitespace-nowrap rounded-full px-6 py-4 text-sm font-semibold sm:w-auto sm:px-7 sm:text-base"
+              {...track(lowestRow, "store_comparison_top")}
+            >
+              {lowestRow.label}で買う
+              <CtaArrow />
+            </TrackedCta>
+          </div>
+        </div>
+      )}
+
+      <ul className="mt-5 flex flex-col gap-2 px-4 pb-4 sm:px-6">
+        {rows.map((row) => (
+          <li
+            key={`${row.key}-${row.url}`}
+            className={`flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:gap-5 ${
+              row.isLowest
+                ? "border-brand/50 bg-brand/[0.05] shadow-[0_0_0_1px_rgba(var(--glow),0.25)]"
+                : "border-border bg-background"
+            }`}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <ShopMark row={row} />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-foreground">{row.label}</span>
+                  {row.isLowest && (
+                    <span className="rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">最安</span>
+                  )}
+                </div>
+                <span className="text-xs text-foreground/45">
+                  {row.kind === "price"
+                    ? formatUpdatedAt(row.updatedAt)
+                      ? `${formatUpdatedAt(row.updatedAt)} 時点・送料/ポイントは販売ページで確認`
+                      : "送料/ポイントは販売ページで確認"
+                    : row.note}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 sm:justify-end">
+              <span
+                className={`shrink-0 font-num text-xl font-semibold sm:w-28 sm:text-right ${
+                  row.isLowest ? "text-brand dark:text-brand-light" : row.price !== null ? "text-foreground" : "text-foreground/30"
+                }`}
+              >
+                {row.kind === "price" ? yen(row.price) : "—"}
+              </span>
+              <TrackedCta
+                href={row.url}
+                target="_blank"
+                rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
+                className={`tap inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-3 text-[13px] font-semibold sm:min-w-[11rem] sm:flex-none sm:px-5 sm:text-sm ${
+                  row.isLowest || (row.kind === "search" && row.sponsored)
+                    ? "btn-shop"
+                    : "btn-ghost text-foreground/80 hover:text-foreground"
+                }`}
+                {...track(row, "store_comparison")}
+              >
+                {row.cta}
+                <CtaArrow className="h-3.5 w-3.5" />
+              </TrackedCta>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <p className="border-t border-border px-6 py-4 text-[11px] leading-relaxed text-foreground/40 sm:px-8">
+        価格はPAR.が毎日取得した各ショップの価格です（Amazonは価格未取得のため検索結果へのリンク）。
+        {hasSponsoredRow &&
+          "※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。"}
+        価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
       </p>
     </div>
+  );
+}
+
+function ShopMark({ row, size = "md" }: { row: ShopRow; size?: "md" | "lg" }) {
+  const mark = SHOP_MARKS[row.key];
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex shrink-0 items-center justify-center rounded-xl font-bold ${mark.className} ${
+        size === "lg" ? "h-12 w-12 text-lg" : "h-10 w-10 text-sm"
+      }`}
+    >
+      {mark.glyph}
+    </span>
   );
 }

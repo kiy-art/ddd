@@ -24,7 +24,7 @@ export type ShopOffer = {
 };
 
 // The backend sends naive UTC timestamps ("2026-09-26T12:15:15").
-function parseUtc(iso: string): number {
+export function parseUtc(iso: string): number {
   const hasZone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(iso);
   return new Date(hasZone ? iso : `${iso}Z`).getTime();
 }
