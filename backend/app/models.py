@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -131,6 +132,21 @@ class Product(Base):
     # copy the next day), and lets evaluate_past_actions tell whether the
     # copy it's measuring is still the one that decision produced.
     ai_copy_source_action_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # STEP61: the seller's stated specs (loft, shaft, ...) as a JSON object
+    # {spec key: value as written}, parsed from the matched Rakuten
+    # listing's description (app/spec_extractor.py). Read via .specs.
+    specs_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    @property
+    def specs(self) -> dict[str, str]:
+        if not self.specs_json:
+            return {}
+        try:
+            data = json.loads(self.specs_json)
+        except ValueError:
+            return {}
+        return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
 
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(

@@ -13,6 +13,7 @@ table) are reported honestly as a leading indicator, not a revenue
 estimate."""
 
 import datetime
+import html as html_lib
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -140,9 +141,10 @@ def build_daily_report(db: Session) -> tuple[str, str]:
         actions.append("現状、緊急の課題は見当たりません。引き続きデータを蓄積し、明日また評価します。")
 
     # X (旧Twitter) の無料APIプランでは投稿自体ができなくなった (402) ため、
-    # 同じ商品選定・文面ロジック (x_post.build_manual_post_text) でそのまま
     # コピペ投稿できるテキストを毎朝この報告に含める - 自動投稿の代替導線。
-    manual_post_text = x_post.build_manual_post_text(db)
+    # STEP61: 朝・昼・夜の3本 (x_post.build_daily_manual_posts - 朝の分は
+    # build_manual_post_text と同じ商品選定・文面)。
+    manual_drafts = [d for d in x_post.build_daily_manual_posts(db) if d.text]
 
     # STEP42: app/content_optimizer.py's autonomous decisions from the last
     # 24h - what it changed and why (always shown), plus any effect
@@ -159,9 +161,13 @@ def build_daily_report(db: Session) -> tuple[str, str]:
     body_items = "".join(f'<li style="margin-bottom: 10px; line-height: 1.6;">{line}</li>' for line in lines)
     action_items = "".join(f'<li style="margin-bottom: 6px; line-height: 1.6;">{a}</li>' for a in actions)
     manual_post_block = (
-        f'<pre style="white-space: pre-wrap; font-family: inherit; font-size: 13px; '
-        f'background: #f5f4f0; border-radius: 8px; padding: 12px; margin: 0 0 24px;">{manual_post_text}</pre>'
-        if manual_post_text
+        "".join(
+            f'<p style="font-size: 13px; font-weight: 600; margin: 0 0 6px;">{d.label}｜{d.theme}</p>'
+            f'<pre style="white-space: pre-wrap; font-family: inherit; font-size: 13px; '
+            f'background: #f5f4f0; border-radius: 8px; padding: 12px; margin: 0 0 16px;">{html_lib.escape(d.text)}</pre>'
+            for d in manual_drafts
+        )
+        if manual_drafts
         else '<p style="font-size: 13px; color: #6b6a63; margin: 0 0 24px;">本日は投稿対象となる商品がありません。</p>'
     )
 
@@ -217,7 +223,7 @@ def build_daily_report(db: Session) -> tuple[str, str]:
       <p style="font-size: 13px; font-weight: 600; color: #6b6a63; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">本日のAI自動改善</p>
       <div style="margin: 0 0 24px;">{optimization_block}</div>
 
-      <p style="font-size: 13px; font-weight: 600; color: #6b6a63; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">X投稿用テキスト（コピペ用）</p>
+      <p style="font-size: 13px; font-weight: 600; color: #6b6a63; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">X投稿用テキスト（朝・昼・夜のコピペ用）</p>
       {manual_post_block}
 
       <p style="font-size: 12px; color: #6b6a63; line-height: 1.6;">

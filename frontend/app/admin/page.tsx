@@ -13,7 +13,8 @@ import {
   adminSyncPopularity,
   adminFetchRakuten,
   adminGetImprovementOpportunities,
-  adminGetXPostPreview,
+  adminGetXPostDrafts,
+  adminRunProductFacts,
   adminImportCsv,
   adminListOptimizationActions,
   adminListProducts,
@@ -25,6 +26,7 @@ import {
   adminSendDailyReport,
   adminSendPriceAlerts,
   Product,
+  type XPostDraft,
 } from "@/lib/api";
 import { useAdminAuth } from "@/lib/adminAuth";
 import AiTeamDashboard from "@/components/AiTeamDashboard";
@@ -61,8 +63,12 @@ export default function AdminDashboard() {
     lines: string[];
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [xPostPreview, setXPostPreview] = useState<string | null | undefined>(undefined);
-  const [xCopyMessage, setXCopyMessage] = useState<string | null>(null);
+  // STEP61: today's three copy-paste drafts (朝・昼・夜).
+  const [xDrafts, setXDrafts] = useState<XPostDraft[] | null | undefined>(undefined);
+  const [xCopied, setXCopied] = useState<string | null>(null);
+  const [factsStatus, setFactsStatus] = useState<{ phase: "busy" | "done" | "error"; text: string; lines: string[] } | null>(
+    null
+  );
   const [optimizationActions, setOptimizationActions] = useState<AiOptimizationAction[]>([]);
   const [opportunities, setOpportunities] = useState<ImprovementOpportunity[]>([]);
 
@@ -96,12 +102,12 @@ export default function AdminDashboard() {
         setLoading(false);
       }
     });
-    adminGetXPostPreview(token)
-      .then((result) => {
-        if (!ignore) setXPostPreview(result.text);
+    adminGetXPostDrafts(token)
+      .then((drafts) => {
+        if (!ignore) setXDrafts(drafts);
       })
       .catch(() => {
-        if (!ignore) setXPostPreview(null);
+        if (!ignore) setXDrafts(null);
       });
     adminListOptimizationActions(token)
       .then((data) => {
@@ -273,13 +279,42 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCopyXPost = async () => {
-    if (!xPostPreview) return;
+  const handleCopyXDraft = async (draft: XPostDraft) => {
+    if (!draft.text) return;
     try {
-      await navigator.clipboard.writeText(xPostPreview);
-      setXCopyMessage("コピーしました。");
+      await navigator.clipboard.writeText(draft.text);
+      setXCopied(draft.slot);
     } catch {
-      setXCopyMessage("コピーに失敗しました。テキストを選択して手動でコピーしてください。");
+      setXCopied(null);
+      setMessage("コピーに失敗しました。テキストを選択して手動でコピーしてください。");
+    }
+  };
+
+  // STEP61: always a preview first, like the category fix.
+  const handleProductFacts = async () => {
+    if (!token) return;
+    setBusy(true);
+    setFactsStatus({ phase: "busy", text: "調査済みデータと照合しています…", lines: [] });
+    try {
+      const preview = await adminRunProductFacts(token, true);
+      const lines = preview.plan_lines.filter((l) => l.startsWith("  id=")).map((l) => l.trim());
+      if (preview.updated === 0) {
+        setFactsStatus({ phase: "done", text: `確認完了：${preview.products_checked}件を確認しました。反映が必要な商品はありません。`, lines: [] });
+        return;
+      }
+      const shown = lines.slice(0, 30);
+      const more = lines.length > shown.length ? `\n…ほか${lines.length - shown.length}件` : "";
+      if (!window.confirm(`次の${preview.updated}件に、メーカー公表の位置づけ等を反映します（空欄の項目だけ）:\n\n${shown.join("\n")}${more}\n\n実行しますか？`)) {
+        setFactsStatus({ phase: "done", text: `キャンセルしました。何も変更していません（反映予定：${preview.updated}件、下の一覧）。`, lines });
+        return;
+      }
+      const result = await adminRunProductFacts(token, false);
+      setFactsStatus({ phase: "done", text: `反映しました：${result.updated}件。商品ページと比較ページにすぐ表示されます。`, lines });
+      await load();
+    } catch (err) {
+      setFactsStatus({ phase: "error", text: `反映に失敗しました：${err instanceof Error ? err.message : String(err)}`, lines: [] });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -542,6 +577,40 @@ export default function AdminDashboard() {
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">メーカー公表の位置づけを反映（上級者向け・飛び系など）</h2>
+        <p className="text-sm text-foreground/50">
+          調査済みのデータ（対象レベル・タイプ・発売日・定価など、約40モデル分）を、該当する商品の空欄の項目に反映します。
+          商品ページの「商品の特徴」と比較ページに表示されます。すでに入力されている値は変更しません。押すとまず反映予定の一覧を表示し、確認してから実行します。
+        </p>
+        <button
+          onClick={handleProductFacts}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {factsStatus?.phase === "busy" ? "確認中…" : "位置づけを確認・反映する"}
+        </button>
+        {factsStatus && (
+          <div
+            role="status"
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              factsStatus.phase === "error" ? "border-red-300 bg-red-50 text-red-800" : "border-border bg-background text-foreground/75"
+            }`}
+          >
+            <p>{factsStatus.text}</p>
+            {factsStatus.lines.length > 0 && (
+              <ul className="mt-2 max-h-64 overflow-y-auto text-xs text-foreground/60">
+                {factsStatus.lines.map((line) => (
+                  <li key={line} className="border-t border-border py-1 first:border-0">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
         <h2 className="font-display font-medium text-foreground">カテゴリの修正（グローブ・距離計・その他）</h2>
         <p className="text-sm text-foreground/50">
           ボールやパターの検索で見つかったグローブ・距離計・ピンフラッグ・マーカーなどが、別のカテゴリに登録されている場合に、
@@ -662,39 +731,51 @@ export default function AdminDashboard() {
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
         <h2 className="font-display font-medium text-foreground">今日のお買い得情報をXに投稿</h2>
         <p className="text-sm text-foreground/50">
-          買い時スコアが高い商品（データ不足の場合は定価からの割引率）を1〜2点選び、AIが紹介文を生成します。
-          X APIの無料プランでは投稿自体ができなくなった（402エラー）ため、現在は下のテキストを手動でコピーして
-          Xに貼り付けて投稿する運用です。毎朝のAI会議レポートにも同じテキストが含まれます。
+          朝・昼・夜の3本の投稿テキストを毎日用意します（朝＝今日の買い時、昼＝値下がり速報、夜＝楽天の売れ筋ランキングTOP3）。
+          すべて実際の価格データだけから作っています。「コピー」を押してXに貼り付けて投稿してください。毎朝のAI会議レポートにも同じ3本が含まれます。
         </p>
 
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-foreground/40">
-            手動投稿用テキストのプレビュー
-          </p>
-          {xPostPreview === undefined ? (
+        {/* STEP61: three drafts a day - each a different angle and products. */}
+        <div className="flex flex-col gap-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-foreground/40">今日の投稿テキスト（朝・昼・夜）</p>
+          {xDrafts === undefined ? (
             <p className="text-sm text-foreground/50">読み込み中...</p>
-          ) : xPostPreview === null ? (
-            <p className="text-sm text-foreground/50">
-              本日は投稿対象となる商品がありません（強い買い時シグナルの商品も、定価割引の商品もまだ無し）。
-            </p>
+          ) : xDrafts === null ? (
+            <p className="text-sm text-foreground/50">投稿テキストを取得できませんでした。</p>
           ) : (
-            <>
-              <textarea
-                readOnly
-                value={xPostPreview}
-                rows={5}
-                className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm text-foreground"
-              />
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleCopyXPost}
-                  className="w-fit rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground"
-                >
-                  コピー
-                </button>
-                {xCopyMessage && <p className="text-xs text-foreground/50">{xCopyMessage}</p>}
+            xDrafts.map((draft) => (
+              <div key={draft.slot} className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {draft.label}｜{draft.theme}
+                  </p>
+                  {draft.weighted_length !== null && (
+                    <span className="text-[11px] text-foreground/45">{draft.weighted_length}/280字（X換算）</span>
+                  )}
+                </div>
+                {draft.text ? (
+                  <>
+                    <textarea
+                      readOnly
+                      value={draft.text}
+                      rows={draft.text.split("\n").length + 1}
+                      className="w-full resize-none rounded-lg border border-border bg-card p-3 text-sm text-foreground"
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleCopyXDraft(draft)}
+                        className="w-fit rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        {xCopied === draft.slot ? "コピーしました ✓" : "コピー"}
+                      </button>
+                      <span className="text-xs text-foreground/45">{draft.note}</span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-foreground/50">今日はこの枠の投稿はありません（{draft.note}）。</p>
+                )}
               </div>
-            </>
+            ))
           )}
         </div>
 

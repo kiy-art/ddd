@@ -11,7 +11,7 @@ from typing import Callable, Collection
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ai, analysis, content_rewriter, crud, email, forecast, image_urls, models, rakuten, yahoo
+from app import ai, analysis, content_rewriter, crud, email, forecast, image_urls, models, rakuten, spec_extractor, yahoo
 from app.config import get_settings
 from app.rakuten import search_lowest_price
 
@@ -251,6 +251,14 @@ def fetch_rakuten_prices(
                 skipped += 1
                 continue
             crud.add_price(db, product, result.price)
+            # STEP61: the matched listing's stated specs (only keys the
+            # product doesn't have yet - see spec_extractor.merge_specs).
+            new_specs = spec_extractor.extract_specs(getattr(result, "caption", None), product.category)
+            if new_specs:
+                merged = spec_extractor.merge_specs(product.specs, new_specs)
+                if merged != product.specs:
+                    product.specs_json = json.dumps(merged, ensure_ascii=False)
+                    db.commit()
             # Rakuten's API returns the item's own listing photo, provided
             # for exactly this kind of use (unlike hotlinking e.g. Amazon
             # images). Only fill in what the site can't show (missing,

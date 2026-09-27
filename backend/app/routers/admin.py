@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, progress, schemas, self_heal, title_migration, x_post
+from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, product_facts, progress, schemas, self_heal, title_migration, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -554,6 +554,13 @@ def post_to_x(db: Session = Depends(get_db)):
     return {"x_posts_sent": sent, "x_posts_skipped": skipped}
 
 
+@router.get("/x-post-drafts")
+def x_post_drafts(db: Session = Depends(get_db)):
+    """STEP61: today's three copy-paste X drafts (朝・昼・夜) for manual
+    posting - see x_post.build_daily_manual_posts."""
+    return [dataclasses.asdict(d) for d in x_post.build_daily_manual_posts(db)]
+
+
 @router.get("/x-post-preview")
 def x_post_preview(db: Session = Depends(get_db)):
     """Read-only preview of the ready-to-paste X post text (same selection/
@@ -685,6 +692,23 @@ def run_category_migration(dry_run: bool = False, db: Session = Depends(get_db))
         "products_checked": result.products_checked,
         "moved": result.moved,
         "moved_by_category": result.moved_by_category,
+        "plan_lines": result.plan_lines,
+    }
+
+
+@router.post("/run-product-facts")
+def run_product_facts(dry_run: bool = False, db: Session = Depends(get_db)):
+    """STEP61: applies the researched maker facts (level / type / release
+    date / msrp) from backend/data/product_facts.csv - only to empty
+    fields. ?dry_run=true returns the plan without writing; the admin
+    panel previews first and applies only after confirmation."""
+    result = product_facts.run_product_facts(db, apply=not dry_run)
+    if result.applied and result.updated:
+        crud.create_error_log(db, source="product_facts", level="info", message="\n".join(result.plan_lines))
+    return {
+        "applied": result.applied,
+        "products_checked": result.products_checked,
+        "updated": result.updated,
         "plan_lines": result.plan_lines,
     }
 

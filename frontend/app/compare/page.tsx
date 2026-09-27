@@ -7,6 +7,8 @@ import RemoveFromCompareButton from "@/components/RemoveFromCompareButton";
 import SafeProductImage from "@/components/SafeProductImage";
 import TrackedCta from "@/components/TrackedCta";
 import { getAmazonSearchUrl } from "@/lib/amazon";
+import { PERFORMANCE_TYPE_LABELS, SKILL_LEVEL_LABELS } from "@/lib/badges";
+import { SPEC_ORDER } from "@/lib/productSpecs";
 import { ProductDetail, getProduct } from "@/lib/api";
 import { MAX_COMPARE } from "@/lib/compare";
 import { forecastMonthLabel } from "@/lib/forecast";
@@ -56,6 +58,8 @@ export default async function ComparePage({
     .slice(0, MAX_COMPARE);
 
   const products = slugs.length > 0 ? await loadProducts(slugs) : [];
+  // Spec rows shown = specs at least one compared product has.
+  const specKeys = SPEC_ORDER.filter(({ key }) => products.some((p) => p.specs?.[key]));
 
   return (
     <div>
@@ -108,6 +112,41 @@ export default async function ComparePage({
                   </tr>
                 </thead>
                 <tbody className="text-sm">
+                  {/* STEP61: what the clubs ARE, before what they cost -
+                      maker positioning (researched) and seller-stated specs. */}
+                  <CompareRow label="対象レベル">
+                    {products.map((p) => (
+                      <td key={p.id} className="px-3 py-4 font-medium text-foreground">
+                        {p.skill_level ? SKILL_LEVEL_LABELS[p.skill_level] ?? "—" : <Unknown />}
+                      </td>
+                    ))}
+                  </CompareRow>
+                  <CompareRow label="タイプ">
+                    {products.map((p) => (
+                      <td key={p.id} className="px-3 py-4 font-medium text-foreground">
+                        {p.performance_type ? PERFORMANCE_TYPE_LABELS[p.performance_type] ?? "—" : <Unknown />}
+                      </td>
+                    ))}
+                  </CompareRow>
+                  <CompareRow label="発売・世代">
+                    {products.map((p) => (
+                      <td key={p.id} className="px-3 py-4 text-foreground/75">
+                        {[releaseLabel(p.release_date), p.is_current_generation === true ? "現行" : p.is_current_generation === false ? "型落ち" : null]
+                          .filter(Boolean)
+                          .join("・") || <Unknown />}
+                      </td>
+                    ))}
+                  </CompareRow>
+                  {specKeys.map(({ key, label }) => (
+                    <CompareRow key={key} label={label}>
+                      {products.map((p) => (
+                        <td key={p.id} className="px-3 py-4 text-foreground/75">
+                          {p.specs?.[key] ?? <Unknown />}
+                        </td>
+                      ))}
+                    </CompareRow>
+                  ))}
+
                   <CompareRow label="現在価格">
                     {products.map((p) => (
                       <td key={p.id} className="px-3 py-4 font-num text-lg font-semibold text-foreground">
@@ -225,6 +264,9 @@ export default async function ComparePage({
                 </tbody>
               </table>
               <p className="mt-4 text-xs text-foreground/35">
+                ※「対象レベル」「タイプ」はメーカー公表の位置づけ、スペックは楽天市場の販売ページ記載の値です（選べるロフト・シャフトは販売ページでご確認ください）。「—」は未確認の項目です。
+              </p>
+              <p className="mt-1 text-xs text-foreground/35">
                 ※「予測価格」「予測時期」の項目は過去の価格データをもとにした予測であり、将来価格を保証するものではありません。
               </p>
             </div>
@@ -244,4 +286,15 @@ function CompareRow({ label, children, last }: { label: string; children: React.
       {children}
     </tr>
   );
+}
+
+
+function Unknown() {
+  return <span className="text-foreground/30">—</span>;
+}
+
+function releaseLabel(iso: string | null): string | null {
+  if (!iso) return null;
+  const [y, m] = iso.split("-").map(Number);
+  return y && m ? `${y}年${m}月発売` : null;
 }

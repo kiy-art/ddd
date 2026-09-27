@@ -7,6 +7,7 @@ import { getAmazonSearchUrl } from "@/lib/amazon";
 import { Product } from "@/lib/api";
 import { trackAffiliateClick } from "@/lib/affiliateTracking";
 import { trackEvent } from "@/lib/analytics";
+import { getPositioningFacts } from "@/lib/badges";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -52,6 +53,23 @@ export default function CompareStrip({ products, currentId }: { products: Produc
           <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{p.brand}</span>
           <span className="line-clamp-2 font-display text-sm font-medium text-foreground">{p.name}</span>
           <span className="font-num text-lg font-semibold text-foreground">{yen(p.current_price)}</span>
+          {/* STEP61: positioning + loft, so the strip compares more than price */}
+          {(getPositioningFacts(p).length > 0 || p.specs?.loft) && (
+            <div className="flex flex-wrap gap-1">
+              {getPositioningFacts(p)
+                .slice(0, 2)
+                .map((fact) => (
+                  <span key={fact.label} className="rounded-full bg-mint px-2 py-0.5 text-[10px] font-semibold text-brand">
+                    {fact.label}
+                  </span>
+                ))}
+              {p.specs?.loft && (
+                <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-foreground/60">
+                  ロフト {p.specs.loft}
+                </span>
+              )}
+            </div>
+          )}
           {p.forecast_confidence !== null && p.forecast_low_price !== null && p.forecast_high_price !== null && (
             <span className="text-[11px] text-accent-dark">
               予測 {yen(p.forecast_low_price)}〜{yen(p.forecast_high_price)}

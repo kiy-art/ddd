@@ -17,6 +17,7 @@ import PriceForecast from "@/components/PriceForecast";
 import PriceHistoryChartPanel from "@/components/PriceHistoryChartPanel";
 import PriceRangeBar from "@/components/PriceRangeBar";
 import PriceTimeline from "@/components/PriceTimeline";
+import ProductOverview from "@/components/ProductOverview";
 import ProductFAQ from "@/components/ProductFAQ";
 import SafeProductImage from "@/components/SafeProductImage";
 import StoreComparisonTable from "@/components/StoreComparisonTable";
@@ -252,6 +253,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             {imageUrl && new URL(imageUrl, SITE_URL).hostname.endsWith("rakuten.co.jp") && (
               <p className="text-right text-[11px] text-foreground/35">画像提供: 楽天市場</p>
             )}
+            {/* STEP61: fills the space under the photo on desktop; on a phone
+                it comes after the buy block instead (below), so the price
+                and shop buttons stay near the top. */}
+            <ProductOverview product={product} className="mt-4 hidden lg:block" />
           </FadeIn>
 
           <FadeIn delay={100} className="flex flex-col gap-6">
@@ -569,6 +574,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
         {/* STEP57 order: shops first (where to buy, cheapest highlighted),
             then the price history, then related products. */}
+        <ProductOverview product={product} className="mt-10 lg:hidden" />
+
         <FadeIn id="store-comparison" className="mt-12 scroll-mt-20">
           <StoreComparisonTable product={product} lastUpdatedAt={lastPriceUpdatedAt} />
         </FadeIn>

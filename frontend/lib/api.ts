@@ -19,6 +19,9 @@ export interface Product {
   skill_level: string | null;
   performance_type: string | null;
   is_current_generation: boolean | null;
+  // STEP61: seller-stated specs parsed from the matched Rakuten listing
+  // ({loft: "9°/10.5°", shaft: "..."}) - labels in lib/productSpecs.ts.
+  specs?: Record<string, string>;
   popularity_rank: number | null;
   popularity_updated_at: string | null;
   yahoo_price: number | null;
@@ -440,6 +443,28 @@ export function adminRunCategoryMigration(token: string, dryRun: boolean) {
     method: "POST",
     headers: adminHeaders(token),
   });
+}
+
+// STEP61: applies the researched maker facts (level / type / release date).
+export function adminRunProductFacts(token: string, dryRun: boolean) {
+  return apiFetch<{ applied: boolean; products_checked: number; updated: number; plan_lines: string[] }>(
+    `/api/admin/run-product-facts?dry_run=${dryRun}`,
+    { method: "POST", headers: adminHeaders(token) }
+  );
+}
+
+// STEP61: today's three copy-paste X drafts (朝・昼・夜).
+export interface XPostDraft {
+  slot: "morning" | "noon" | "evening";
+  label: string;
+  theme: string;
+  text: string | null;
+  note: string;
+  weighted_length: number | null;
+}
+
+export function adminGetXPostDrafts(token: string) {
+  return apiFetch<XPostDraft[]>(`/api/admin/x-post-drafts`, { headers: adminHeaders(token) });
 }
 
 export function adminRunMigrationCleanTitles(token: string, dryRun: boolean) {

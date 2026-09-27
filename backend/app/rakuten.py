@@ -22,11 +22,14 @@ class RakutenNotConfigured(Exception):
 
 
 class RakutenSearchResult:
-    def __init__(self, price: int, item_url: str, image_url: str | None, item_name: str):
+    def __init__(self, price: int, item_url: str, image_url: str | None, item_name: str, caption: str | None = None):
         self.price = price
         self.item_url = item_url
         self.image_url = image_url
         self.item_name = item_name
+        # STEP61: the shop's own item description - the source of the spec
+        # table (loft, shaft, ...) parsed by app/spec_extractor.py.
+        self.caption = caption
 
 
 def to_affiliate_url(item_url: str) -> str | None:
@@ -58,6 +61,7 @@ def _item_to_result(item: dict) -> RakutenSearchResult:
         item_url=item["itemUrl"],
         image_url=image_url,
         item_name=item["itemName"],
+        caption=item.get("itemCaption") or None,
     )
 
 

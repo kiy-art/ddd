@@ -80,6 +80,8 @@ class ProductOut(ProductBase):
     ai_title: str | None
     ai_summary: str | None
     ai_caution: str | None
+    # STEP61: seller-stated specs {key: value}; labels in the frontend.
+    specs: dict[str, str] = {}
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

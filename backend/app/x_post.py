@@ -479,3 +479,132 @@ def post_daily_deals(db: Session) -> tuple[int, int]:
         message=f"Xに投稿しました（tweet_id={tweet_id}）:\n{text}",
     )
     return 1, 0
+
+
+# --- STEP61: three copy-paste drafts per day (the owner posts by hand) ------
+#
+# Morning / noon / evening, each a different angle and different products,
+# so three posts a day never repeat each other:
+#   朝 - today's best buy (the same post build_manual_post_text makes)
+#   昼 - a price-drop alert: biggest drop vs the previous recorded price
+#   夜 - Rakuten's own bestseller top 3 for one category (rotates daily)
+# Every draft states only stored facts and goes through the same
+# marketing_playbook.validate_copy check as the automated post.
+
+@dataclasses.dataclass
+class ManualDraft:
+    slot: str  # "morning" | "noon" | "evening"
+    label: str  # when to post it
+    theme: str
+    text: str | None
+    note: str  # why there's no draft today, or what it's based on
+    weighted_length: int | None = None
+
+
+MANUAL_SLOTS = {
+    "morning": ("朝（7〜9時）", "今日の買い時"),
+    "noon": ("昼（12〜13時）", "値下がり速報"),
+    "evening": ("夜（20〜22時）", "楽天の売れ筋ランキング"),
+}
+
+
+def _validated(db: Session, text: str, url: str, allowed_yen: set[int], allowed_percents: set[float]) -> str | None:
+    try:
+        marketing_playbook.validate_copy([text.replace(url, "")], allowed_yen, allowed_percents)
+    except marketing_playbook.ContentPolicyViolation as exc:
+        crud.create_error_log(db, source="x_post", level="warning", message=f"X draft failed compliance check: {exc}")
+        return None
+    return text
+
+
+def _noon_draft(db: Session, exclude_ids: set[int]) -> tuple[str | None, str]:
+    candidates = [
+        p
+        for p in db.execute(select(models.Product).where(models.Product.pending_review.is_(False))).scalars()
+        if p.id not in exclude_ids
+        and p.current_price is not None
+        and p.previous_price is not None
+        and p.current_price < p.previous_price
+    ]
+    if not candidates:
+        return None, "前回の記録から値下がりした商品がありません"
+    candidates.sort(key=lambda p: (p.previous_price - p.current_price) / p.previous_price, reverse=True)
+    lead = candidates[0]
+    diff = lead.previous_price - lead.current_price
+    label = CATEGORY_LABELS.get(lead.category, "ゴルフギア")
+    url = f"{get_settings().site_url}/products/{lead.slug}"
+    facts = _post_facts(lead)
+    for name_max in (None, 30, 20):
+        blocks = [
+            f"📉 値下がり速報｜{label}",
+            "",
+            _shorten(f"{lead.brand} {lead.name}", name_max),
+            f"💰 ¥{lead.current_price:,}（前回 ¥{lead.previous_price:,} から ¥{diff:,} ダウン）",
+        ]
+        if facts.buy_signal_score is not None:
+            verdict = VERDICT_LABELS.get(lead.buy_score)
+            blocks.append(f"📊 PAR.買い時スコア {facts.buy_signal_score}/100" + (f"（{verdict}）" if verdict else ""))
+        blocks += ["", CTA_LINE]
+        head = "\n".join(blocks)
+        tail = _hashtags([lead])
+        if _post_weighted_length(f"{head}\n\n\n{tail}") <= X_MAX_WEIGHTED_LENGTH:
+            text = f"{head}\n{url}\n\n{tail}"
+            allowed = {lead.current_price, lead.previous_price, diff}
+            return _validated(db, text, url, allowed, set()), f"{lead.brand} {lead.name}（前回比 ¥{diff:,} ダウン）"
+    return None, "文字数の上限に収まりませんでした"
+
+
+def _evening_draft(db: Session, today: datetime.date) -> tuple[str | None, str]:
+    from app import popularity  # local import: popularity imports pipeline, which this module doesn't need
+
+    groups = [g for g in popularity.ranking_snapshot(db, limit=3) if len(g["entries"]) >= 3]
+    if not groups:
+        return None, "直近の楽天売れ筋ランキングがまだ取得されていません"
+    group = groups[today.toordinal() % len(groups)]
+    category = group["category"]
+    label = CATEGORY_LABELS.get(category, "ゴルフ用品")
+    fetched = group["fetched_at"] + datetime.timedelta(hours=9)  # JST
+    url = f"{get_settings().site_url}/popular?category={category}"
+    medals = ["🥇", "🥈", "🥉"]
+    entries = group["entries"][:3]
+    allowed = {e["price"] for e in entries if e["price"] is not None}
+    for name_max in (28, 22, 16):
+        lines = [f"🏆 楽天の売れ筋{label}ランキング TOP3（{fetched.month}/{fetched.day}時点）", ""]
+        for medal, entry in zip(medals, entries):
+            price = f" ¥{entry['price']:,}" if entry["price"] is not None else ""
+            lines.append(f"{medal} {_shorten(entry['name'], name_max)}{price}")
+        lines += ["", "価格推移と買い時はPAR.でチェック👇"]
+        head = "\n".join(lines)
+        tail = " ".join(t for t in ["#ゴルフ", CATEGORY_HASHTAGS.get(category), "#楽天"] if t)
+        if _post_weighted_length(f"{head}\n\n\n{tail}") <= X_MAX_WEIGHTED_LENGTH:
+            text = f"{head}\n{url}\n\n{tail}"
+            return _validated(db, text, url, allowed, set()), f"{label}（カテゴリは日替わり）"
+    return None, "文字数の上限に収まりませんでした"
+
+
+def build_daily_manual_posts(db: Session, today: datetime.date | None = None) -> list[ManualDraft]:
+    today = today or (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).date()
+    drafts: list[ManualDraft] = []
+
+    morning_products = select_deals_of_the_day(db, count=2)
+    morning_text = _build_tweet_text(db, morning_products) if morning_products else None
+    drafts.append(
+        ManualDraft(
+            "morning",
+            *MANUAL_SLOTS["morning"],
+            text=morning_text,
+            note=" / ".join(f"{p.brand} {p.name}" for p in morning_products) if morning_products else "買い時・定価割引の商品がありません",
+        )
+    )
+
+    noon_text, noon_note = _noon_draft(db, {p.id for p in morning_products})
+    drafts.append(ManualDraft("noon", *MANUAL_SLOTS["noon"], text=noon_text, note=noon_note))
+
+    evening_text, evening_note = _evening_draft(db, today)
+    drafts.append(ManualDraft("evening", *MANUAL_SLOTS["evening"], text=evening_text, note=evening_note))
+
+    for draft in drafts:
+        if draft.text:
+            url_line = next((line for line in draft.text.splitlines() if line.startswith("http")), "")
+            draft.weighted_length = _x_weighted_length(draft.text.replace(url_line, "")) + X_URL_WEIGHTED_LENGTH
+    return drafts

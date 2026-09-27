@@ -29,13 +29,14 @@ promotional noise now collapse into the same product instead of each
 registering as a separate row.
 """
 
+import json
 import time
 from typing import Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import categorizer, crud, image_urls, models, rakuten, schemas, title_cleaner
+from app import categorizer, crud, image_urls, models, rakuten, schemas, spec_extractor, title_cleaner
 # Brand recognition lives in app/brands.py (shared with app/popularity.py
 # and app/title_cleaner.py, none of which need to import each other just
 # for this) - BRAND_KEYWORDS is re-exported here so existing
@@ -318,6 +319,11 @@ def discover_new_products(
                         ),
                         pending_review=pending_review,
                     )
+                    # STEP61: the listing's stated specs (loft, shaft, ...).
+                    specs = spec_extractor.extract_specs(getattr(item, "caption", None), target)
+                    if specs:
+                        product.specs_json = json.dumps(specs, ensure_ascii=False)
+                        db.commit()
                     sync_product_analysis(db, product)
 
                     existing_urls.add(item.item_url)
