@@ -33,13 +33,15 @@ function priceDate(iso: string | null): string | null {
   return date.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric" });
 }
 
-async function loadPicks(excludeProductId?: number): Promise<ConsumablePicks | null> {
+async function loadPicks(excludeProductId?: number, kinds?: string[]): Promise<ConsumablePicks | null> {
   try {
     const data = await getConsumablePicks(
-      { excludeProductId },
+      { excludeProductId, kinds },
       { signal: AbortSignal.timeout(PICKS_TIMEOUT_MS) }
     );
-    return data.picks.length >= 3 ? data : null;
+    // A category page's own corner (kinds given) is about that one kind, so
+    // a single real pick is worth showing; the general corner needs three.
+    return data.picks.length >= (kinds ? 1 : 3) ? data : null;
   } catch {
     return null;
   }
@@ -159,16 +161,21 @@ function PickCard({ pick, placement }: { pick: ConsumablePick; placement: string
 export default async function ConsumablesCorner({
   variant,
   excludeProductId,
+  kinds,
+  title = TITLE,
 }: {
   // "home": a full-width page section; "product": sits inside the product
-  // page's content column, under the store comparison table.
-  variant: "home" | "product";
+  // page's content column, under the store comparison table; "category":
+  // a glove / その他 category page's own corner (STEP63), limited to `kinds`.
+  variant: "home" | "product" | "category";
   excludeProductId?: number;
+  kinds?: string[];
+  title?: string;
 }) {
-  const data = await loadPicks(excludeProductId);
+  const data = await loadPicks(excludeProductId, kinds);
   if (!data) return null;
 
-  const placement = variant === "home" ? "consumables_home" : "consumables_product";
+  const placement = `consumables_${variant}`;
   const headingId = `consumables-corner-${variant}`;
   const columns = variant === "home" ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2 xl:grid-cols-3";
 
@@ -196,7 +203,7 @@ export default async function ConsumablesCorner({
             variant === "home" ? "text-2xl sm:text-4xl" : "text-xl sm:text-2xl"
           }`}
         >
-          {TITLE}
+          {title}
         </h2>
         <p className="max-w-2xl text-sm leading-relaxed text-foreground/55">
           PAR.が毎日記録している価格から、季節に合う消耗品をルールに基づいて選んでいます。
@@ -224,6 +231,14 @@ export default async function ConsumablesCorner({
     return (
       <section aria-labelledby={headingId} className="mt-10 border-t border-border pt-10">
         {body}
+      </section>
+    );
+  }
+
+  if (variant === "category") {
+    return (
+      <section aria-labelledby={headingId} className="border-t border-border bg-background px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl">{body}</div>
       </section>
     );
   }

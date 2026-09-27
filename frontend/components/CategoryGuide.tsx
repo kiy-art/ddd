@@ -46,6 +46,14 @@ const GUIDES: Record<string, { picking: string; timing: string; timingHeading?: 
     timing:
       "距離計は長く使う機器なので、必要な機能を先に決めてから、その機能を持つモデルの中で価格を比べるのが選びやすい方法です。新しいモデルが出ると、以前のモデルの価格が動くことがあります。",
   },
+  // STEP63: pins, markers, forks, tees and practice gear - general guidance only.
+  other: {
+    timingHeading: "買い足しのタイミング",
+    picking:
+      "マーカーやグリーンフォークは、ポケットやキャップに付けて持ち歩くものなので、大きさ・重さと取り付け方（クリップ・マグネットなど）で選ぶと使いやすくなります。ティーは長さと素材（木製・プラスチック）で選び、ドライバー用は長め、アイアン用は短めが一般的です。練習用のピンフラッグやカップは、置く場所の広さに合うサイズを確認しておくと安心です。",
+    timing:
+      "小物はなくしたり消耗したりしやすいので、必要になる前にまとめて買い足しておくのが基本です。単価が低い分、送料で割高になりやすいため、ほかの買い物とまとめる、送料無料になる数量で買うなどの工夫が効果的です。",
+  },
 };
 
 export default function CategoryGuide({ category }: { category: string }) {

@@ -263,3 +263,24 @@ def test_picks_endpoint_shape(client, db_session, monkeypatch):
 
 def test_refresh_endpoint_requires_admin(client):
     assert client.post("/api/admin/refresh-consumables").status_code in (401, 403)
+
+
+def test_select_picks_for_one_kind_needs_only_one_real_item(db_session):
+    _item(db_session, "g1")
+    _item(db_session, "t1", kind="tee")
+    _item(db_session, "old-glove", fresh=False)
+    picks = cm.select_picks(db_session, today=DAY, now=NOW, kinds=["glove"])[2]
+    assert [p.name for p in picks] == ["g1 name"]
+    assert cm.select_picks(db_session, today=DAY, now=NOW, kinds=["care"])[2] == []
+
+
+def test_picks_endpoint_passes_kinds(client, monkeypatch):
+    seen = {}
+
+    def fake(db, **kw):
+        seen.update(kw)
+        return ("rainy", [], [])
+
+    monkeypatch.setattr(cm, "select_picks", fake)
+    client.get("/api/consumables/picks?kinds=tee,care")
+    assert seen["kinds"] == ["tee", "care"]

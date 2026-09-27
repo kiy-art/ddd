@@ -24,6 +24,7 @@ import json
 import re
 import statistics
 import time
+from collections.abc import Collection
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -284,9 +285,14 @@ def select_picks(
     now: datetime.datetime | None = None,
     exclude_product_id: int | None = None,
     limit: int = PICK_MAX,
+    kinds: Collection[str] | None = None,
 ) -> tuple[str, list[SaleEvent], list[Pick]]:
     """(season, active_events, picks). picks is empty when fewer than
-    PICK_MIN real, fresh candidates exist - a half-empty corner isn't shown."""
+    PICK_MIN real, fresh candidates exist - a half-empty corner isn't shown.
+
+    kinds: only those consumable kinds (a category page's own corner, e.g.
+    the glove page shows the gloves). One real pick is then enough, since
+    the page is about that kind."""
     now = now or datetime.datetime.utcnow()
     today = today or (now + datetime.timedelta(hours=9)).date()  # JST
     season = season_for(today)
@@ -294,6 +300,10 @@ def select_picks(
     limit = max(PICK_MIN, min(limit, PICK_MAX))
 
     pool = _candidates(db, season, now, exclude_product_id)
+    minimum = PICK_MIN
+    if kinds is not None:
+        pool = [p for p in pool if p.kind in kinds]
+        minimum = 1
     for pick in pool:
         pick.score = _score(pick, events)
     pool.sort(key=lambda p: (p.score, p.discount_percent or 0, -p.current_price), reverse=True)
@@ -312,7 +322,7 @@ def select_picks(
         if pick not in chosen:
             chosen.append(pick)
 
-    if len(chosen) < PICK_MIN:
+    if len(chosen) < minimum:
         return season, events, []
     for pick in chosen:
         _decorate(pick, season, events)

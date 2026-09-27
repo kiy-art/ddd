@@ -58,7 +58,11 @@ def list_products(
     published_only: bool = True,
     limit: int = 50,
     offset: int = 0,
+    include_unscored: bool = False,
 ) -> list[models.Product]:
+    """include_unscored: also list approved products whose buy score is still
+    insufficient_data (price history too short) - see
+    routers/products.py UNSCORED_LISTING_CATEGORIES."""
     query = select(models.Product)
     if category:
         query = query.where(models.Product.category == category)
@@ -67,8 +71,11 @@ def list_products(
     if buy_score:
         query = query.where(models.Product.buy_score == buy_score)
     if published_only:
-        query = _published(query)
-    query = query.order_by(models.Product.price_change_percent.asc().nulls_last())
+        if include_unscored:
+            query = query.where(models.Product.pending_review.is_(False))
+        else:
+            query = _published(query)
+    query = query.order_by(models.Product.price_change_percent.asc().nulls_last(), models.Product.id)
     query = query.offset(offset).limit(limit)
     return list(db.execute(query).scalars().all())
 

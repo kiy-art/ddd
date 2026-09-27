@@ -216,9 +216,10 @@ export interface ConsumablePicks {
   picks: ConsumablePick[];
 }
 
-export function getConsumablePicks(params?: { excludeProductId?: number }, init?: RequestInit) {
+export function getConsumablePicks(params?: { excludeProductId?: number; kinds?: string[] }, init?: RequestInit) {
   const qs = new URLSearchParams();
   if (params?.excludeProductId) qs.set("exclude_product_id", String(params.excludeProductId));
+  if (params?.kinds?.length) qs.set("kinds", params.kinds.join(","));
   const query = qs.toString();
   return apiFetch<ConsumablePicks>(`/api/consumables/picks${query ? `?${query}` : ""}`, init);
 }

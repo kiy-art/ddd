@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import CategoryGuide from "@/components/CategoryGuide";
+import ConsumablesCorner from "@/components/ConsumablesCorner";
 import CuratedPickCard from "@/components/CuratedPickCard";
 import FadeIn from "@/components/FadeIn";
 import PageHeader from "@/components/PageHeader";
@@ -23,6 +24,15 @@ const SORT_LABELS: Record<SortOption, string> = {
   discount: "値下がり幅順",
   signal: "買い時順",
   price_asc: "価格が安い順",
+};
+
+// STEP63: the consumables corner items (app/consumables_catalog.py) that
+// belong on a category page - the gloves and tees/care items shown under
+// product pages are a separate list from the category's products, so the
+// glove / その他 pages show them too.
+const CATEGORY_CONSUMABLE_KINDS: Record<string, string[]> = {
+  glove: ["glove"],
+  other: ["tee", "care"],
 };
 
 function isSortOption(value: string | undefined): value is SortOption {
@@ -102,6 +112,7 @@ export default async function CategoryPage({
   const relatedGuides = GUIDES.filter((g) => g.relatedCategories?.includes(category));
   const todaysPicks = curateTodaysPicks(products);
   const categoryLabel = CATEGORY_LABELS[category] ?? category;
+  const consumableKinds = CATEGORY_CONSUMABLE_KINDS[category];
 
   const summary =
     products.length === 0
@@ -136,7 +147,9 @@ export default async function CategoryPage({
         <div className="mx-auto max-w-7xl">
           {products.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-16 text-center text-sm text-foreground/50">
-              現在このカテゴリで表示できる商品がありません。
+              {consumableKinds
+                ? "このカテゴリの商品は価格の追跡を始めたところです。掲載まで少しお待ちください。"
+                : "現在このカテゴリで表示できる商品がありません。"}
             </p>
           ) : (
             <>
@@ -168,6 +181,14 @@ export default async function CategoryPage({
           )}
         </div>
       </section>
+
+      {consumableKinds && (
+        <ConsumablesCorner
+          variant="category"
+          kinds={consumableKinds}
+          title={`楽天で価格を毎日チェック中の定番${categoryLabel === "その他" ? "小物" : categoryLabel}`}
+        />
+      )}
 
       <section className="border-t border-border px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl">

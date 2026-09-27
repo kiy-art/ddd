@@ -97,12 +97,26 @@ def rakuten_ranking(limit: int = Query(default=30, ge=1, le=30), db: Session = D
     return popularity.ranking_snapshot(db, limit=limit)
 
 
+# Categories whose page also lists approved products that don't have a buy
+# score yet. Gloves / rangefinders / small accessories were only added in
+# STEP55/58, so nearly all of them still have fewer than two price points -
+# with the usual "scored products only" rule their pages were empty even
+# though the products (and their product pages) exist. The card itself
+# says "価格データ蓄積中" for these, so nothing is overstated.
+UNSCORED_LISTING_CATEGORIES = ("glove", "rangefinder", "other")
+
+
 @router.get("/categories/{category}", response_model=list[schemas.ProductOut])
 def list_by_category(category: str, limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
     if category not in CATEGORIES:
         raise HTTPException(status_code=404, detail="Unknown category")
     return crud.list_products(
-        db, category=category, published_only=True, limit=limit, offset=offset
+        db,
+        category=category,
+        published_only=True,
+        limit=limit,
+        offset=offset,
+        include_unscored=category in UNSCORED_LISTING_CATEGORIES,
     )
 
 
@@ -177,11 +191,22 @@ def get_ai_guide(slug: str, db: Session = Depends(get_db)):
 
 
 @router.get("/consumables/picks", response_model=schemas.ConsumablePicksOut)
-def consumable_picks(limit: int = 6, exclude_product_id: int | None = None, db: Session = Depends(get_db)):
+def consumable_picks(
+    limit: int = 6,
+    exclude_product_id: int | None = None,
+    kinds: str | None = None,
+    db: Session = Depends(get_db),
+):
     """STEP52 "AI厳選・高コスパ消耗品": 3-6 consumables picked for the current
     season from real, fresh prices (see app/consumables_merchandiser.py).
-    Read-only and cheap (two small queries) - safe to render on every page."""
-    season, events, picks = consumables_merchandiser.select_picks(db, exclude_product_id=exclude_product_id, limit=limit)
+    Read-only and cheap (two small queries) - safe to render on every page.
+
+    kinds (comma-separated, e.g. "glove"): only those kinds - a category
+    page's own corner (STEP63)."""
+    kind_list = [k.strip() for k in kinds.split(",") if k.strip()] if kinds else None
+    season, events, picks = consumables_merchandiser.select_picks(
+        db, exclude_product_id=exclude_product_id, limit=limit, kinds=kind_list
+    )
     return schemas.ConsumablePicksOut(
         season=season,
         season_label=consumables_merchandiser.SEASONS[season],
