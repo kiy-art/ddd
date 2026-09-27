@@ -23,10 +23,12 @@ interface Slot {
 const SLOTS: Slot[] = [
   { top: "4%", left: "58%", size: 132, rotate: -6, opacity: 0.85 },
   { top: "42%", left: "78%", size: 104, rotate: 8, opacity: 0.7 },
-  { top: "58%", left: "48%", size: 92, rotate: -10, opacity: 0.55 },
+  { top: "58%", left: "56%", size: 92, rotate: -10, opacity: 0.55 },
   { top: "10%", left: "86%", size: 88, rotate: 5, opacity: 0.6 },
   { top: "68%", left: "68%", size: 76, rotate: 12, opacity: 0.45 },
-  { top: "26%", left: "34%", size: 68, rotate: -8, opacity: 0.35 },
+  // STEP60: kept clear of the headline - on the light hero a tile over
+  // the copy reads as clutter (it blended into the old dark panel).
+  { top: "76%", left: "88%", size: 68, rotate: -8, opacity: 0.35 },
 ];
 
 function hideTile(img: HTMLImageElement) {

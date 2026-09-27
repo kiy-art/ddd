@@ -16,7 +16,7 @@ function yen(value: number | null): string {
  * Real price sources only (lib/shopOffers.ts): Rakuten and Yahoo! show
  * their fetched price; Amazon / Yahoo! without a matched listing are search
  * links; the maker site is a plain link. When 2+ shops have a fresh price,
- * the cheapest gets the dark "winner" banner with the page's biggest
+ * the cheapest gets the mint "winner" banner with the page's biggest
  * button - which shop that is depends only on today's prices, never on a
  * fixed order in code. Shipping/points/stock aren't collected, so nothing
  * here claims them.
@@ -65,25 +65,25 @@ export default function StoreComparisonTable({
         </p>
       </div>
 
-      {/* Winner banner: the cheapest fetched price, with the page's
+      {/* Winner banner (mint, STEP60): the cheapest fetched price, with the page's
           biggest button. Only when there really is a comparison. */}
       {lowest && lowestRow && (
-        <div className="terminal-panel relative mx-4 mt-5 overflow-hidden rounded-2xl px-5 py-5 sm:mx-6 sm:px-7 sm:py-6">
+        <div className="terminal-panel relative mx-4 mt-5 overflow-hidden rounded-2xl border border-brand/25 px-5 py-5 sm:mx-6 sm:px-7 sm:py-6">
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <ShopMark row={lowestRow} size="lg" />
               <div>
-                <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6ee7b7]">
+                <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand">
                   <span className="live-dot" aria-hidden="true" />
                   今いちばん安いショップ
                 </span>
                 <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-                  <span className="font-display text-lg font-semibold text-[#f2f6f4]">{lowestRow.label}</span>
-                  <span className="font-num text-3xl font-semibold text-[#34d399] sm:text-4xl">{yen(lowest.price)}</span>
+                  <span className="font-display text-lg font-semibold text-foreground">{lowestRow.label}</span>
+                  <span className="font-num text-3xl font-semibold text-brand sm:text-4xl">{yen(lowest.price)}</span>
                 </div>
                 {savings !== null && savings > 0 && (
-                  <span className="text-xs text-white/60">
-                    他店より <span className="font-num font-semibold text-white/85">{yen(savings)}</span> 安い
+                  <span className="text-xs text-foreground/60">
+                    他店より <span className="font-num font-semibold text-foreground">{yen(savings)}</span> 安い
                   </span>
                 )}
               </div>

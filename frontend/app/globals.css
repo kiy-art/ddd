@@ -1,31 +1,42 @@
 @import "tailwindcss";
 
+/* STEP60: the site is light-only. Tailwind's `dark:` variant would
+   otherwise follow the visitor's OS setting (prefers-color-scheme) and
+   flip every page to near-black - the "怪しいサイトに見える" feedback.
+   Scoping it to a `.dark` class that is never set turns every existing
+   dark: utility off without touching each component. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================
-   "Fairway Terminal" (STEP50) - TradingView/Bloomberg-grade data
-   clarity x the quiet of a modern luxury golf brand.
-   Light, high-contrast paper for reading and product photography;
-   obsidian "terminal" panels (--ink) for data (hero, score, chart);
-   one emerald accent meaning "act here / good price".
+   "Clean Fairway" (STEP60; replaces STEP50's "Fairway Terminal").
+   Bright paper, generous whitespace, one emerald accent that means
+   "act here / good price", hairline borders and soft shadows - the calm,
+   trustworthy look of a price-comparison service, not a trading terminal.
+   Numbers keep the tabular monospace so prices still align.
    ============================================================ */
 :root {
-  /* Mist paper, obsidian ink - cool, not warm, so emerald reads clean. */
-  --background: #f3f5f4;
-  --foreground: #0a100d;
-  --card: #ffffff;
-  --border: #dde3e0;
-  /* Slightly stronger hairline for card edges that must hold on white. */
-  --border-strong: #c9d2cd;
+  color-scheme: light;
 
-  /* Brand: fairway emerald. The one "act here" color - CTAs, links,
-     active states, good-price signals. #047857 keeps white button text at
-     AA (5.5:1). --on-brand is the text color ON a brand surface (white
-     here; obsidian in dark mode, where the brand turns bright). */
+  /* Paper white with a whisper of green in the page background, so white
+     cards lift off it without heavy shadows. */
+  --background: #f6f8f7;
+  --foreground: #14201b;
+  --card: #ffffff;
+  --border: #e3e9e6;
+  /* Slightly stronger hairline for card edges that must hold on white. */
+  --border-strong: #d2dbd6;
+
+  /* Brand: fairway emerald - CTAs, links, active states, good prices.
+     #047857 keeps white button text at AA (5.5:1). */
   --brand: #047857;
   --brand-dark: #065f46;
   --brand-light: #10b981;
   --on-brand: #ffffff;
   /* Deep fairway - the darkest green, for premium fills and gradients. */
   --fairway: #052e16;
+  /* Pale mint wash for highlighted panels (hero, cheapest shop). */
+  --mint: #ecfdf5;
+  --mint-strong: #d1fae5;
   /* rgb triplet for emerald glows: rgba(var(--glow), a) */
   --glow: 16 185 129;
 
@@ -43,12 +54,11 @@
   --signal-mid: #64748b;
   --signal-low: #94a3a0;
 
-  /* Fixed obsidian surface for terminal panels paired with light text -
-     deliberately NOT redefined in dark mode (see the STEP29 note: it
-     must stay a dark panel whatever the page theme). */
-  --ink: #06100c;
-  --ink-2: #0c1813;
-  --ink-border: #1c2b24;
+  /* Deep ink, now only for small text-on-dark details (chart tooltip,
+     neutral badges) - no longer used for page-sized panels. */
+  --ink: #1f2b26;
+  --ink-2: #2a3832;
+  --ink-border: #3a4a43;
 }
 
 @theme inline {
@@ -62,6 +72,8 @@
   --color-brand-light: var(--brand-light);
   --color-on-brand: var(--on-brand);
   --color-fairway: var(--fairway);
+  --color-mint: var(--mint);
+  --color-mint-strong: var(--mint-strong);
   --color-accent: var(--accent);
   --color-accent-dark: var(--accent-dark);
   --color-sale: var(--sale);
@@ -75,31 +87,6 @@
   --font-sans: var(--font-geist-sans), var(--font-jp);
   --font-display: var(--font-geist-sans), var(--font-jp);
   --font-mono: var(--font-num), ui-monospace, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #050807;
-    --foreground: #e6ece9;
-    --card: #0a100d;
-    --border: #1a2621;
-    --border-strong: #26352e;
-
-    --brand: #10b981;
-    --brand-dark: #059669;
-    --brand-light: #34d399;
-    --on-brand: #03120b;
-
-    --accent: #8fa39a;
-    --accent-dark: #a9bab2;
-
-    --sale: #f0735f;
-    --sale-dark: #d9584a;
-
-    --signal-high: #10b981;
-    --signal-mid: #8a9aa6;
-    --signal-low: #5f6f69;
-  }
 }
 
 * {
@@ -268,15 +255,18 @@ html {
   transform: scale(0.98);
 }
 
-/* Obsidian terminal panel: faint measurement grid + emerald horizon glow. */
+/* Highlight panel (STEP60, was a dark "terminal" panel): a pale mint
+   wash with a faint measurement grid - used for the hero and the
+   cheapest-shop banner. Dark text on light, like the rest of the page. */
 .terminal-panel {
-  background-color: var(--ink);
+  background-color: var(--mint);
   background-image:
-    radial-gradient(120% 80% at 85% 0%, rgba(var(--glow), 0.18), transparent 55%),
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: auto, 32px 32px, 32px 32px;
-  color: #e6ece9;
+    radial-gradient(120% 90% at 90% 0%, rgba(var(--glow), 0.16), transparent 60%),
+    radial-gradient(90% 70% at 0% 100%, rgba(255, 255, 255, 0.9), transparent 60%),
+    linear-gradient(rgba(4, 120, 87, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(4, 120, 87, 0.05) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+  color: var(--foreground);
 }
 
 /* Emerald glow for "best price" style highlights. */

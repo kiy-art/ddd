@@ -91,7 +91,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
               className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest shadow-sm ${
                 badge.tone === "strong"
                   ? `bg-brand text-on-brand ${badge.label === "過去最安値圏" ? "glow-emerald" : ""}`
-                  : "bg-ink text-white"
+                  : "border border-border-strong bg-white text-foreground/75"
               }`}
             >
               {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}

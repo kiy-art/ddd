@@ -17,13 +17,16 @@ import { normalizeImageUrl } from "@/lib/imageUrl";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
-// STEP50 "Fairway Terminal": obsidian panel, emerald accent.
+// STEP60 "Clean Fairway": a light share card to match the site (was
+// STEP50's dark panel). Names kept for the existing call sites: `ink` is
+// the card BACKGROUND, `paper` the main TEXT color, `accentLight` the
+// emerald used for accent text.
 export const OG_COLORS = {
-  ink: "#06100C",
-  paper: "#F2F6F4",
+  ink: "#ECFDF5",
+  paper: "#14201B",
   accent: "#047857",
-  accentLight: "#34D399",
-  muted: "#8FA39A",
+  accentLight: "#047857",
+  muted: "#5B6B64",
 };
 
 // Render's free plan sleeps the backend after inactivity; its cold start
@@ -166,7 +169,7 @@ export function HookChip({ text }: { text: string }) {
         display: "flex",
         alignItems: "center",
         background: OG_COLORS.accent,
-        color: OG_COLORS.paper,
+        color: "#FFFFFF",
         fontSize: 30,
         fontWeight: 700,
         padding: "10px 26px",
@@ -188,6 +191,7 @@ export function PhotoTile({ src, size }: { src: string; size: number }) {
         width: size,
         height: size,
         background: "#FFFFFF",
+        border: "2px solid #D1FAE5",
         borderRadius: 32,
         overflow: "hidden",
       }}

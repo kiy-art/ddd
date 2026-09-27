@@ -275,7 +275,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                       className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
                         badge.tone === "strong"
                   ? `bg-brand text-on-brand ${badge.label === "過去最安値圏" ? "glow-emerald" : ""}`
-                  : "bg-ink text-white"
+                  : "border border-border-strong bg-white text-foreground/75"
                       }`}
                     >
                       {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}
