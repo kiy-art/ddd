@@ -52,6 +52,14 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  // STEP58 fix: the category tool reports right under its own button (the
+  // shared message above renders at the bottom of this long page, so a
+  // result there looked like "nothing happened").
+  const [categoryStatus, setCategoryStatus] = useState<{
+    phase: "checking" | "applying" | "done" | "error";
+    text: string;
+    lines: string[];
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [xPostPreview, setXPostPreview] = useState<string | null | undefined>(undefined);
   const [xCopyMessage, setXCopyMessage] = useState<string | null>(null);
@@ -355,30 +363,62 @@ export default function AdminDashboard() {
   const handleCategoryMigration = async () => {
     if (!token) return;
     setBusy(true);
-    setMessage(null);
+    setCategoryStatus({
+      phase: "checking",
+      text: "商品のカテゴリを確認しています…（サーバーが休止中の場合、起動に1分ほどかかることがあります）",
+      lines: [],
+    });
     try {
       const preview = await adminRunCategoryMigration(token, true);
+      const lines = preview.plan_lines.filter((line) => line.startsWith("  id=")).map((line) => line.trim());
       if (preview.moved === 0) {
-        setMessage(`カテゴリの確認完了: ${preview.products_checked}件を確認しました。移動が必要な商品はありません。`);
+        setCategoryStatus({
+          phase: "done",
+          text: `確認完了：${preview.products_checked}件を確認しました。カテゴリの移動が必要な商品はありません。`,
+          lines: [],
+        });
         return;
       }
-      const lines = preview.plan_lines.filter((line) => line.startsWith("  id=")).slice(0, 30);
-      const more = preview.moved > lines.length ? `\n…ほか${preview.moved - lines.length}件` : "";
+      setCategoryStatus({
+        phase: "checking",
+        text: `${preview.moved}件の商品のカテゴリを変更する予定です（まだ変更していません）。確認画面で「OK」を押すと実行します。`,
+        lines,
+      });
+      const shown = lines.slice(0, 30);
+      const more = lines.length > shown.length ? `\n…ほか${lines.length - shown.length}件` : "";
       const confirmed = window.confirm(
-        `次の${preview.moved}件のカテゴリを変更します（商品名から判断した移動先）:\n\n${lines.join("\n")}${more}\n\n実行しますか？`
+        `次の${preview.moved}件のカテゴリを変更します（商品名から判断した移動先）:\n\n${shown.join("\n")}${more}\n\n実行しますか？`
       );
       if (!confirmed) {
-        setMessage(`カテゴリ変更は実行しませんでした（変更予定 ${preview.moved}件）。`);
+        setCategoryStatus({
+          phase: "done",
+          text: `キャンセルしました。何も変更していません（変更予定だった商品：${preview.moved}件、下の一覧）。`,
+          lines,
+        });
         return;
       }
+      setCategoryStatus({ phase: "applying", text: "カテゴリを変更しています…", lines });
       const result = await adminRunCategoryMigration(token, false);
       const byCategory = Object.entries(result.moved_by_category)
         .map(([category, count]) => `${CATEGORY_LABELS[category] ?? category} ${count}件`)
         .join(" / ");
-      setMessage(`カテゴリを変更しました: ${result.moved}件（${byCategory}）`);
+      setCategoryStatus({
+        phase: "done",
+        text: `カテゴリを変更しました：${result.moved}件（${byCategory}）。サイトのカテゴリページにすぐ反映されます。`,
+        lines,
+      });
       await load();
     } catch (err) {
-      setMessage(`カテゴリ修正に失敗: ${err instanceof Error ? err.message : String(err)}`);
+      const detail = err instanceof Error ? err.message : String(err);
+      setCategoryStatus({
+        phase: "error",
+        text: `カテゴリの確認に失敗しました：${detail}${
+          detail.includes("Not Found") || detail.includes("404")
+            ? "（バックエンドが最新版になっていない可能性があります。Renderでgolf-deals-backendのデプロイ状況をご確認ください）"
+            : ""
+        }`,
+        lines: [],
+      });
     } finally {
       setBusy(false);
     }
@@ -513,8 +553,33 @@ export default function AdminDashboard() {
           disabled={busy}
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
-          カテゴリを確認・修正する
+          {categoryStatus?.phase === "checking" && categoryStatus.lines.length === 0
+            ? "確認中…"
+            : categoryStatus?.phase === "applying"
+              ? "変更中…"
+              : "カテゴリを確認・修正する"}
         </button>
+        {categoryStatus && (
+          <div
+            role="status"
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              categoryStatus.phase === "error"
+                ? "border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+                : "border-border bg-background text-foreground/75"
+            }`}
+          >
+            <p>{categoryStatus.text}</p>
+            {categoryStatus.lines.length > 0 && (
+              <ul className="mt-2 max-h-64 overflow-y-auto font-num text-xs text-foreground/60">
+                {categoryStatus.lines.map((line) => (
+                  <li key={line} className="border-t border-border py-1 first:border-0">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
@@ -748,7 +813,24 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {message && <p className="text-sm text-foreground/70">{message}</p>}
+      {/* Fixed to the bottom of the screen, not the bottom of this long
+          page - a button's result is visible wherever the button is. */}
+      {message && (
+        <div
+          role="status"
+          className="fixed inset-x-4 bottom-20 z-50 mx-auto flex max-w-2xl items-start gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground/80 shadow-[0_18px_40px_-16px_rgba(6,16,12,0.45)] sm:bottom-6"
+        >
+          <p className="flex-1 whitespace-pre-line">{message}</p>
+          <button
+            type="button"
+            onClick={() => setMessage(null)}
+            aria-label="閉じる"
+            className="shrink-0 rounded-full px-2 text-foreground/45 hover:text-foreground"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {loading && <p className="text-sm text-foreground/50">読み込み中...</p>}
     </div>
   );
