@@ -61,6 +61,15 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M46 64 L66 64" strokeLinecap="round" opacity="0.5" />
     </>
   ),
+  // STEP55: laser rangefinder - body, eyepiece and the laser line.
+  rangefinder: (
+    <>
+      <rect x="32" y="36" width="44" height="28" rx="7" />
+      <circle cx="66" cy="50" r="7" />
+      <path d="M32 44 L24 44 L24 56 L32 56" strokeLinejoin="round" />
+      <path d="M73 50 L92 50" strokeLinecap="round" strokeDasharray="3 4" opacity="0.6" />
+    </>
+  ),
   care: (
     <>
       <rect x="42" y="36" width="28" height="42" rx="6" />

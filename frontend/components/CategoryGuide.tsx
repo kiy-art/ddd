@@ -1,4 +1,6 @@
-const GUIDES: Record<string, { picking: string; timing: string }> = {
+// timingHeading: only where the default "型落ちと最新モデル" framing doesn't
+// fit (a glove is a consumable - the question is when to restock).
+const GUIDES: Record<string, { picking: string; timing: string; timingHeading?: string }> = {
   driver: {
     picking:
       "ヘッド体積・ロフト角・シャフトの硬さ（フレックス）の組み合わせで弾道は大きく変わります。スイングスピードが速いほど硬めのシャフトやロフトが小さいモデルが合いやすく、逆に非力な場合は柔らかめのシャフトとロフトが大きいモデルの方が安定しやすい傾向があります。",
@@ -29,6 +31,21 @@ const GUIDES: Record<string, { picking: string; timing: string }> = {
     timing:
       "ボールは消耗品のためモデルチェンジを待つ意味は薄く、複数ダースまとめ買いできるセール（年末年始など）を狙うのが最も効果的な節約方法です。",
   },
+  // STEP55: general buying guidance only - no model-specific or
+  // market-data claims (those come from the price data on each page).
+  glove: {
+    timingHeading: "買い足しのタイミング",
+    picking:
+      "グローブはサイズ（cm表記）が合っていることが最優先です。指先が余ると握りがゆるみ、きついと破れやすくなります。天然皮革は手になじみやすく、合成皮革は耐久性や雨・汗への強さで選ばれることが多い素材です。雨の日用や冬用など、用途を限定したモデルもあります。",
+    timing:
+      "グローブは使うほど傷む消耗品なので、モデルチェンジを待つより、手持ちが傷む前に買い足すのが基本です。同じモデル・同じサイズを複数枚まとめて買う人も多く、価格が下がっているときにまとめて買うと1枚あたりを抑えやすくなります。",
+  },
+  rangefinder: {
+    picking:
+      "ピンまでの距離をレーザーで測るタイプと、GPSでコース上の位置から測るタイプがあります。レーザー式は目標を狙って測れるのが特長で、手ブレ補正やピンを捉えたときに振動で知らせる機能などで使い勝手が変わります。高低差を加味した距離を表示する機能は、競技によっては使用が認められない場合があるため、出場予定の競技の規則を確認しておくと安心です。",
+    timing:
+      "距離計は長く使う機器なので、必要な機能を先に決めてから、その機能を持つモデルの中で価格を比べるのが選びやすい方法です。新しいモデルが出ると、以前のモデルの価格が動くことがあります。",
+  },
 };
 
 export default function CategoryGuide({ category }: { category: string }) {
@@ -44,7 +61,9 @@ export default function CategoryGuide({ category }: { category: string }) {
       </div>
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
         <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">When To Buy</span>
-        <h2 className="mt-2 font-display text-xl font-semibold text-foreground">型落ちと最新モデル、どちらを選ぶ？</h2>
+        <h2 className="mt-2 font-display text-xl font-semibold text-foreground">
+          {guide.timingHeading ?? "型落ちと最新モデル、どちらを選ぶ？"}
+        </h2>
         <p className="mt-3 text-sm leading-relaxed text-foreground/60">{guide.timing}</p>
       </div>
     </div>

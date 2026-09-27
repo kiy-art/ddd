@@ -7,6 +7,8 @@ its own module specifically so none of those need to import each other
 just for this.
 """
 
+import re
+
 # Maps a keyword that might appear in a Rakuten item name (English brand
 # name or a common Japanese rendering) to this site's canonical brand name
 # (matching the brand strings already used across data/*.csv). A listing
@@ -65,13 +67,41 @@ BRAND_KEYWORDS = {
     "ウイルソン": "Wilson",
     "Epon": "Epon",
     "エポン": "Epon",
+    # STEP55: glove / rangefinder makers - without these, every glove and
+    # distance-measuring device listing was skipped as "unknown brand".
+    "FootJoy": "FootJoy",
+    "フットジョイ": "FootJoy",
+    "Bushnell": "Bushnell",
+    "ブッシュネル": "Bushnell",
+    "Nikon": "Nikon",
+    "ニコン": "Nikon",
+    "Voice Caddie": "Voice Caddie",
+    "ボイスキャディ": "Voice Caddie",
+    "Shot Navi": "Shot Navi",
+    "ショットナビ": "Shot Navi",
+    "Garmin": "Garmin",
+    "ガーミン": "Garmin",
+    "Yupiteru": "Yupiteru",
+    "ユピテル": "Yupiteru",
 }
+
+# "ピン" (PING's katakana name) is also the start of ordinary words in
+# golf listings - "ピンク" (a glove color), "ピンシーカー" (Bushnell's
+# rangefinder line), "ピンフラッグ", "ピン型" (a putter head shape) - so it
+# only counts as the brand when not followed by more katakana or "型".
+_KEYWORD_PATTERNS = {"ピン": re.compile(r"ピン(?![ァ-ヶー型])")}
+
+
+def keyword_in(keyword: str, item_name: str) -> bool:
+    pattern = _KEYWORD_PATTERNS.get(keyword)
+    if pattern is not None:
+        return bool(pattern.search(item_name))
+    return keyword.lower() in item_name.lower()
 
 
 def match_brand(item_name: str) -> str | None:
-    lowered = item_name.lower()
     for keyword, brand in BRAND_KEYWORDS.items():
-        if keyword.lower() in lowered:
+        if keyword_in(keyword, item_name):
             return brand
     return None
 
@@ -110,4 +140,11 @@ BRAND_NAME_SYNONYMS: dict[str, list[str]] = {
     "Bettinardi": ["ベティナルディ"],
     "Wilson": ["ウイルソン"],
     "Epon": ["エポン"],
+    "FootJoy": ["フットジョイ"],
+    "Bushnell": ["ブッシュネル"],
+    "Nikon": ["ニコン"],
+    "Voice Caddie": ["ボイスキャディ"],
+    "Shot Navi": ["ショットナビ"],
+    "Garmin": ["ガーミン"],
+    "Yupiteru": ["ユピテル"],
 }

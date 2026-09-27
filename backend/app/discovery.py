@@ -94,12 +94,49 @@ CATEGORY_SEARCH_KEYWORDS = {
         # alone already targets Bridgestone's TOUR B line closely enough.
         "ブリヂストン TOUR ゴルフボール",
     ],
+    # STEP55: gloves and distance-measuring devices. Brand-level searches
+    # for the same reason as the brand driver/iron searches above - a bare
+    # "ゴルフグローブ" query skews toward no-name multi-packs.
+    "glove": [
+        "ゴルフグローブ 新品",
+        "フットジョイ グローブ",
+        "タイトリスト グローブ",
+        "キャロウェイ グローブ",
+    ],
+    "rangefinder": [
+        "ゴルフ レーザー距離計",
+        "ブッシュネル ゴルフ 距離計",
+        "ニコン COOLSHOT",
+        "ボイスキャディ 距離計",
+        "ショットナビ 距離計",
+    ],
 }
 
 # A real, currently-sold golf club or a dozen balls essentially never costs
 # less than this — a cheap soft floor to catch obvious junk/accessory
 # matches that _looks_like_accessory's keyword list doesn't happen to name.
 MIN_DISCOVERY_PRICE = 3000
+# STEP55: a real golf glove sells for roughly ¥1,000-4,000, so the ¥3,000
+# floor above would have rejected almost all of them; a laser
+# rangefinder is ¥15,000+ for the brands searched above, and anything
+# under ¥5,000 is far more likely a case/strap/battery than the device.
+MIN_DISCOVERY_PRICE_BY_CATEGORY = {"glove": 800, "rangefinder": 5000}
+
+# STEP55: a brand search like "タイトリスト グローブ" also returns that
+# brand's caps, balls and bags - for these two categories a listing must
+# actually name the kind of product to be filed under it.
+CATEGORY_REQUIRED_WORDS = {
+    "glove": ["グローブ", "glove", "手袋"],
+    "rangefinder": ["距離計", "距離測定", "レーザー", "coolshot", "レンジファインダー", "ピンシーカー", "gps"],
+}
+
+
+def _names_the_category(item_name: str, category: str) -> bool:
+    required = CATEGORY_REQUIRED_WORDS.get(category)
+    if required is None:
+        return True
+    lowered = item_name.lower()
+    return any(word in lowered for word in required)
 
 # Rakuten Ichiba Item Search API's own per-request maximum.
 DISCOVERY_SEARCH_HITS = 30
@@ -135,6 +172,16 @@ AUTO_PUBLISH_NG_KEYWORDS = [
 # club, so clubs get a stricter bar than balls before skipping review.
 AUTO_PUBLISH_MIN_PRICE_BALL = 3000
 AUTO_PUBLISH_MIN_PRICE_CLUB = 10000
+AUTO_PUBLISH_MIN_PRICE_BY_CATEGORY = {"ball": AUTO_PUBLISH_MIN_PRICE_BALL, "glove": 1000, "rangefinder": 10000}
+
+# STEP55: accessory words for the two new categories. Like
+# AUTO_PUBLISH_NG_KEYWORDS, a match never discards the candidate, it only
+# sends it to pending review - "ケース付き" (comes with a case) is a real
+# rangefinder listing, so a human decides, not a keyword.
+AUTO_PUBLISH_NG_KEYWORDS_BY_CATEGORY = {
+    "glove": ["ホルダー", "クリップ", "グローブ干し"],
+    "rangefinder": ["ケース", "カバー", "ホルダー", "フィルム", "ストラップ", "電池", "バッテリー", "マグネット"],
+}
 
 
 def _is_safe_to_auto_publish(item_name: str, category: str, price: int) -> bool:
@@ -142,9 +189,10 @@ def _is_safe_to_auto_publish(item_name: str, category: str, price: int) -> bool:
     without a human checking it first. Everything else is still added to
     the catalog (as pending_review=True) — this only decides which
     already-accepted candidates skip that queue."""
-    if any(keyword in item_name for keyword in AUTO_PUBLISH_NG_KEYWORDS):
+    ng_keywords = [*AUTO_PUBLISH_NG_KEYWORDS, *AUTO_PUBLISH_NG_KEYWORDS_BY_CATEGORY.get(category, [])]
+    if any(keyword in item_name for keyword in ng_keywords):
         return False
-    threshold = AUTO_PUBLISH_MIN_PRICE_BALL if category == "ball" else AUTO_PUBLISH_MIN_PRICE_CLUB
+    threshold = AUTO_PUBLISH_MIN_PRICE_BY_CATEGORY.get(category, AUTO_PUBLISH_MIN_PRICE_CLUB)
     return price >= threshold
 
 
@@ -207,7 +255,9 @@ def discover_new_products(
                         continue
                     if _looks_like_non_retail_listing(item.item_name):
                         continue
-                    if item.price < MIN_DISCOVERY_PRICE:
+                    if item.price < MIN_DISCOVERY_PRICE_BY_CATEGORY.get(category, MIN_DISCOVERY_PRICE):
+                        continue
+                    if not _names_the_category(item.item_name, category):
                         continue
                     if item.item_url in existing_urls:
                         continue

@@ -81,7 +81,7 @@ export interface PriceAnomaly {
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export const CATEGORIES = ["driver", "iron", "wedge", "putter", "ball"] as const;
+export const CATEGORIES = ["driver", "iron", "wedge", "putter", "ball", "glove", "rangefinder"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -90,6 +90,8 @@ export const CATEGORY_LABELS: Record<string, string> = {
   wedge: "ウェッジ",
   putter: "パター",
   ball: "ボール",
+  glove: "グローブ",
+  rangefinder: "距離計",
 };
 
 export const BUY_SCORES = ["strong_buy", "buy", "neutral", "not_buy", "insufficient_data"] as const;

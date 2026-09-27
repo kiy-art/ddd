@@ -248,3 +248,52 @@ def test_discover_new_products_dedups_by_cleaned_title_across_differently_noisy_
     all_products = list(db_session.execute(select(models.Product)).scalars().all())
     matching = [p for p in all_products if p.name == "Titleist Pro V1"]
     assert len(matching) == 1
+
+
+# --- STEP55: gloves and rangefinders ------------------------------------------
+
+
+def _discover(db_session, monkeypatch, category, items):
+    keyword = discovery.CATEGORY_SEARCH_KEYWORDS[category][0]
+    monkeypatch.setattr(rakuten, "search_items", _fixed_results({keyword: items}))
+    discovery.discover_new_products(db_session)
+    return {p.name: p for p in db_session.execute(select(models.Product)).scalars().all()}
+
+
+def test_gloves_are_discovered_at_glove_prices(db_session, monkeypatch):
+    items = [
+        _FakeItem("フットジョイ ウェザーソフ グローブ FGWF", 1480, "https://item.rakuten.co.jp/example/wsof/"),
+        _FakeItem("タイトリスト キャップ ツアー", 3500, "https://item.rakuten.co.jp/example/cap/"),  # not a glove
+        _FakeItem("フットジョイ グローブホルダー", 900, "https://item.rakuten.co.jp/example/holder/"),
+        _FakeItem("ノーブランド ゴルフグローブ 5枚", 1200, "https://item.rakuten.co.jp/example/noname/"),
+    ]
+    products = _discover(db_session, monkeypatch, "glove", items)
+    glove = next(p for p in products.values() if "ウェザーソフ" in p.name)
+    assert glove.category == "glove" and glove.brand == "FootJoy"
+    assert glove.pending_review is False  # ¥1,480 clears the glove auto-publish floor
+    assert not any("キャップ" in name for name in products)
+    holder = next(p for p in products.values() if "ホルダー" in p.name)
+    assert holder.pending_review is True  # accessory word -> a human decides
+    assert len(products) == 2  # the no-name pack has no known brand
+
+
+def test_rangefinders_are_discovered_and_accessories_wait_for_review(db_session, monkeypatch):
+    items = [
+        _FakeItem("ブッシュネル ピンシーカー プロX3 ジョルト レーザー距離計", 69800, "https://item.rakuten.co.jp/example/x3/"),
+        _FakeItem("ニコン COOLSHOT 50i ゴルフ用レーザー距離計 専用ケース", 3980, "https://item.rakuten.co.jp/example/case/"),
+        _FakeItem("ボイスキャディ レーザー距離計 SL3 ケース付き", 32800, "https://item.rakuten.co.jp/example/sl3/"),
+    ]
+    products = _discover(db_session, monkeypatch, "rangefinder", items)
+    x3 = next(p for p in products.values() if "X3" in p.name)
+    assert (x3.category, x3.brand, x3.pending_review) == ("rangefinder", "Bushnell", False)  # not PING via "ピン"
+    assert not any("専用ケース" in name for name in products)  # ¥3,980 is under the rangefinder floor
+    sl3 = next(p for p in products.values() if "SL3" in p.name)
+    assert sl3.pending_review is True
+
+
+def test_pin_shaped_putter_is_not_filed_under_ping():
+    from app.brands import match_brand
+
+    assert match_brand("オデッセイ ホワイトホット パター ピン型") == "Odyssey"
+    assert match_brand("フットジョイ グローブ ピンク") == "FootJoy"
+    assert match_brand("ピン G440 MAX ドライバー") == "PING"
