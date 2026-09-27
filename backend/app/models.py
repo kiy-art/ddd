@@ -13,7 +13,7 @@ OPTIMIZATION_ACTION_STATUSES = ["applied", "reverted", "failed"]
 # effect can't be attributed to this decision (STEP43).
 OPTIMIZATION_VERDICTS = ["improved", "no_change", "worse", "inconclusive"]
 
-CATEGORIES = ["driver", "iron", "wedge", "putter", "ball", "glove", "rangefinder"]
+CATEGORIES = ["driver", "iron", "wedge", "putter", "ball", "glove", "rangefinder", "other"]
 
 # Which real outbound destination a click went to - "official" covers the
 # manufacturer's own product page (no affiliate relationship, still worth

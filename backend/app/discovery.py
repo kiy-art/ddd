@@ -35,7 +35,7 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, image_urls, models, rakuten, schemas, title_cleaner
+from app import categorizer, crud, image_urls, models, rakuten, schemas, title_cleaner
 # Brand recognition lives in app/brands.py (shared with app/popularity.py
 # and app/title_cleaner.py, none of which need to import each other just
 # for this) - BRAND_KEYWORDS is re-exported here so existing
@@ -110,6 +110,12 @@ CATEGORY_SEARCH_KEYWORDS = {
         "ボイスキャディ 距離計",
         "ショットナビ 距離計",
     ],
+    # STEP58: small accessories (pins, markers, forks) - "その他".
+    "other": [
+        "ゴルフ ピンフラッグ",
+        "ゴルフ ボールマーカー",
+        "ゴルフ グリーンフォーク",
+    ],
 }
 
 # A real, currently-sold golf club or a dozen balls essentially never costs
@@ -120,7 +126,7 @@ MIN_DISCOVERY_PRICE = 3000
 # floor above would have rejected almost all of them; a laser
 # rangefinder is ¥15,000+ for the brands searched above, and anything
 # under ¥5,000 is far more likely a case/strap/battery than the device.
-MIN_DISCOVERY_PRICE_BY_CATEGORY = {"glove": 800, "rangefinder": 5000}
+MIN_DISCOVERY_PRICE_BY_CATEGORY = {"glove": 800, "rangefinder": 5000, "other": 300}
 
 # STEP55: a brand search like "タイトリスト グローブ" also returns that
 # brand's caps, balls and bags - for these two categories a listing must
@@ -132,6 +138,10 @@ CATEGORY_REQUIRED_WORDS = {
 
 
 def _names_the_category(item_name: str, category: str) -> bool:
+    if category == "other":
+        # "その他" is a catch-all, so it needs a positive signal: the name
+        # has to name one of the accessories app/categorizer.py knows.
+        return categorizer.infer_category(item_name) == "other"
     required = CATEGORY_REQUIRED_WORDS.get(category)
     if required is None:
         return True
@@ -172,7 +182,12 @@ AUTO_PUBLISH_NG_KEYWORDS = [
 # club, so clubs get a stricter bar than balls before skipping review.
 AUTO_PUBLISH_MIN_PRICE_BALL = 3000
 AUTO_PUBLISH_MIN_PRICE_CLUB = 10000
-AUTO_PUBLISH_MIN_PRICE_BY_CATEGORY = {"ball": AUTO_PUBLISH_MIN_PRICE_BALL, "glove": 1000, "rangefinder": 10000}
+AUTO_PUBLISH_MIN_PRICE_BY_CATEGORY = {
+    "ball": AUTO_PUBLISH_MIN_PRICE_BALL,
+    "glove": 1000,
+    "rangefinder": 10000,
+    "other": 500,
+}
 
 # STEP55: accessory words for the two new categories. Like
 # AUTO_PUBLISH_NG_KEYWORDS, a match never discards the candidate, it only
@@ -190,6 +205,10 @@ def _is_safe_to_auto_publish(item_name: str, category: str, price: int) -> bool:
     the catalog (as pending_review=True) — this only decides which
     already-accepted candidates skip that queue."""
     ng_keywords = [*AUTO_PUBLISH_NG_KEYWORDS, *AUTO_PUBLISH_NG_KEYWORDS_BY_CATEGORY.get(category, [])]
+    if category == "other":
+        # "練習用" is what practice gear is, not "made for another product"
+        # (the reason "用" is an NG word for everything else).
+        item_name = item_name.replace("練習用", "")
     if any(keyword in item_name for keyword in ng_keywords):
         return False
     threshold = AUTO_PUBLISH_MIN_PRICE_BY_CATEGORY.get(category, AUTO_PUBLISH_MIN_PRICE_CLUB)
@@ -255,9 +274,13 @@ def discover_new_products(
                         continue
                     if _looks_like_non_retail_listing(item.item_name):
                         continue
-                    if item.price < MIN_DISCOVERY_PRICE_BY_CATEGORY.get(category, MIN_DISCOVERY_PRICE):
+                    # STEP58: a search's results include loosely related items
+                    # (a putter search returns practice pins, a ball search
+                    # returns gloves) - file each under what its name says.
+                    target = categorizer.corrected_category(item.item_name, category) or category
+                    if item.price < MIN_DISCOVERY_PRICE_BY_CATEGORY.get(target, MIN_DISCOVERY_PRICE):
                         continue
-                    if not _names_the_category(item.item_name, category):
+                    if not _names_the_category(item.item_name, target):
                         continue
                     if item.item_url in existing_urls:
                         continue
@@ -270,7 +293,7 @@ def discover_new_products(
                     # existing_names above for why this is what makes
                     # "same model, noisier title" collapse into one product
                     # instead of registering as a second one.
-                    clean_name = title_cleaner.clean_product_title(item.item_name, brand, category)
+                    clean_name = title_cleaner.clean_product_title(item.item_name, brand, target)
                     name_key = (brand.strip().lower(), clean_name.strip().lower())
                     if name_key in existing_names:
                         continue
@@ -281,13 +304,13 @@ def discover_new_products(
                     # (the same way it drops "送料無料"), which must never
                     # cause the NG-word check below to miss "中古" and
                     # auto-publish a used item.
-                    pending_review = not _is_safe_to_auto_publish(item.item_name, category, item.price)
+                    pending_review = not _is_safe_to_auto_publish(item.item_name, target, item.price)
                     product = crud.create_product(
                         db,
                         schemas.ProductCreate(
                             name=clean_name,
                             brand=brand,
-                            category=category,
+                            category=target,
                             image_url=image_urls.normalize_image_url(item.image_url),
                             product_url=item.item_url,
                             affiliate_url=rakuten.to_affiliate_url(item.item_url) or item.item_url,

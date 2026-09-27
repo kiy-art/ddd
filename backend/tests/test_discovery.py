@@ -297,3 +297,17 @@ def test_pin_shaped_putter_is_not_filed_under_ping():
     assert match_brand("オデッセイ ホワイトホット パター ピン型") == "Odyssey"
     assert match_brand("フットジョイ グローブ ピンク") == "FootJoy"
     assert match_brand("ピン G440 MAX ドライバー") == "PING"
+
+
+def test_a_putter_search_files_practice_pins_under_other(db_session, monkeypatch):
+    """STEP58: a putter search also returns practice pins - they must be
+    filed as "その他" (and at accessory prices), not as putters."""
+    items = [
+        _FakeItem("ライト ピンフラッグ 練習用 2本組", 1280, "https://item.rakuten.co.jp/example/pin/"),
+        _FakeItem("オデッセイ ホワイトホット パター ピン型", 29800, "https://item.rakuten.co.jp/example/putter/"),
+    ]
+    products = _discover(db_session, monkeypatch, "putter", items)
+    pin = next(p for p in products.values() if "ピンフラッグ" in p.name)
+    assert (pin.category, pin.brand, pin.pending_review) == ("other", "LITE", False)  # "練習用" isn't the "用" NG word here
+    putter = next(p for p in products.values() if "パター" in p.name)
+    assert (putter.category, putter.brand) == ("putter", "Odyssey")

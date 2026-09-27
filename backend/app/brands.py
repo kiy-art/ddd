@@ -83,17 +83,35 @@ BRAND_KEYWORDS = {
     "ガーミン": "Garmin",
     "Yupiteru": "Yupiteru",
     "ユピテル": "Yupiteru",
+    # STEP58: makers of small golf accessories (pins, markers, practice
+    # gear) for the "その他" category.
+    "LITE": "LITE",
+    "ライト": "LITE",
+    "Tabata": "Tabata",
+    "タバタ": "Tabata",
+    "DAIYA": "DAIYA",
+    "ダイヤゴルフ": "DAIYA",
+    "ダイヤ": "DAIYA",
 }
 
 # "ピン" (PING's katakana name) is also the start of ordinary words in
 # golf listings - "ピンク" (a glove color), "ピンシーカー" (Bushnell's
 # rangefinder line), "ピンフラッグ", "ピン型" (a putter head shape) - so it
 # only counts as the brand when not followed by more katakana or "型".
-_KEYWORD_PATTERNS = {"ピン": re.compile(r"ピン(?![ァ-ヶー型])")}
+#
+# Same problem for the accessory makers added in STEP58: "ライト" is also
+# "ライトグリーン" / "ハイライト" / "ライトウェイト", and "ダイヤ" is also
+# "ダイヤモンド" - so they only count as a whole katakana word.
+KEYWORD_PATTERNS = {
+    "ピン": re.compile(r"ピン(?![ァ-ヶー型])"),
+    "ライト": re.compile(r"(?<![ァ-ヶー])ライト(?![ァ-ヶー])"),
+    "ダイヤ": re.compile(r"(?<![ァ-ヶー])ダイヤ(?![ァ-ヶー])"),
+    "LITE": re.compile(r"\bLITE\b"),
+}
 
 
 def keyword_in(keyword: str, item_name: str) -> bool:
-    pattern = _KEYWORD_PATTERNS.get(keyword)
+    pattern = KEYWORD_PATTERNS.get(keyword)
     if pattern is not None:
         return bool(pattern.search(item_name))
     return keyword.lower() in item_name.lower()
@@ -147,4 +165,7 @@ BRAND_NAME_SYNONYMS: dict[str, list[str]] = {
     "Shot Navi": ["ショットナビ"],
     "Garmin": ["ガーミン"],
     "Yupiteru": ["ユピテル"],
+    "LITE": ["ライト"],
+    "Tabata": ["タバタ"],
+    "DAIYA": ["ダイヤゴルフ", "ダイヤ"],
 }

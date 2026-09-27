@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, progress, schemas, self_heal, title_migration, x_post
+from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, progress, schemas, self_heal, title_migration, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -667,6 +667,25 @@ def run_migration_clean_titles(dry_run: bool = False, db: Session = Depends(get_
         "renamed": result.renamed,
         "merge_groups": result.merge_groups,
         "products_merged": result.products_merged,
+    }
+
+
+@router.post("/run-category-migration")
+def run_category_migration(dry_run: bool = False, db: Session = Depends(get_db)):
+    """STEP58: moves gloves / rangefinders / small accessories that a
+    club or ball search filed under the wrong category (app/
+    category_migration.py). ?dry_run=true returns the plan without
+    writing - the admin panel always shows that preview first and only
+    applies after the owner confirms it."""
+    result = category_migration.run_category_migration(db, apply=not dry_run)
+    if result.applied:
+        crud.create_error_log(db, source="category_migration", level="info", message="\n".join(result.plan_lines))
+    return {
+        "applied": result.applied,
+        "products_checked": result.products_checked,
+        "moved": result.moved,
+        "moved_by_category": result.moved_by_category,
+        "plan_lines": result.plan_lines,
     }
 
 

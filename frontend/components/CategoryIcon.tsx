@@ -70,6 +70,14 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M73 50 L92 50" strokeLinecap="round" strokeDasharray="3 4" opacity="0.6" />
     </>
   ),
+  // STEP58 "その他": a pin flag on the green.
+  other: (
+    <>
+      <path d="M50 78 L50 24" strokeLinecap="round" />
+      <path d="M50 26 L74 34 L50 42 Z" strokeLinejoin="round" />
+      <ellipse cx="50" cy="78" rx="18" ry="4" opacity="0.5" />
+    </>
+  ),
   care: (
     <>
       <rect x="42" y="36" width="28" height="42" rx="6" />

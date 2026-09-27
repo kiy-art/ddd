@@ -7,6 +7,8 @@ import {
   ImprovementOpportunity,
   adminDiscoverProducts,
   adminRefreshConsumables,
+  adminRunCategoryMigration,
+  CATEGORY_LABELS,
   adminBackfillImages,
   adminSyncPopularity,
   adminFetchRakuten,
@@ -348,6 +350,40 @@ export default function AdminDashboard() {
     }
   };
 
+  // STEP58: always a dry-run first - the owner sees exactly which products
+  // would move before anything is written.
+  const handleCategoryMigration = async () => {
+    if (!token) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const preview = await adminRunCategoryMigration(token, true);
+      if (preview.moved === 0) {
+        setMessage(`カテゴリの確認完了: ${preview.products_checked}件を確認しました。移動が必要な商品はありません。`);
+        return;
+      }
+      const lines = preview.plan_lines.filter((line) => line.startsWith("  id=")).slice(0, 30);
+      const more = preview.moved > lines.length ? `\n…ほか${preview.moved - lines.length}件` : "";
+      const confirmed = window.confirm(
+        `次の${preview.moved}件のカテゴリを変更します（商品名から判断した移動先）:\n\n${lines.join("\n")}${more}\n\n実行しますか？`
+      );
+      if (!confirmed) {
+        setMessage(`カテゴリ変更は実行しませんでした（変更予定 ${preview.moved}件）。`);
+        return;
+      }
+      const result = await adminRunCategoryMigration(token, false);
+      const byCategory = Object.entries(result.moved_by_category)
+        .map(([category, count]) => `${CATEGORY_LABELS[category] ?? category} ${count}件`)
+        .join(" / ");
+      setMessage(`カテゴリを変更しました: ${result.moved}件（${byCategory}）`);
+      await load();
+    } catch (err) {
+      setMessage(`カテゴリ修正に失敗: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleCleanTitles = async () => {
     if (!token) return;
     const confirmed = window.confirm(
@@ -462,6 +498,22 @@ export default function AdminDashboard() {
           className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           今すぐ検出
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">カテゴリの修正（グローブ・距離計・その他）</h2>
+        <p className="text-sm text-foreground/50">
+          ボールやパターの検索で見つかったグローブ・距離計・ピンフラッグ・マーカーなどが、別のカテゴリに登録されている場合に、
+          商品名から判断して正しいカテゴリへ移します。押すとまず変更予定の一覧を表示し、確認してから実行します
+          （確認画面でキャンセルすれば何も変わりません）。今後新しく見つかる商品は、自動で正しいカテゴリに登録されます。
+        </p>
+        <button
+          onClick={handleCategoryMigration}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          カテゴリを確認・修正する
         </button>
       </div>
 

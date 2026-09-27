@@ -52,8 +52,8 @@ X_MAX_WEIGHTED_LENGTH = 280
 # characters against the 280 limit, regardless of the real URL's length.
 X_URL_WEIGHTED_LENGTH = 23
 
-CATEGORY_LABELS = {"driver": "ドライバー", "iron": "アイアン", "wedge": "ウェッジ", "putter": "パター", "ball": "ゴルフボール", "glove": "ゴルフグローブ", "rangefinder": "ゴルフ距離計"}
-CATEGORY_HASHTAGS = {"driver": "#ドライバー", "iron": "#アイアン", "wedge": "#ウェッジ", "putter": "#パター", "ball": "#ゴルフボール", "glove": "#ゴルフグローブ", "rangefinder": "#ゴルフ距離計"}
+CATEGORY_LABELS = {"driver": "ドライバー", "iron": "アイアン", "wedge": "ウェッジ", "putter": "パター", "ball": "ゴルフボール", "glove": "ゴルフグローブ", "rangefinder": "ゴルフ距離計", "other": "ゴルフ用品"}
+CATEGORY_HASHTAGS = {"driver": "#ドライバー", "iron": "#アイアン", "wedge": "#ウェッジ", "putter": "#パター", "ball": "#ゴルフボール", "glove": "#ゴルフグローブ", "rangefinder": "#ゴルフ距離計", "other": "#ゴルフ用品"}
 
 # A Rakuten bestseller rank older than this isn't "now" any more - not
 # worth quoting as a live fact in a post.

@@ -45,7 +45,7 @@ docs/ai_company_guidelines.md).
 import json
 import re
 
-from app.brands import BRAND_NAME_SYNONYMS
+from app.brands import BRAND_NAME_SYNONYMS, KEYWORD_PATTERNS
 from app.config import get_settings
 
 # Bracket-tag segments (【...】, （...）, full/half-width [...]) are
@@ -268,7 +268,12 @@ def _dedupe_brand_name_repeats(text: str, brand: str) -> str:
     if not synonyms:
         return text
     all_spellings = sorted({brand, *synonyms}, key=len, reverse=True)
-    pattern = re.compile("|".join(re.escape(s) for s in all_spellings), re.IGNORECASE)
+    # A spelling with a word-boundary rule in app/brands.py ("ピン" not in
+    # "ピン型", "ダイヤ" not in "ダイヤモンド") uses that rule here too.
+    pattern = re.compile(
+        "|".join(KEYWORD_PATTERNS[s].pattern if s in KEYWORD_PATTERNS else re.escape(s) for s in all_spellings),
+        re.IGNORECASE,
+    )
 
     seen = False
 

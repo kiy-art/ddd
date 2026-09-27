@@ -81,7 +81,7 @@ export interface PriceAnomaly {
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export const CATEGORIES = ["driver", "iron", "wedge", "putter", "ball", "glove", "rangefinder"] as const;
+export const CATEGORIES = ["driver", "iron", "wedge", "putter", "ball", "glove", "rangefinder", "other"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -92,6 +92,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   ball: "ボール",
   glove: "グローブ",
   rangefinder: "距離計",
+  other: "その他",
 };
 
 export const BUY_SCORES = ["strong_buy", "buy", "neutral", "not_buy", "insufficient_data"] as const;
@@ -395,6 +396,23 @@ export function adminRefreshConsumables(token: string) {
     `/api/admin/refresh-consumables`,
     { method: "POST", headers: adminHeaders(token) }
   );
+}
+
+// STEP58: moves gloves / rangefinders / small accessories filed under a
+// club or ball category (backend app/category_migration.py).
+export interface CategoryMigrationResult {
+  applied: boolean;
+  products_checked: number;
+  moved: number;
+  moved_by_category: Record<string, number>;
+  plan_lines: string[];
+}
+
+export function adminRunCategoryMigration(token: string, dryRun: boolean) {
+  return apiFetch<CategoryMigrationResult>(`/api/admin/run-category-migration?dry_run=${dryRun}`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
 }
 
 export function adminRunMigrationCleanTitles(token: string, dryRun: boolean) {
