@@ -16,6 +16,7 @@ import {
   adminGetLogs,
   adminGetTopPages,
   adminListOptimizationActions,
+  adminRunSelfHeal,
 } from "@/lib/api";
 import { useLiveJobUpdates, type LiveJobStage } from "@/lib/useLiveJobUpdates";
 
@@ -65,7 +66,7 @@ const PERSONAS: Persona[] = [
     title: "Product AI",
     focus: "データ品質・システム改善",
     icon: "🛠️",
-    stages: ["analysis", "title_cleanup"],
+    stages: ["analysis", "title_cleanup", "self_heal"],
   },
   { id: "cmo", role: "CMO", title: "Marketing AI", focus: "SEO・検索流入分析", icon: "📢", stages: ["x_post"] },
   // Editor/Compliance own no daily-batch stage of their own (guide content
@@ -135,6 +136,7 @@ function sourceToPersona(source: string): PersonaId {
     case "price_alert_email":
       return "cro";
     case "analysis":
+    case "self_heal":
     case "csv_import":
     case "title_migration":
       return "cpo";
@@ -394,6 +396,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
   const [busy, setBusy] = useState(false);
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [autoFixBusy, setAutoFixBusy] = useState(false);
+  const [selfHealBusy, setSelfHealBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   const seenClickIdsRef = useRef<Set<number>>(new Set());
@@ -652,7 +655,44 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
     }
   };
 
-  // CPO/Complianceの「AI自動修復」: 軽微な info/warning ログと3日以上前の
+  // STEP54: CPOの「自動修復を今すぐ実行」。前回の自動修復以降のエラーログを読み、
+  // 直し方が決まっているもの（価格取得の一時的な失敗・人気ランキング・消耗品）だけを
+  // 再実行し、残りは設定確認が必要なもの／自動では直せないものとして報告する
+  // （backend: app/self_heal.py）。Claudeは呼ばず、楽天・Yahoo!の無料APIのみ。
+  const handleSelfHeal = async () => {
+    if (!token) return;
+    setSelfHealBusy(true);
+    try {
+      const result = await adminRunSelfHeal(token);
+      addMessages([
+        {
+          id: `self-heal-${Date.now()}`,
+          persona: "cpo",
+          text: result.summary,
+          timestamp: Date.now(),
+        },
+      ]);
+      const refreshed = await adminGetLogs(token).catch(() => null);
+      if (refreshed) {
+        logsRef.current = refreshed;
+        seenLogIdsRef.current = new Set(refreshed.map((l) => l.id));
+      }
+    } catch (err) {
+      addMessages([
+        {
+          id: `self-heal-error-${Date.now()}`,
+          persona: "cpo",
+          text: `自動修復の実行に失敗しました: ${err instanceof Error ? err.message : String(err)}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setSelfHealBusy(false);
+    }
+  };
+
+  // Complianceの「古いログを整理」（STEP54までは「AI自動修復」という名前だったが、
+  // 実際には何も直さずログを消すだけなので改名）: 軽微な info/warning ログと3日以上前の
   // error ログを一括削除する（backend: crud.cleanup_error_logs）。外部APIは
   // 一切呼ばないので絶対ルール1の確認ダイアログは必須ではないが、削除操作
   // であることは変わらないため、他の削除系ボタンと同じ確認を挟む。
@@ -669,7 +709,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
         {
           id: `auto-fix-${Date.now()}`,
           persona: "compliance",
-          text: `AI自動修復を実行しました。削除: info ${result.deleted.info ?? 0}件 / warning ${
+          text: `古いログを整理しました。削除: info ${result.deleted.info ?? 0}件 / warning ${
             result.deleted.warning ?? 0
           }件 / error ${result.deleted.error ?? 0}件（3日超）。残存エラー ${
             result.remaining_by_level.error ?? 0
@@ -687,7 +727,7 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
         {
           id: `auto-fix-error-${Date.now()}`,
           persona: "compliance",
-          text: `AI自動修復に失敗しました: ${err instanceof Error ? err.message : String(err)}`,
+          text: `ログの整理に失敗しました: ${err instanceof Error ? err.message : String(err)}`,
           timestamp: Date.now(),
         },
       ]);
@@ -724,12 +764,21 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
           </button>
           <button
             type="button"
+            onClick={handleSelfHeal}
+            disabled={selfHealBusy || !token}
+            title="🛠️ Product AI: 最新のエラーログを読み、直し方が決まっているもの（価格取得の一時的な失敗など）を再実行します"
+            className="rounded-full border border-brand/40 px-4 py-2.5 text-xs font-semibold text-brand disabled:opacity-50 dark:text-brand-light"
+          >
+            {selfHealBusy ? "修復中..." : "🩺 自動修復を今すぐ実行"}
+          </button>
+          <button
+            type="button"
             onClick={handleAutoFixLogs}
             disabled={autoFixBusy || !token}
-            title="⚖️ Compliance AI: 軽微なログを一括削除してシステム状態を正常化します"
+            title="⚖️ Compliance AI: 軽微なログと3日以上前のエラーログを削除します（何かを修復する機能ではありません）"
             className="rounded-full border border-border px-4 py-2.5 text-xs font-semibold text-foreground/60 disabled:opacity-50"
           >
-            {autoFixBusy ? "修復中..." : "⚖️ AI自動修復"}
+            {autoFixBusy ? "整理中..." : "🧹 古いログを整理"}
           </button>
         </div>
       </div>

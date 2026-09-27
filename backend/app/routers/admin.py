@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, progress, schemas, title_migration, x_post
+from app import consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, progress, schemas, self_heal, title_migration, x_post
 from app.auth import require_admin
 from app.database import get_db
 
@@ -177,10 +177,35 @@ def backfill_images(verify_existing: bool = True, db: Session = Depends(get_db))
     return schemas.ImageBackfillResultOut(**dataclasses.asdict(result))
 
 
+@router.post("/self-heal", response_model=schemas.SelfHealResultOut)
+def run_self_heal(db: Session = Depends(get_db)):
+    """STEP54: the daily job's self-heal pass on demand - over everything
+    logged since the last self-heal summary (or the last 24 hours), then
+    re-analyses just the products whose price it re-fetched (same analysis as
+    the daily job; AI wording is only regenerated if the facts changed)."""
+    result = self_heal.heal(db, since_id=self_heal.default_since_id(db))
+    if result.refetched_product_ids:
+        refetched = select(models.Product).where(models.Product.id.in_(result.refetched_product_ids))
+        for product in db.execute(refetched).scalars().all():
+            try:
+                pipeline.sync_product_analysis(db, product)
+            except Exception as exc:  # noqa: BLE001 - one product's analysis failing shouldn't stop the rest
+                db.rollback()
+                crud.create_error_log(db, source="analysis", message=f"{product.name}: {exc}", product_id=product.id)
+    return schemas.SelfHealResultOut(
+        summary=result.summary,
+        errors_seen=result.errors_seen,
+        retried=sum(r.attempted for r in result.remedies),
+        fixed=sum(r.succeeded for r in result.remedies),
+        needs_attention=result.needs_attention,
+    )
+
+
 @router.post("/auto-fix-logs", response_model=schemas.AutoFixLogsResult)
 def auto_fix_logs(db: Session = Depends(get_db)):
-    """The AI War Room's one-tap "AI自動修復" action (CPO/Compliance):
-    immediately clears routine info/warning noise (per-product "not found"/
+    """The AI War Room's "古いログを整理" action (was labelled "AI自動修復"
+    until STEP54 - it never fixed anything, the real fixes live in
+    app/self_heal.py): immediately clears routine info/warning noise (per-product "not found"/
     "price mismatch" notices) and error-level rows older than 3 days,
     instead of waiting for the daily job's own longer automatic retention
     (see fetch_rakuten below). Deliberately does NOT touch error-level rows
@@ -228,6 +253,9 @@ def fetch_rakuten(db: Session = Depends(get_db)):
             ),
         )
 
+    # STEP54: everything logged after this point is this run's - the
+    # self-heal pass below only looks at those rows.
+    heal_since_id = self_heal.latest_watermark(db)
     progress.start_run("fetch_rakuten", "日次バッチ処理")
     try:
         # Every step below runs in its own try/except with a rollback on
@@ -313,6 +341,22 @@ def fetch_rakuten(db: Session = Depends(get_db)):
         except Exception as exc:  # noqa: BLE001 - keep the rest of the job alive
             db.rollback()
             crud.create_error_log(db, source="consumables", message=f"Consumables refresh failed: {exc}")
+
+        # STEP54: retry what this run's error logs show has a known, safe fix
+        # (failed per-product price lookups, ranking/consumables refresh),
+        # before the analysis stage - so products fixed here are analyzed
+        # in the normal pass, with no extra AI call. See app/self_heal.py.
+        progress.start_stage("self_heal")
+        heal_detail = ""
+        try:
+            heal_result = self_heal.heal(db, since_id=heal_since_id)
+            heal_detail = " / ".join(f"{r.label} {r.succeeded}/{r.attempted}" for r in heal_result.remedies) or (
+                f"エラー{heal_result.errors_seen}件（再試行対象なし）"
+            )
+        except Exception as exc:  # noqa: BLE001 - self-heal failing must never fail the daily job
+            db.rollback()
+            crud.create_error_log(db, source="self_heal", level="warning", message=f"自動修復の実行に失敗しました: {exc}")
+        progress.finish_stage("self_heal", heal_detail)
 
         progress.start_stage("analysis")
         all_products = db.execute(select(models.Product)).scalars().all()

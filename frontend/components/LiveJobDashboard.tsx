@@ -7,6 +7,7 @@ const STAGE_ICONS: Record<string, string> = {
   yahoo_prices: "💰",
   discovery: "🔍",
   popularity: "📈",
+  self_heal: "🩺",
   analysis: "🤖",
   price_alerts: "📧",
   x_post: "📣",

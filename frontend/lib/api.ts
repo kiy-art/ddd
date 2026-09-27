@@ -519,6 +519,23 @@ export function adminBackfillImages(token: string) {
   });
 }
 
+// STEP54: log-driven self-heal (backend app/self_heal.py) - retries what
+// the latest logs show has a known safe fix, reports the rest.
+export interface SelfHealResult {
+  summary: string;
+  errors_seen: number;
+  retried: number;
+  fixed: number;
+  needs_attention: boolean;
+}
+
+export function adminRunSelfHeal(token: string) {
+  return apiFetch<SelfHealResult>(`/api/admin/self-heal`, {
+    method: "POST",
+    headers: adminHeaders(token),
+  });
+}
+
 export function adminAutoFixLogs(token: string) {
   return apiFetch<AutoFixLogsResult>(`/api/admin/auto-fix-logs`, {
     method: "POST",

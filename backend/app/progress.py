@@ -36,6 +36,7 @@ STAGE_LABELS = {
     "yahoo_prices": "市場価格取得中（Yahoo!）",
     "discovery": "新商品探索中",
     "popularity": "人気ランキング同期中",
+    "self_heal": "エラーの自動修復中",
     "analysis": "買い時判定・AI説明文生成中",
     "price_alerts": "値下がり通知メール送信中",
     "x_post": "SNS投稿中",

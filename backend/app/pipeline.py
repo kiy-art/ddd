@@ -6,7 +6,7 @@ import datetime
 import json
 import statistics
 import time
-from typing import Callable
+from typing import Callable, Collection
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -176,8 +176,17 @@ def sync_product_analysis(db: Session, product: models.Product) -> bool:
     return True
 
 
+def _products_for_fetch(db: Session, only_product_ids: Collection[int] | None) -> list[models.Product]:
+    query = select(models.Product)
+    if only_product_ids is not None:
+        query = query.where(models.Product.id.in_(list(only_product_ids)))
+    return list(db.execute(query).scalars().all())
+
+
 def fetch_rakuten_prices(
-    db: Session, on_progress: Callable[[int, int], None] | None = None
+    db: Session,
+    on_progress: Callable[[int, int], None] | None = None,
+    only_product_ids: Collection[int] | None = None,
 ) -> tuple[int, int]:
     """Looks up each product's current price on Rakuten Ichiba by
     "brand + name" keyword search and records it as a new PriceHistory row.
@@ -188,9 +197,12 @@ def fetch_rakuten_prices(
     dashboard); omitting it changes nothing about this function's own
     behavior.
 
+    `only_product_ids`, when given, limits the run to those products -
+    used by app/self_heal.py to retry just the ones whose lookup failed.
+
     Returns (updated_count, skipped_count).
     """
-    products = list(db.execute(select(models.Product)).scalars().all())
+    products = _products_for_fetch(db, only_product_ids)
     updated = 0
     skipped = 0
     for i, product in enumerate(products):
@@ -269,7 +281,9 @@ def fetch_rakuten_prices(
 
 
 def fetch_yahoo_prices(
-    db: Session, on_progress: Callable[[int, int], None] | None = None
+    db: Session,
+    on_progress: Callable[[int, int], None] | None = None,
+    only_product_ids: Collection[int] | None = None,
 ) -> tuple[int, int]:
     """Same shape as fetch_rakuten_prices, for a second independent price
     source (Yahoo!ショッピング). Writes to yahoo_price/yahoo_url/
@@ -279,9 +293,11 @@ def fetch_yahoo_prices(
     accessory), yahoo_price is cleared to None rather than left stale, so
     the store comparison table never shows an old price as current.
 
+    `only_product_ids`: same as fetch_rakuten_prices.
+
     Returns (updated_count, skipped_count).
     """
-    products = list(db.execute(select(models.Product)).scalars().all())
+    products = _products_for_fetch(db, only_product_ids)
     updated = 0
     skipped = 0
     for i, product in enumerate(products):

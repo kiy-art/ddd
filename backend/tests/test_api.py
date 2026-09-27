@@ -279,7 +279,9 @@ def test_fetch_rakuten_reports_live_progress_stages(client, admin_headers, monke
         stage_ids = [s["stage"] for s in event["stages"]]
         # yahoo_prices is absent (YAHOO_CLIENT_ID unset in tests) - every
         # other stage always runs.
-        assert stage_ids == ["rakuten_prices", "discovery", "popularity", "analysis", "price_alerts", "x_post"]
+        assert stage_ids == [
+            "rakuten_prices", "discovery", "popularity", "self_heal", "analysis", "price_alerts", "x_post"
+        ]
         assert all(s["status"] == "done" for s in event["stages"])
     finally:
         get_settings.cache_clear()

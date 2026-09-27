@@ -70,6 +70,7 @@ def build_daily_report(db: Session) -> tuple[str, str]:
 
     logs = crud.list_error_logs(db, limit=100)
     daily_job_log = next((log for log in logs if log.source == "daily_job"), None)
+    self_heal_log = next((log for log in logs if log.source == "self_heal"), None)
     error_count = sum(1 for log in logs if log.level == "error")
     price_warning_count = sum(1 for log in logs if log.level == "warning" and log.source == "price_fetch")
 
@@ -103,6 +104,10 @@ def build_daily_report(db: Session) -> tuple[str, str]:
         if error_count > 0
         else "【システム状況】直近のログにエラーは見当たりません。パイプラインは安定稼働中です。"
     )
+
+    # STEP54: what the self-heal pass retried / couldn't fix (app/self_heal.py)
+    if self_heal_log:
+        lines.append(f"【自動修復】{self_heal_log.message.removeprefix('自動修復: ')}")
 
     # Compliance: price display accuracy
     if price_warning_count > 0:

@@ -352,3 +352,13 @@ class ConsumablePicksOut(BaseModel):
     season_label: str
     sale_events: list[str]
     picks: list[ConsumablePickOut]
+
+
+class SelfHealResultOut(BaseModel):
+    """POST /api/admin/self-heal (STEP54, app/self_heal.py)."""
+
+    summary: str
+    errors_seen: int
+    retried: int
+    fixed: int
+    needs_attention: bool

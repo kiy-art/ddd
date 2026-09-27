@@ -207,3 +207,11 @@ def test_send_daily_report_endpoint_sends_when_configured(client, admin_headers,
     assert resp.json() == {"sent": True}
     assert len(sent_calls) == 1
     get_settings.cache_clear()
+
+
+def test_build_daily_report_includes_the_self_heal_summary(db_session):
+    from app import self_heal
+
+    self_heal.heal(db_session, since_id=0)
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "【自動修復】確認したエラー0件。" in html
