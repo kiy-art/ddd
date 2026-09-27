@@ -362,3 +362,25 @@ class SelfHealResultOut(BaseModel):
     retried: int
     fixed: int
     needs_attention: bool
+
+
+class RakutenRankingEntryOut(BaseModel):
+    """STEP59: one position in Rakuten's own bestseller ranking."""
+
+    rank: int
+    name: str
+    brand: str | None
+    price: int | None
+    url: str
+    image_url: str | None
+    shop_name: str | None
+    review_count: int | None
+    review_average: float | None
+    product_slug: str | None
+    product_buy_score: str | None
+
+
+class RakutenRankingCategoryOut(BaseModel):
+    category: str
+    fetched_at: datetime.datetime
+    entries: list[RakutenRankingEntryOut]

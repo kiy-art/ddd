@@ -17,7 +17,7 @@ import time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crud, models, rakuten
+from app import crud, models, rakuten, title_cleaner
 from app.brands import match_brand as _match_brand
 from app.pipeline import RAKUTEN_REQUEST_INTERVAL_SECONDS
 
@@ -60,6 +60,50 @@ def _find_rank(product: models.Product, ranking_items: list) -> int | None:
     return None
 
 
+# STEP59: a stored ranking snapshot older than this isn't "popular now" -
+# same window as the per-product ranks (frontend lib/popularity.ts).
+RANKING_MAX_AGE_DAYS = 3
+
+
+def _matched_product_id(entry, products: list[models.Product]) -> int | None:
+    """The catalog product this ranking listing is, by the same rule as
+    _find_rank (same brand + the product's model number in the name)."""
+    brand = _match_brand(entry.item_name)
+    if brand is None:
+        return None
+    name_key = _normalize(entry.item_name)
+    for product in products:
+        if product.brand == brand and product.model_number and _normalize(product.model_number) in name_key:
+            return product.id
+    return None
+
+
+def _store_ranking_snapshot(db: Session, category: str, ranking_items: list, products: list[models.Product]) -> None:
+    """Replaces this category's stored copy of Rakuten's ranking list."""
+    now = datetime.datetime.utcnow()
+    db.query(models.RakutenRankingEntry).filter(models.RakutenRankingEntry.category == category).delete()
+    for entry in ranking_items:
+        brand = _match_brand(entry.item_name)
+        db.add(
+            models.RakutenRankingEntry(
+                category=category,
+                rank=entry.rank,
+                item_name=entry.item_name,
+                display_name=title_cleaner.strip_promotional_noise(entry.item_name, brand=brand)[:300],
+                brand=brand,
+                price=getattr(entry, "price", None),
+                item_url=entry.item_url,
+                affiliate_url=rakuten.to_affiliate_url(entry.item_url),
+                image_url=getattr(entry, "image_url", None),
+                shop_name=getattr(entry, "shop_name", None),
+                review_count=getattr(entry, "review_count", None),
+                review_average=getattr(entry, "review_average", None),
+                matched_product_id=_matched_product_id(entry, products),
+                fetched_at=now,
+            )
+        )
+
+
 def sync_popularity_rankings(db: Session) -> tuple[int, int]:
     """Refreshes popularity_rank for every product in each category from
     that category's current Rakuten ranking. A product not found in the
@@ -89,6 +133,7 @@ def sync_popularity_rankings(db: Session) -> tuple[int, int]:
         products = list(
             db.execute(select(models.Product).where(models.Product.category == category)).scalars()
         )
+        _store_ranking_snapshot(db, category, ranking_items, products)
         for product in products:
             rank = _find_rank(product, ranking_items)
             if rank != product.popularity_rank:
@@ -111,3 +156,50 @@ def sync_popularity_rankings(db: Session) -> tuple[int, int]:
             ),
         )
     return ranked_count, checked
+
+
+def ranking_snapshot(db: Session, limit: int) -> list[dict]:
+    """Every category's stored Rakuten ranking (top `limit`), newest-only:
+    a category whose snapshot is older than RANKING_MAX_AGE_DAYS is left
+    out rather than shown as today's ranking."""
+    cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=RANKING_MAX_AGE_DAYS)
+    groups = []
+    for category in CATEGORY_GENRE_IDS:
+        rows = list(
+            db.execute(
+                select(models.RakutenRankingEntry)
+                .where(models.RakutenRankingEntry.category == category, models.RakutenRankingEntry.fetched_at >= cutoff)
+                .order_by(models.RakutenRankingEntry.rank)
+                .limit(limit)
+            ).scalars()
+        )
+        if not rows:
+            continue
+        product_ids = {r.matched_product_id for r in rows if r.matched_product_id}
+        products = (
+            {p.id: p for p in db.execute(select(models.Product).where(models.Product.id.in_(product_ids))).scalars()}
+            if product_ids
+            else {}
+        )
+        entries = []
+        for r in rows:
+            product = products.get(r.matched_product_id) if r.matched_product_id else None
+            if product is not None and product.pending_review:
+                product = None  # never link to an unpublished product
+            entries.append(
+                {
+                    "rank": r.rank,
+                    "name": r.display_name,
+                    "brand": r.brand,
+                    "price": r.price,
+                    "url": r.affiliate_url or r.item_url,
+                    "image_url": r.image_url,
+                    "shop_name": r.shop_name,
+                    "review_count": r.review_count,
+                    "review_average": r.review_average,
+                    "product_slug": product.slug if product else None,
+                    "product_buy_score": product.buy_score if product else None,
+                }
+            )
+        groups.append({"category": category, "fetched_at": max(r.fetched_at for r in rows), "entries": entries})
+    return groups

@@ -2,9 +2,15 @@ from app import crud, popularity, rakuten, schemas
 
 
 class _FakeRankingItem:
-    def __init__(self, rank, item_name):
+    def __init__(self, rank, item_name, price=None, image_url=None, shop_name=None):
         self.rank = rank
         self.item_name = item_name
+        self.item_url = f"https://item.rakuten.co.jp/shop/{rank}/"
+        self.price = price
+        self.image_url = image_url
+        self.shop_name = shop_name
+        self.review_count = None
+        self.review_average = None
 
 
 def _fixed_ranking(items_by_genre):
@@ -117,3 +123,91 @@ def test_sync_reports_plainly_when_no_category_could_be_fetched(db_session, monk
     assert (ranked, checked) == (0, 0)
     messages = [log.message for log in crud.list_error_logs(db_session)]
     assert any("1カテゴリも取得できませんでした" in m for m in messages)
+
+
+
+# --- STEP59: Rakuten's own ranking list, stored and served -----------------------
+
+
+def test_sync_stores_the_whole_ranking_and_links_catalog_matches(db_session, monkeypatch, client):
+    product = crud.create_product(
+        db_session,
+        schemas.ProductCreate(
+            name="G440 ドライバー", brand="PING", category="driver", model_number="G440", initial_price=68000
+        ),
+    )
+    ranking = [
+        _FakeRankingItem(1, "【送料無料】テーラーメイド Qi35 ドライバー", price=79800, shop_name="ゴルフ5"),
+        _FakeRankingItem(2, "PING G440 ドライバー 10.5度 純正シャフト", price=68200),
+        _FakeRankingItem(3, "謎ブランド ドライバー", price=9800),
+    ]
+    monkeypatch.setattr(
+        rakuten, "fetch_ranking", _fixed_ranking({popularity.CATEGORY_GENRE_IDS["driver"]: ranking})
+    )
+    popularity.sync_popularity_rankings(db_session)
+
+    body = client.get("/api/popular/rakuten-ranking?limit=10").json()
+    driver = next(g for g in body if g["category"] == "driver")
+    assert [e["rank"] for e in driver["entries"]] == [1, 2, 3]  # every listing, not just catalog matches
+    first = driver["entries"][0]
+    assert first["name"] == "テーラーメイド Qi35 ドライバー"  # promo noise stripped
+    assert (first["price"], first["shop_name"], first["product_slug"]) == (79800, "ゴルフ5", None)
+    assert driver["entries"][1]["product_slug"] == product.slug
+
+    # a re-sync replaces the snapshot instead of piling up rows
+    popularity.sync_popularity_rankings(db_session)
+    body = client.get("/api/popular/rakuten-ranking").json()
+    assert len(next(g for g in body if g["category"] == "driver")["entries"]) == 3
+
+
+def test_a_stale_ranking_snapshot_is_not_served(db_session, monkeypatch, client):
+    import datetime
+
+    from app import models
+
+    ranking = [_FakeRankingItem(1, "テーラーメイド Qi35 ドライバー")]
+    monkeypatch.setattr(
+        rakuten, "fetch_ranking", _fixed_ranking({popularity.CATEGORY_GENRE_IDS["driver"]: ranking})
+    )
+    popularity.sync_popularity_rankings(db_session)
+    for row in db_session.query(models.RakutenRankingEntry):
+        row.fetched_at = datetime.datetime.utcnow() - datetime.timedelta(days=popularity.RANKING_MAX_AGE_DAYS + 1)
+    db_session.commit()
+    assert client.get("/api/popular/rakuten-ranking").json() == []
+
+
+def test_ranking_parser_keeps_price_image_shop_and_reviews(monkeypatch):
+    from app.config import get_settings
+
+    class _Resp:
+        is_error = False
+        status_code = 200
+
+        def json(self):
+            return {
+                "Items": [
+                    {
+                        "Item": {
+                            "rank": 1,
+                            "itemName": "Qi35 ドライバー",
+                            "itemUrl": "https://item.rakuten.co.jp/x/1/",
+                            "itemPrice": "79800",
+                            "mediumImageUrls": [{"imageUrl": "https://thumbnail.image.rakuten.co.jp/a.jpg?_ex=128x128"}],
+                            "shopName": "ゴルフ5",
+                            "reviewCount": 12,
+                            "reviewAverage": "4.5",
+                        }
+                    }
+                ]
+            }
+
+    monkeypatch.setenv("RAKUTEN_APP_ID", "id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "key")
+    get_settings.cache_clear()
+    try:
+        monkeypatch.setattr(rakuten.http_retry, "get_with_retry", lambda *a, **k: _Resp())
+        item = rakuten.fetch_ranking(201706)[0]
+        assert (item.price, item.shop_name, item.review_count, item.review_average) == (79800, "ゴルフ5", 12, 4.5)
+        assert item.image_url == "https://thumbnail.image.rakuten.co.jp/a.jpg?_ex=300x300"
+    finally:
+        get_settings.cache_clear()

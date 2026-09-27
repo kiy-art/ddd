@@ -1,10 +1,10 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import consumables_merchandiser, crud, models, schemas
+from app import consumables_merchandiser, crud, models, popularity, schemas
 from app.database import get_db
 from app.models import CATEGORIES
 
@@ -75,6 +75,13 @@ def get_product(slug: str, db: Session = Depends(get_db)):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
+
+
+@router.get("/popular/rakuten-ranking", response_model=list[schemas.RakutenRankingCategoryOut])
+def rakuten_ranking(limit: int = Query(default=30, ge=1, le=30), db: Session = Depends(get_db)):
+    """STEP59: Rakuten Ichiba's own bestseller ranking per category, as last
+    fetched by the daily job (app/popularity.py)."""
+    return popularity.ranking_snapshot(db, limit=limit)
 
 
 @router.get("/categories/{category}", response_model=list[schemas.ProductOut])

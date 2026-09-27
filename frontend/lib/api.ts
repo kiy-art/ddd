@@ -201,6 +201,33 @@ export function getConsumablePicks(params?: { excludeProductId?: number }, init?
   return apiFetch<ConsumablePicks>(`/api/consumables/picks${query ? `?${query}` : ""}`, init);
 }
 
+// --- STEP59: Rakuten's own bestseller ranking (backend app/popularity.py) --
+
+export interface RakutenRankingEntry {
+  rank: number;
+  name: string;
+  brand: string | null;
+  price: number | null;
+  url: string;
+  image_url: string | null;
+  shop_name: string | null;
+  review_count: number | null;
+  review_average: number | null;
+  // Set when this listing is a product PAR. tracks (same brand + model no.).
+  product_slug: string | null;
+  product_buy_score: string | null;
+}
+
+export interface RakutenRankingCategory {
+  category: string;
+  fetched_at: string;
+  entries: RakutenRankingEntry[];
+}
+
+export function getRakutenRanking(limit = 30, init?: RequestInit) {
+  return apiFetch<RakutenRankingCategory[]>(`/api/popular/rakuten-ranking?limit=${limit}`, init);
+}
+
 export interface GuideSection {
   heading: string;
   paragraphs: string[];

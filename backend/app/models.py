@@ -370,3 +370,34 @@ class ConsumablePriceHistory(Base):
     recorded_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
 
     item: Mapped["ConsumableItem"] = relationship(back_populates="price_history")
+
+
+class RakutenRankingEntry(Base):
+    """STEP59: one position in Rakuten Ichiba's own bestseller ranking for a
+    category, as last fetched (app/popularity.py). The popularity page shows
+    this list itself - most ranked listings aren't products in this
+    catalog, and only showing matches left drivers/irons with one entry.
+
+    Each category's rows are replaced as a whole on every successful fetch;
+    a failed fetch leaves the previous snapshot, and the API only serves
+    snapshots younger than popularity.RANKING_MAX_AGE_DAYS."""
+
+    __tablename__ = "rakuten_ranking_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    category: Mapped[str] = mapped_column(String(50), index=True)
+    rank: Mapped[int] = mapped_column(Integer)
+    item_name: Mapped[str] = mapped_column(Text)  # Rakuten's own listing title
+    display_name: Mapped[str] = mapped_column(Text)  # promo noise stripped (regex only)
+    brand: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    item_url: Mapped[str] = mapped_column(Text)
+    affiliate_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    shop_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    review_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    review_average: Mapped[float | None] = mapped_column(Float, nullable=True)
+    matched_product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="SET NULL"), nullable=True
+    )
+    fetched_at: Mapped[datetime.datetime] = mapped_column(DateTime)

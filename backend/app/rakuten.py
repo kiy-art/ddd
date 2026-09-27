@@ -133,10 +133,51 @@ def search_items(keyword: str, hits: int = 10, timeout: float = 10.0) -> list[Ra
 
 
 class RakutenRankingItem:
-    def __init__(self, rank: int, item_name: str, item_url: str):
+    def __init__(
+        self,
+        rank: int,
+        item_name: str,
+        item_url: str,
+        price: int | None = None,
+        image_url: str | None = None,
+        shop_name: str | None = None,
+        review_count: int | None = None,
+        review_average: float | None = None,
+    ):
         self.rank = rank
         self.item_name = item_name
         self.item_url = item_url
+        # STEP59: the rest of what the ranking API returns per listing, so
+        # the popularity page can show Rakuten's own ranking list itself.
+        self.price = price
+        self.image_url = image_url
+        self.shop_name = shop_name
+        self.review_count = review_count
+        self.review_average = review_average
+
+
+def _ranking_image(item: dict) -> str | None:
+    images = item.get("mediumImageUrls") or []
+    first = images[0] if images else None
+    url = first.get("imageUrl") if isinstance(first, dict) else first
+    if not url:
+        return None
+    # The API's thumbnails are 128px; ask the same CDN for a card-sized one.
+    return url.replace("_ex=128x128", "_ex=300x300")
+
+
+def _optional_int(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_float(value) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def fetch_ranking(genre_id: int, hits: int = 30, timeout: float = 10.0) -> list[RakutenRankingItem]:
@@ -184,6 +225,11 @@ def fetch_ranking(genre_id: int, hits: int = 30, timeout: float = 10.0) -> list[
                     rank=int(item["rank"]),
                     item_name=item["itemName"],
                     item_url=item["itemUrl"],
+                    price=_optional_int(item.get("itemPrice")),
+                    image_url=_ranking_image(item),
+                    shop_name=item.get("shopName") or None,
+                    review_count=_optional_int(item.get("reviewCount")),
+                    review_average=_optional_float(item.get("reviewAverage")),
                 )
             )
         except (KeyError, ValueError, TypeError):
