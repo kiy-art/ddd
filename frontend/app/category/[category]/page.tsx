@@ -9,6 +9,7 @@ import FadeIn from "@/components/FadeIn";
 import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
+import { brandCounts, categoryHref, selectedBrand } from "@/lib/brandFilter";
 import { curateTodaysPicks } from "@/lib/curatePicks";
 import { GUIDES } from "@/lib/guides";
 import { SITE_URL } from "@/lib/siteUrl";
@@ -88,13 +89,13 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: Promise<Params>;
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; brand?: string }>;
 }) {
   const { category } = await params;
   if (!CATEGORIES.includes(category as (typeof CATEGORIES)[number])) {
     notFound();
   }
-  const { sort: sortParam } = await searchParams;
+  const { sort: sortParam, brand: brandParam } = await searchParams;
   const sort: SortOption = isSortOption(sortParam) ? sortParam : "discount";
 
   let products = [] as Product[];
@@ -104,7 +105,10 @@ export default async function CategoryPage({
     notFound();
   }
 
-  const sortedProducts = sortProducts(products, sort);
+  const brands = brandCounts(products);
+  const brand = selectedBrand(brandParam, brands);
+  const listedProducts = brand ? products.filter((p) => p.brand === brand) : products;
+  const sortedProducts = sortProducts(listedProducts, sort);
 
   const droppedRecently = products.filter(
     (p) => p.current_price !== null && p.previous_price !== null && p.current_price < p.previous_price
@@ -153,12 +157,41 @@ export default async function CategoryPage({
             </p>
           ) : (
             <>
+              {/* STEP64: maker filter - only when there's more than one maker to pick. */}
+              {brands.length > 1 && (
+                <nav aria-label="メーカーで絞り込む" className="mb-5">
+                  <span className="text-xs text-foreground/45">メーカー:</span>
+                  <div className="-mx-6 mt-2 flex gap-2 overflow-x-auto px-6 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+                    {[{ brand: null as string | null, count: products.length }, ...brands].map((entry) => {
+                      const active = entry.brand === brand;
+                      return (
+                        <Link
+                          key={entry.brand ?? "all"}
+                          href={categoryHref(category, { sort, brand: entry.brand })}
+                          scroll={false}
+                          aria-current={active ? "page" : undefined}
+                          className={`tap shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                            active
+                              ? "border-brand bg-brand text-on-brand"
+                              : "border-border bg-background text-foreground/65 hover:border-brand/40 hover:text-brand"
+                          }`}
+                        >
+                          {entry.brand ?? "すべて"}
+                          <span className={`ml-1 font-num ${active ? "text-on-brand/80" : "text-foreground/35"}`}>{entry.count}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </nav>
+              )}
+
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-foreground/45">並び替え:</span>
                 {SORT_OPTIONS.map((opt) => (
                   <Link
                     key={opt}
-                    href={opt === "discount" ? `/category/${category}` : `/category/${category}?sort=${opt}`}
+                    href={categoryHref(category, { sort: opt, brand })}
+                    scroll={false}
                     className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                       sort === opt
                         ? "border-brand bg-brand text-on-brand"
@@ -169,6 +202,20 @@ export default async function CategoryPage({
                   </Link>
                 ))}
               </div>
+
+              {brand && (
+                <p className="mt-5 text-sm text-foreground/60">
+                  <span className="font-semibold text-foreground">{brand}</span>の{categoryLabel}：
+                  <span className="font-num font-semibold text-foreground">{listedProducts.length}</span>点
+                  <Link
+                    href={categoryHref(category, { sort, brand: null })}
+                    scroll={false}
+                    className="ml-3 text-xs font-semibold text-brand hover:underline"
+                  >
+                    絞り込みを解除
+                  </Link>
+                </p>
+              )}
 
               <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {sortedProducts.map((product, i) => (
