@@ -86,9 +86,30 @@ _YEAR_MODEL_PATTERN = re.compile(r"(\d{4})年モデル")
 _SHAFT_SPEC_PATTERN = re.compile(
     r"N\.?S\.?\s*PRO(?:\s*[A-Za-z0-9\-]+)?(?:\s*Ver\.?\s*\d+)?"
     r"|NSプロ(?:\s*[A-Za-z0-9\-]+)?(?:\s*Ver\.?\s*\d+)?"
-    r"|DS-91w",
+    r"|DS-91w"
+    # Honma's VIZARD shafts: "VIZARD for TW757 50シャフト",
+    # "VIZARD FZ-6", "VIZARD SH 50". Same rule as above - a hand-picked
+    # shaft-brand prefix, then at most one "for <model>" (the shaft's own
+    # designation, which repeats the club model already in the title), one
+    # code token, one weight number and a trailing "シャフト" - never a
+    # generic alphanumeric run that could reach the club's own model
+    # number. Other shaft brands (TENSEI, Diamana, ...) use multi-token
+    # names a bounded pattern only half-strips, so they're left to the
+    # AI-assisted layer rather than leaving a fragment like "TM50" behind.
+    r"|VIZARD(?:\s+for\s+[A-Za-z0-9\-]+)?(?:\s+[A-Za-z]{1,3}(?:-\d+)?(?=\s|$))?(?:\s*\d{2,3}(?=\s|シャフト|$))?(?:\s*シャフト)?",
     re.IGNORECASE,
 )
+
+# A bare "シャフト" word left behind ("純正シャフト", "カーボンシャフト")
+# once the shaft's name before it is gone - never part of a club's name.
+_SHAFT_WORD_PATTERN = re.compile(r"(?:純正|カーボン|スチール)?シャフト")
+
+# A standalone "GOLF"/"ゴルフ" word - the tail of a maker's full name
+# split by the shop ("ホンマゴルフ GOLF" once the repeated "ホンマゴルフ"
+# is deduped away), not part of the model. Whitespace-delimited only, so
+# it never touches "ゴルフ" inside a word; skipped entirely for a brand
+# whose own name contains it (e.g. "L.A.B Golf").
+_STANDALONE_GOLF_PATTERN = re.compile(r"(?:(?<=\s)|^)(?:GOLF|ゴルフ)(?=\s|$)", re.IGNORECASE)
 
 # Quantity/packaging notes ("3ダースセット", "12球入り", "(12球)", "×3箱")
 # - real information about a specific listing's bundle, but not part of
@@ -134,6 +155,13 @@ _PROMO_PHRASES = [
     "セール",
     "SALE",
     "sale",
+    # Restock / new-arrival shop copy ("新製品 入荷しました！！"). Longer
+    # compounds first so "再入荷" doesn't leave a stray "再" behind.
+    "再入荷",
+    "新入荷",
+    "入荷しました",
+    "新製品",
+    "新商品",
     "あす楽",
     "即日発送",
     "即納",
@@ -207,9 +235,9 @@ _MUNICIPALITY_PATTERN = re.compile(
     r"|[ぁ-んァ-ヶー一-龯]{1,10}(?:市|区|町|村)"
 )
 
-# Runs of punctuation/symbols shops use for emphasis (!!, ★, ◆, ~, ×) once
+# Runs of punctuation/symbols shops use for emphasis (!!, ！！, ★, ◆, ~, ×) once
 # the text they were decorating has already been stripped out around them.
-_DECORATION_PATTERN = re.compile(r"[!!★☆◆■□▼▲♪♫~〜×]+")
+_DECORATION_PATTERN = re.compile(r"[!!！★☆◆■□▼▲♪♫~〜×]+")
 
 # A bracket pair left with nothing (or just whitespace) inside - either
 # already empty in the raw listing ("［ ］", seemingly a shop template
@@ -261,10 +289,13 @@ def strip_promotional_noise(raw_title: str, brand: str | None = None) -> str:
     text = _QUANTITY_PATTERN.sub(" ", text)
     text = _PROMO_PATTERN.sub(" ", text)
     text = _SHAFT_SPEC_PATTERN.sub(" ", text)
+    text = _SHAFT_WORD_PATTERN.sub(" ", text)
     text = _MUNICIPALITY_PATTERN.sub(" ", text)
     text = _DECORATION_PATTERN.sub(" ", text)
     if brand:
         text = _dedupe_brand_name_repeats(text, brand)
+        if "golf" not in brand.lower():
+            text = _STANDALONE_GOLF_PATTERN.sub(" ", text)
     # Run after content-stripping (which can itself empty out a bracket
     # pair) and after brand dedup, so anything either pass hollowed out
     # gets swept up too.

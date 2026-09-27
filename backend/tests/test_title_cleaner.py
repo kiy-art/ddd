@@ -342,3 +342,64 @@ def test_strip_promotional_noise_keeps_pro_v1_and_pro_v1x_apart():
     assert result_v1 == "タイトリスト Pro V1"
     assert result_v1x == "タイトリスト Pro V1x"
     assert result_v1 != result_v1x
+
+
+# --- Honma new-arrival listing: "新製品 入荷しました！！本間ゴルフ TW757 ..." --------------------
+
+HONMA_RAW = (
+    "新製品 入荷しました！！本間ゴルフ TW757 Type-S 1W VIZARD for TW757 50シャフト "
+    "ツアーワールド ドライバー ホンマゴルフ GOLF"
+)
+
+
+def test_strip_promotional_noise_handles_honma_new_arrival_example():
+    # restock copy, full-width "！！", the VIZARD shaft spec, the repeated
+    # maker name in katakana and its split-off "GOLF" tail all go
+    assert (
+        title_cleaner.strip_promotional_noise(HONMA_RAW, brand="Honma")
+        == "本間ゴルフ TW757 Type-S 1W ツアーワールド ドライバー"
+    )
+
+
+def test_vizard_shaft_pattern_keeps_the_club_model():
+    assert title_cleaner.strip_promotional_noise("ホンマ TW757 D VIZARD FZ-6 ドライバー", brand="Honma") == (
+        "ホンマ TW757 D ドライバー"
+    )
+
+
+def test_standalone_golf_word_is_kept_for_a_brand_named_golf():
+    assert title_cleaner.strip_promotional_noise("L.A.B Golf DF3 パター", brand="L.A.B Golf") == "L.A.B Golf DF3 パター"
+
+
+def test_kanji_honma_counts_as_the_brand_in_the_ai_sanity_check():
+    # Before the kanji spelling was registered this was rejected as "brand missing", so the raw
+    # listing title was kept as the product name.
+    assert title_cleaner._looks_like_a_reasonable_cleanup(
+        "本間ゴルフ TW757 Type-S 1W", "本間ゴルフ TW757 Type-S 1W ツアーワールド ドライバー", "Honma"
+    )
+
+
+def test_clean_product_title_accepts_ai_result_using_kanji_honma(monkeypatch):
+    import anthropic
+
+    class _FakeTextBlock:
+        type = "text"
+        text = json.dumps({"clean_name": "本間ゴルフ TW757 Type-S 1W"})
+
+    class _FakeMessages:
+        def create(self, **kwargs):
+            return type("M", (), {"content": [_FakeTextBlock()]})()
+
+    class _FakeClient:
+        def __init__(self, **kwargs):
+            self.messages = _FakeMessages()
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        monkeypatch.setattr(anthropic, "Anthropic", lambda api_key: _FakeClient())
+        assert title_cleaner.clean_product_title(HONMA_RAW, "Honma", "driver") == "本間ゴルフ TW757 Type-S 1W"
+    finally:
+        get_settings.cache_clear()

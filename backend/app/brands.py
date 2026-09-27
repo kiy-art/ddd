@@ -34,6 +34,7 @@ BRAND_KEYWORDS = {
     "ゼクシオ": "XXIO",
     "Honma": "Honma",
     "ホンマ": "Honma",
+    "本間ゴルフ": "Honma",
     # Vokey is Titleist's wedge line, not a separate manufacturer - matches
     # the brand recorded for it elsewhere in the catalog (see
     # data/real_products_batch3.csv), so a discovered Vokey wedge groups
@@ -92,7 +93,13 @@ BRAND_NAME_SYNONYMS: dict[str, list[str]] = {
     "Cobra": ["コブラ"],
     "Mizuno": ["ミズノ"],
     "XXIO": ["ゼクシオ"],
-    "Honma": ["ホンマ"],
+    # Kanji "本間ゴルフ" is the maker's own registered name -
+    # without it a title like "本間ゴルフ TW757 ..." never counted as naming
+    # the brand, so title_cleaner's AI result was rejected as "brand
+    # missing" and the raw listing title was kept. Longest-first matching
+    # in title_cleaner means "ホンマゴルフ" is consumed whole, not as
+    # "ホンマ" + a stray "ゴルフ".
+    "Honma": ["HONMA GOLF", "本間ゴルフ", "ホンマゴルフ", "ホンマ", "本間"],
     "Odyssey": ["オデッセイ"],
     "Cleveland": ["クリーブランド"],
     "Yonex": ["ヨネックス"],
