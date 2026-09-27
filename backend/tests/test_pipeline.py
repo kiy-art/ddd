@@ -577,3 +577,37 @@ def test_optimized_style_never_adds_a_claude_call_the_routine_path_wouldnt_make(
     # Routine (free, rule-based) copy took over, so the marker is cleared -
     # evaluate_past_actions will report the old decision as inconclusive.
     assert product.ai_copy_source_action_id is None
+
+
+def test_fetch_yahoo_prices_checks_the_longest_unchecked_products_first(db_session, monkeypatch):
+    """STEP56: when the daily quota runs out partway through, a fixed id
+    order cut off the same products every day - they never got a Yahoo
+    price. The next run must start with the ones not checked the longest."""
+    import datetime
+
+    products = [
+        crud.create_product(
+            db_session,
+            schemas.ProductCreate(name=f"Product {i}", brand="PING", category="iron", initial_price=60000),
+        )
+        for i in range(3)
+    ]
+    now = datetime.datetime.utcnow()
+    products[0].yahoo_checked_at = now  # checked today
+    products[1].yahoo_checked_at = now - datetime.timedelta(days=3)
+    # products[2]: never checked
+    db_session.commit()
+
+    order = []
+
+    def fake_search(keyword):
+        order.append(keyword)
+        return None  # no match - still counts as checked
+
+    monkeypatch.setattr(yahoo, "search_lowest_price", fake_search)
+    monkeypatch.setattr(pipeline.time, "sleep", lambda s: None)
+    pipeline.fetch_yahoo_prices(db_session)
+
+    assert order == ["PING Product 2", "PING Product 1", "PING Product 0"]
+    db_session.refresh(products[2])
+    assert products[2].yahoo_checked_at is not None  # a no-match is recorded as checked

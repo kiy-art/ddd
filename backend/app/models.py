@@ -85,6 +85,9 @@ class Product(Base):
     yahoo_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     yahoo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     yahoo_updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # STEP56: when a Yahoo lookup last completed (match or no match) - only
+    # used to order the next run's lookups, oldest first.
+    yahoo_checked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     current_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     previous_price: Mapped[int | None] = mapped_column(Integer, nullable=True)

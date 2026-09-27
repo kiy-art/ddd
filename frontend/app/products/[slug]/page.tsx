@@ -28,6 +28,7 @@ import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { MODEL_CYCLE_DISCLAIMER, MODEL_CYCLE_FACT_NOTE, getModelCycleInsight } from "@/lib/modelCycle";
 import { normalizeImageUrl } from "@/lib/imageUrl";
 import { buildProductJsonLd } from "@/lib/productJsonLd";
+import { getLowestOffer, getShopOffers } from "@/lib/shopOffers";
 import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
@@ -152,9 +153,22 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   const badge = getProductBadge(product);
   const popularityBadge = getPopularityBadge(product);
   const positioningFacts = getPositioningFacts(product);
+  const lastPriceUpdatedAt =
+    product.price_history.length > 0 ? product.price_history[product.price_history.length - 1].recorded_at : null;
+  // STEP56: the lowest recent price across the shops that have one
+  // (Rakuten / Yahoo!) - shown at the top and used for the main buy button.
+  // With only one shop priced, this is just that shop's price.
+  const shopOffers = getShopOffers(product, lastPriceUpdatedAt);
+  const lowestOffer = getLowestOffer(shopOffers);
+  const comparedOffers = shopOffers.length >= 2;
+  const displayPrice = lowestOffer?.price ?? product.current_price;
+  const otherOffers = shopOffers.filter((offer) => offer !== lowestOffer);
+  // The history stats (30-day average, record low, previous price) are
+  // Rakuten's own series - say so when a cheaper Yahoo! price is on top.
+  const rakutenSeriesSuffix = lowestOffer?.shop === "yahoo" ? "（楽天）" : "";
   const msrpPct =
-    product.msrp !== null && product.current_price !== null
-      ? Math.round(((product.current_price - product.msrp) / product.msrp) * 1000) / 10
+    product.msrp !== null && displayPrice !== null
+      ? Math.round(((displayPrice - product.msrp) / product.msrp) * 1000) / 10
       : null;
   const needsPriceCaution =
     hasReliableTrend &&
@@ -175,9 +189,6 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
     product.average_price !== null &&
     highestPrice !== null &&
     product.current_price !== null;
-
-  const lastPriceUpdatedAt =
-    product.price_history.length > 0 ? product.price_history[product.price_history.length - 1].recorded_at : null;
 
   let categoryProducts: Product[] = [];
   try {
@@ -320,11 +331,23 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-500">
                     実績
                   </span>
-                  <span className="text-xs text-foreground/40">現在価格</span>
+                  <span className="text-xs text-foreground/40">
+                    {comparedOffers ? `現在の最安値（${shopOffers.length}店舗を比較）` : "現在価格"}
+                  </span>
                 </div>
                 <span className="font-num text-4xl font-semibold text-foreground">
-                  {yen(product.current_price)}
+                  {yen(displayPrice)}
                 </span>
+                {comparedOffers && lowestOffer && (
+                  <span className="text-xs text-foreground/55">
+                    <span className="font-semibold text-brand dark:text-brand-light">{lowestOffer.label}</span>が最安
+                    {otherOffers.map((offer) => (
+                      <span key={offer.shop} className="ml-2 text-foreground/40">
+                        {offer.label} <span className="font-num">{yen(offer.price)}</span>
+                      </span>
+                    ))}
+                  </span>
+                )}
                 {msrpPct !== null && (
                   <span className={`text-sm font-semibold ${msrpPct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50"}`}>
                     {msrpPct > 0 ? "+" : ""}
@@ -334,6 +357,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 {hasReliableTrend && product.price_change_percent !== null ? (
                   <span className={msrpPct !== null ? "text-xs text-foreground/40" : "text-sm font-semibold " + (product.price_change_percent < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50")}>
                     {product.price_change_percent > 0 ? "+" : ""}
+                    {lowestOffer?.shop === "yahoo" ? "楽天価格 " : ""}
                     {product.price_change_percent}% vs 30日平均
                   </span>
                 ) : (
@@ -416,7 +440,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 </div>
               )}
               <div>
-                <dt>過去30日平均</dt>
+                <dt>
+                  過去30日平均
+                  {rakutenSeriesSuffix}
+                </dt>
                 {hasReliableTrend ? (
                   <dd className="mt-1 font-num text-base font-medium text-foreground">
                     {yen(product.average_price)}
@@ -426,25 +453,61 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 )}
               </div>
               <div>
-                <dt>過去最安値</dt>
+                <dt>
+                  過去最安値
+                  {rakutenSeriesSuffix}
+                </dt>
                 <dd className="mt-1 font-num text-base font-medium text-foreground">{yen(product.lowest_price)}</dd>
               </div>
               <div>
-                <dt>前回価格</dt>
+                <dt>
+                  前回価格
+                  {rakutenSeriesSuffix}
+                </dt>
                 <dd className="mt-1 font-num text-base font-medium text-foreground">{yen(product.previous_price)}</dd>
               </div>
             </dl>
 
             <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-5">
-              <span className="text-xs text-foreground/45">現在価格</span>
-              <span className="font-num text-2xl font-semibold text-foreground">{yen(product.current_price)}</span>
+              <span className="text-xs text-foreground/45">
+                {comparedOffers && lowestOffer ? `現在の最安値（${lowestOffer.label}）` : "現在価格"}
+              </span>
+              <span className="font-num text-2xl font-semibold text-foreground">{yen(displayPrice)}</span>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                {/* STEP56: when Yahoo! is cheaper today, the main button goes
+                    there and the Rakuten button below becomes secondary. */}
+                {lowestOffer?.shop === "yahoo" && (
+                  <TrackedCta
+                    href={lowestOffer.url}
+                    target="_blank"
+                    rel="noopener noreferrer sponsored"
+                    className="btn-shop flex-1 rounded-full px-6 py-4 text-center text-sm font-semibold"
+                    event="cta_click"
+                    params={{
+                      product_id: product.id,
+                      product_slug: product.slug,
+                      product_name: product.name,
+                      cta_type: "affiliate",
+                      buy_score: product.buy_score,
+                    }}
+                    productId={product.id}
+                    category={product.category}
+                    placement="product_detail_cta_lowest"
+                  >
+                    Yahoo!ショッピングで見る（最安）
+                    <CtaArrow />
+                  </TrackedCta>
+                )}
                 {product.affiliate_url && (
                   <TrackedCta
                     href={product.affiliate_url}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
-                    className="btn-shop flex-1 rounded-full px-6 py-4 text-center text-sm font-semibold"
+                    className={
+                      lowestOffer?.shop === "yahoo"
+                        ? "btn-ghost flex-1 rounded-full px-6 py-4 text-center text-sm font-semibold text-foreground/80 hover:text-foreground"
+                        : "btn-shop flex-1 rounded-full px-6 py-4 text-center text-sm font-semibold"
+                    }
                     event="cta_click"
                     params={{
                       product_id: product.id,

@@ -295,9 +295,19 @@ def fetch_yahoo_prices(
 
     `only_product_ids`: same as fetch_rakuten_prices.
 
+    Order (STEP56): never-checked products first, then the
+    longest-unchecked (yahoo_checked_at). Yahoo's daily call quota can run out partway
+    through a run (see YahooQuotaExceeded below) - in a fixed id order the
+    same products at the end of the list were cut off every single day and
+    never got a Yahoo price at all; this way each run picks up where the
+    previous one's coverage was thinnest.
+
     Returns (updated_count, skipped_count).
     """
-    products = _products_for_fetch(db, only_product_ids)
+    products = sorted(
+        _products_for_fetch(db, only_product_ids),
+        key=lambda p: (p.yahoo_checked_at is not None, p.yahoo_checked_at or datetime.datetime.min, p.id),
+    )
     updated = 0
     skipped = 0
     for i, product in enumerate(products):
@@ -316,12 +326,14 @@ def fetch_yahoo_prices(
                     product.yahoo_price = None
                     product.yahoo_url = None
                     product.yahoo_updated_at = None
-                    db.commit()
+                product.yahoo_checked_at = datetime.datetime.utcnow()
+                db.commit()
                 skipped += 1
                 continue
             product.yahoo_price = result.price
             product.yahoo_url = yahoo.to_affiliate_url(result.item_url) or result.item_url
             product.yahoo_updated_at = datetime.datetime.utcnow()
+            product.yahoo_checked_at = product.yahoo_updated_at
             # Yahoo's API likewise returns the listing's own photo. Used only
             # as a fallback when the product still has none the site can
             # show (e.g. Rakuten had no plausible match) - Rakuten's photo,

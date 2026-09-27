@@ -2,6 +2,7 @@ import CtaArrow from "@/components/CtaArrow";
 import TrackedCta from "@/components/TrackedCta";
 import { getAmazonSearchUrl } from "@/lib/amazon";
 import { Product } from "@/lib/api";
+import { getLowestOffer, getShopOffers } from "@/lib/shopOffers";
 import { getYahooSearchUrl } from "@/lib/yahoo";
 
 function yen(value: number | null): string {
@@ -153,13 +154,13 @@ export default function StoreComparisonTable({
   // Highlight the cheapest real price among actually-tracked sources
   // (Rakuten/Yahoo!) - only meaningful with 2+ real prices to compare, and
   // never involving the Amazon/official rows above, which have no price.
-  const pricedRows = rows.filter((row): row is Row & { price: number } => row.isPriceSource && row.price !== null);
-  const cheapestRow =
-    pricedRows.length >= 2 ? pricedRows.reduce((min, row) => (row.price < min.price ? row : min)) : null;
-  const priceDiff =
-    cheapestRow && pricedRows.length >= 2
-      ? Math.max(...pricedRows.map((row) => row.price)) - cheapestRow.price
-      : null;
+  // STEP56: same rule as the product page's top price (lib/shopOffers.ts):
+  // only prices fetched in the last few days count, so the two can never
+  // name different shops as the cheapest.
+  const offers = getShopOffers(product, lastUpdatedAt);
+  const lowest = offers.length >= 2 ? getLowestOffer(offers) : null;
+  const cheapestRow = lowest ? rows.find((row) => row.isPriceSource && row.url === lowest.url) ?? null : null;
+  const priceDiff = lowest ? Math.max(...offers.map((offer) => offer.price)) - lowest.price : null;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
