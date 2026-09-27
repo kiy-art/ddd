@@ -54,6 +54,19 @@ def list_products(
     )
 
 
+@router.get("/stats", response_model=schemas.SiteStats)
+def site_stats(db: Session = Depends(get_db)):
+    """The homepage's "掲載中の商品" number - the real total, not the length
+    of one paginated /products page."""
+    return schemas.SiteStats(published_products=crud.count_published_products(db))
+
+
+@router.get("/sitemap/products", response_model=list[schemas.SitemapProduct])
+def sitemap_products(db: Session = Depends(get_db)):
+    """Every published product's slug + updated_at, for app/sitemap.ts."""
+    return [schemas.SitemapProduct(slug=s, updated_at=u) for s, u in crud.list_published_slugs(db)]
+
+
 @router.get("/brands", response_model=list[schemas.BrandSummary])
 def list_brands(db: Session = Depends(get_db)):
     return [schemas.BrandSummary(brand=brand, product_count=count) for brand, count in crud.list_brands(db)]

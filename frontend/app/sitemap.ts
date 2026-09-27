@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { CATEGORIES, getBrands, getProducts } from "@/lib/api";
+import { CATEGORIES, getBrands, getSitemapProducts } from "@/lib/api";
 import { GUIDES } from "@/lib/guides";
 import { SITE_URL } from "@/lib/siteUrl";
 
@@ -96,7 +96,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // brand URL - which is what the previous try/catch-to-empty-array
   // version did on every fetch failure.
   const [products, brands] = await Promise.all([
-    withTimeout(getProducts(), FETCH_TIMEOUT_MS),
+    withTimeout(getSitemapProducts(), FETCH_TIMEOUT_MS),
     withTimeout(getBrands(), FETCH_TIMEOUT_MS),
   ]);
 

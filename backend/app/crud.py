@@ -67,11 +67,30 @@ def list_products(
     if buy_score:
         query = query.where(models.Product.buy_score == buy_score)
     if published_only:
-        query = query.where(models.Product.buy_score != "insufficient_data")
-        query = query.where(models.Product.pending_review.is_(False))
+        query = _published(query)
     query = query.order_by(models.Product.price_change_percent.asc().nulls_last())
     query = query.offset(offset).limit(limit)
     return list(db.execute(query).scalars().all())
+
+
+def _published(query):
+    """Same visibility rule as list_products(published_only=True)."""
+    return query.where(models.Product.buy_score != "insufficient_data").where(
+        models.Product.pending_review.is_(False)
+    )
+
+
+def count_published_products(db: Session) -> int:
+    """How many products the public site actually lists - list_products is
+    paginated (default 50), so a page's own list length is not the total."""
+    return db.execute(_published(select(func.count(models.Product.id)))).scalar_one()
+
+
+def list_published_slugs(db: Session) -> list[tuple[str, datetime.datetime]]:
+    """(slug, updated_at) for every published product - the sitemap needs all
+    of them, not one page of full ProductOut rows."""
+    query = _published(select(models.Product.slug, models.Product.updated_at)).order_by(models.Product.id)
+    return [(slug, updated_at) for slug, updated_at in db.execute(query).all()]
 
 
 # Same bar the frontend uses (THIN_DATA_DAYS in ProductCard.tsx/product

@@ -147,8 +147,27 @@ export function getProduct(slug: string, init?: RequestInit) {
   return apiFetch<ProductDetail>(`/api/products/${slug}`, init);
 }
 
-export function getCategoryProducts(category: string, init?: RequestInit) {
-  return apiFetch<Product[]>(`/api/categories/${category}`, init);
+// The backend pages /categories/{category} at 50 by default - a category
+// page lists every product it has, so it asks for a full page.
+export const CATEGORY_PAGE_LIMIT = 300;
+
+export function getCategoryProducts(category: string, init?: RequestInit, limit: number = CATEGORY_PAGE_LIMIT) {
+  return apiFetch<Product[]>(`/api/categories/${category}?limit=${limit}`, init);
+}
+
+// The real number of products the site lists (/api/products is paginated,
+// so the length of one page is not the total).
+export interface SiteStats {
+  published_products: number;
+}
+
+export function getSiteStats() {
+  return apiFetch<SiteStats>("/api/stats");
+}
+
+// Every published product's slug, for the sitemap.
+export function getSitemapProducts() {
+  return apiFetch<{ slug: string; updated_at: string }[]>("/api/sitemap/products");
 }
 
 // --- STEP42: autonomous content-optimization loop -----------------------
@@ -268,7 +287,7 @@ export function getBrands() {
 }
 
 export function getBrandProducts(brand: string) {
-  return apiFetch<Product[]>(`/api/brands/${encodeURIComponent(brand)}`);
+  return apiFetch<Product[]>(`/api/brands/${encodeURIComponent(brand)}?limit=${CATEGORY_PAGE_LIMIT}`);
 }
 
 export interface BrandPriceMover {

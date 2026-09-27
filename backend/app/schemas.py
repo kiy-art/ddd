@@ -117,6 +117,15 @@ class BrandSummary(BaseModel):
     product_count: int
 
 
+class SiteStats(BaseModel):
+    published_products: int
+
+
+class SitemapProduct(BaseModel):
+    slug: str
+    updated_at: datetime.datetime
+
+
 class BrandPriceMover(BaseModel):
     product_slug: str
     product_name: str

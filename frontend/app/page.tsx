@@ -8,7 +8,7 @@ import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
 import Newsletter from "@/components/Newsletter";
 import ProductCard from "@/components/ProductCard";
-import { BUY_SCORE_LABELS, Product, TrendingProducts, getProducts, getTrendingProducts } from "@/lib/api";
+import { BUY_SCORE_LABELS, Product, TrendingProducts, getProducts, getSiteStats, getTrendingProducts } from "@/lib/api";
 import { computeDeals } from "@/lib/deals";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { GUIDES } from "@/lib/guides";
@@ -43,6 +43,10 @@ export default async function Home({
   let allProducts: Awaited<ReturnType<typeof getProducts>> = [];
   let listProducts: Awaited<ReturnType<typeof getProducts>> = [];
   let error: string | null = null;
+
+  // The hero's product count: the real total. allProducts below is one
+  // paginated page (50), so its length is not how many products the site has.
+  const statsPromise = getSiteStats().catch(() => null);
 
   try {
     allProducts = await getProducts();
@@ -123,12 +127,13 @@ export default async function Home({
     .sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1))
     .slice(0, 5);
 
+  const siteStats = await statsPromise;
   const heroImages = [...bestBuy, ...allProducts].map((p) => p.image_url).filter(Boolean).slice(0, 6);
   const featuredGuides = GUIDES.filter((g) => g.featured);
 
   return (
     <div className="flex flex-col">
-      <Hero productCount={allProducts.length} avgDiscount={avgDiscount} collageImages={heroImages} />
+      <Hero productCount={siteStats?.published_products ?? null} avgDiscount={avgDiscount} collageImages={heroImages} />
 
       {featuredGuides.length > 0 && (
         <section className="border-t border-border bg-background px-6 py-12 sm:py-16">

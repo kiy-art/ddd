@@ -190,7 +190,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
   let categoryProducts: Product[] = [];
   try {
-    categoryProducts = await getCategoryProducts(product.category);
+    categoryProducts = await getCategoryProducts(product.category, undefined, 50); // candidates for related items only
   } catch {
     categoryProducts = [];
   }

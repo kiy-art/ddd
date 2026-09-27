@@ -14,7 +14,7 @@ export default function Hero({
   avgDiscount,
   collageImages,
 }: {
-  productCount: number;
+  productCount: number | null;
   avgDiscount: number | null;
   collageImages: (string | null | undefined)[];
 }) {
@@ -67,9 +67,9 @@ export default function Hero({
         {/* Ticker strip: the site's real, current numbers. */}
         <dl className="grid max-w-3xl grid-cols-3 divide-x divide-border overflow-hidden rounded-2xl border border-border bg-white/90 shadow-[0_10px_30px_-18px_rgba(4,120,87,0.35)] backdrop-blur-sm">
           <div className="px-4 py-4 sm:px-6">
-            <dt className="text-[10px] font-medium uppercase tracking-[0.2em] text-foreground/45 sm:text-[11px]">追跡中の商品</dt>
+            <dt className="text-[10px] font-medium uppercase tracking-[0.2em] text-foreground/45 sm:text-[11px]">掲載中の商品</dt>
             <dd className="mt-1 font-num text-2xl font-semibold text-foreground sm:text-3xl">
-              <CountUp value={productCount} />
+              {productCount === null ? "—" : <CountUp value={productCount} />}
             </dd>
           </div>
           <div className="px-4 py-4 sm:px-6">
