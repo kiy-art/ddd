@@ -553,6 +553,7 @@ export interface AffiliateClickRecent {
 export interface AffiliateClickSummary {
   total: number;
   by_shop: ShopClickCount[];
+  by_placement?: { placement: string; count: number }[];
   top_products: ProductClickCount[];
   recent: AffiliateClickRecent[];
 }

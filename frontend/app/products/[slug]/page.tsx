@@ -20,6 +20,7 @@ import PriceTimeline from "@/components/PriceTimeline";
 import ProductOverview from "@/components/ProductOverview";
 import ProductFAQ from "@/components/ProductFAQ";
 import SafeProductImage from "@/components/SafeProductImage";
+import StickyBuyBar from "@/components/StickyBuyBar";
 import StoreComparisonTable from "@/components/StoreComparisonTable";
 import TrackedCta from "@/components/TrackedCta";
 import TrackViewed from "@/components/TrackViewed";
@@ -163,6 +164,21 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
     null;
   const secondaryShops = shopBoard.rows.filter((row) => row !== primaryShop && row.kind !== "official");
   const officialShop = shopBoard.rows.find((row) => row.kind === "official") ?? null;
+  // STEP65: the pinned buy bar - the buy box's main shop, or (no fetched
+  // price) the first shop search link, so there's always somewhere to go.
+  const stickyShop = primaryShop ?? secondaryShops[0] ?? null;
+  // Only the price the page itself shows at the top (a fresh offer, or
+  // Rakuten's current price) - never a stale one from another shop's row.
+  const stickyPrice =
+    stickyShop === null
+      ? null
+      : lowestOffer
+        ? stickyShop.key === lowestOffer.shop
+          ? lowestOffer.price
+          : null
+        : stickyShop.key === "rakuten"
+          ? product.current_price
+          : null;
   const rakutenSeriesSuffix = lowestOffer?.shop === "yahoo" ? "（楽天）" : "";
   const msrpPct =
     product.msrp !== null && displayPrice !== null
@@ -232,22 +248,24 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 
       <div className="border-b border-border bg-card">
-        <div className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mx-auto max-w-7xl px-6 py-4 sm:py-8">
           <Link href={`/category/${product.category}`} className="text-xs font-medium uppercase tracking-widest text-foreground/40 hover:text-brand">
             ← {CATEGORY_LABELS[product.category] ?? product.category}
           </Link>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-12 sm:py-16">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
+      <div className="mx-auto max-w-7xl px-6 py-6 sm:py-16">
+        <div className="grid grid-cols-1 gap-6 sm:gap-12 lg:grid-cols-2 lg:gap-16">
           <FadeIn className="flex flex-col gap-2">
-            <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border bg-card">
+            {/* STEP65: shorter on a phone so the price and shop button reach
+                the first screen. */}
+            <div className="relative aspect-[4/3] max-h-[240px] w-full overflow-hidden rounded-2xl border border-border bg-card sm:aspect-square sm:max-h-none">
               <SafeProductImage
                 src={product.image_url}
                 alt={product.name}
                 category={product.category}
-                className="object-contain p-10"
+                className="object-contain p-5 sm:p-10"
               />
             </div>
             {imageUrl && new URL(imageUrl, SITE_URL).hostname.endsWith("rakuten.co.jp") && (
@@ -372,6 +390,112 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               </div>
             </div>
 
+            {/* STEP65 (CRO): moved right under the price card - it used to sit
+                after four explanation cards, ~2.4 phone screens down.
+                STEP57: every shop, one tap from the top of the page. The
+                cheapest fetched price (or Rakuten when there's nothing to
+                compare) is the main button; the other shops - Amazon
+                included - sit right under it. Same rows as the board below
+                (lib/shopRows.ts). */}
+            <div id="buy-box" className="card-lux flex scroll-mt-24 flex-col gap-3 rounded-2xl p-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-xs text-foreground/45">
+                  {comparedOffers && lowestOffer ? `現在の最安値（${lowestOffer.label}）` : "現在価格"}
+                </span>
+                <span className="font-num text-2xl font-semibold text-foreground">{yen(displayPrice)}</span>
+              </div>
+              {primaryShop && (
+                <TrackedCta
+                  href={primaryShop.url}
+                  target="_blank"
+                  rel={primaryShop.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
+                  className="btn-shop tap whitespace-nowrap rounded-full px-5 py-4 text-center text-sm font-semibold sm:px-6 sm:text-base"
+                  event="cta_click"
+                  params={{
+                    product_id: product.id,
+                    product_slug: product.slug,
+                    product_name: product.name,
+                    cta_type: primaryShop.ctaType,
+                    shop: primaryShop.key,
+                    buy_score: product.buy_score,
+                  }}
+                  productId={product.id}
+                  category={product.category}
+                  placement="product_detail_cta"
+                >
+                  {primaryShop.isLowest ? `${primaryShop.label}で見る（最安）` : `${primaryShop.label}で価格を見る`}
+                  <CtaArrow />
+                </TrackedCta>
+              )}
+              {primaryShop && (
+                <p className="-mt-1 text-center text-[11px] text-foreground/45">
+                  在庫・送料・ポイントは{primaryShop.label}のページで確認できます
+                </p>
+              )}
+              {secondaryShops.length > 0 && (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {secondaryShops.map((row) => (
+                    <TrackedCta
+                      key={`${row.key}-${row.url}`}
+                      href={row.url}
+                      target="_blank"
+                      rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
+                      className="btn-ghost tap flex items-center gap-2.5 rounded-full py-2.5 pl-2.5 pr-4 text-sm font-semibold text-foreground/80 hover:text-foreground"
+                      event="cta_click"
+                      params={{
+                        product_id: product.id,
+                        product_slug: product.slug,
+                        product_name: product.name,
+                        cta_type: row.ctaType,
+                        shop: row.key,
+                        buy_score: product.buy_score,
+                      }}
+                      productId={product.id}
+                      category={product.category}
+                      placement="product_detail_cta_alt"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold ${SHOP_MARKS[row.key].className}`}
+                      >
+                        {SHOP_MARKS[row.key].glyph}
+                      </span>
+                      <span className="flex-1 truncate text-left">{row.label}</span>
+                      <span className="font-num text-xs text-foreground/55">
+                        {row.kind === "price" && row.price !== null ? yen(row.price) : "価格を見る"}
+                      </span>
+                    </TrackedCta>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <a href="#store-comparison" className="text-xs font-semibold text-brand hover:underline dark:text-brand-light">
+                  全ショップの価格を比較する ↓
+                </a>
+                {officialShop && (
+                  <TrackedCta
+                    href={officialShop.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-foreground/50 hover:text-foreground"
+                    event="cta_click"
+                    params={{
+                      product_id: product.id,
+                      product_slug: product.slug,
+                      product_name: product.name,
+                      cta_type: "official",
+                      buy_score: product.buy_score,
+                    }}
+                  >
+                    メーカー商品ページ →
+                  </TrackedCta>
+                )}
+              </div>
+              <p className="text-[11px] leading-relaxed text-foreground/35">
+                ※広告・PRを含みます。リンクにはアフィリエイトリンクが含まれ、リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
+              </p>
+            </div>
+
             {hasReliableTrend && product.buy_signal_score !== null && (
               <ScoreExplanation product={product} />
             )}
@@ -470,104 +594,6 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               </div>
             </dl>
 
-            {/* STEP57: every shop, one tap from the top of the page. The
-                cheapest fetched price (or Rakuten when there's nothing to
-                compare) is the main button; the other shops - Amazon
-                included - sit right under it. Same rows as the board below
-                (lib/shopRows.ts). */}
-            <div className="card-lux flex flex-col gap-3 rounded-2xl p-5">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-xs text-foreground/45">
-                  {comparedOffers && lowestOffer ? `現在の最安値（${lowestOffer.label}）` : "現在価格"}
-                </span>
-                <span className="font-num text-2xl font-semibold text-foreground">{yen(displayPrice)}</span>
-              </div>
-              {primaryShop && (
-                <TrackedCta
-                  href={primaryShop.url}
-                  target="_blank"
-                  rel={primaryShop.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
-                  className="btn-shop tap whitespace-nowrap rounded-full px-5 py-4 text-center text-sm font-semibold sm:px-6 sm:text-base"
-                  event="cta_click"
-                  params={{
-                    product_id: product.id,
-                    product_slug: product.slug,
-                    product_name: product.name,
-                    cta_type: primaryShop.ctaType,
-                    shop: primaryShop.key,
-                    buy_score: product.buy_score,
-                  }}
-                  productId={product.id}
-                  category={product.category}
-                  placement="product_detail_cta"
-                >
-                  {primaryShop.isLowest ? `${primaryShop.label}で見る（最安）` : `${primaryShop.label}で価格を見る`}
-                  <CtaArrow />
-                </TrackedCta>
-              )}
-              {secondaryShops.length > 0 && (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {secondaryShops.map((row) => (
-                    <TrackedCta
-                      key={`${row.key}-${row.url}`}
-                      href={row.url}
-                      target="_blank"
-                      rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
-                      className="btn-ghost tap flex items-center gap-2.5 rounded-full py-2.5 pl-2.5 pr-4 text-sm font-semibold text-foreground/80 hover:text-foreground"
-                      event="cta_click"
-                      params={{
-                        product_id: product.id,
-                        product_slug: product.slug,
-                        product_name: product.name,
-                        cta_type: row.ctaType,
-                        shop: row.key,
-                        buy_score: product.buy_score,
-                      }}
-                      productId={product.id}
-                      category={product.category}
-                      placement="product_detail_cta_alt"
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold ${SHOP_MARKS[row.key].className}`}
-                      >
-                        {SHOP_MARKS[row.key].glyph}
-                      </span>
-                      <span className="flex-1 truncate text-left">{row.label}</span>
-                      <span className="font-num text-xs text-foreground/55">
-                        {row.kind === "price" && row.price !== null ? yen(row.price) : "価格を見る"}
-                      </span>
-                    </TrackedCta>
-                  ))}
-                </div>
-              )}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                <a href="#store-comparison" className="text-xs font-semibold text-brand hover:underline dark:text-brand-light">
-                  全ショップの価格を比較する ↓
-                </a>
-                {officialShop && (
-                  <TrackedCta
-                    href={officialShop.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-foreground/50 hover:text-foreground"
-                    event="cta_click"
-                    params={{
-                      product_id: product.id,
-                      product_slug: product.slug,
-                      product_name: product.name,
-                      cta_type: "official",
-                      buy_score: product.buy_score,
-                    }}
-                  >
-                    メーカー商品ページ →
-                  </TrackedCta>
-                )}
-              </div>
-              <p className="text-[11px] leading-relaxed text-foreground/35">
-                ※広告・PRを含みます。リンクにはアフィリエイトリンクが含まれ、リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
-              </p>
-            </div>
           </FadeIn>
         </div>
 
@@ -672,6 +698,28 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
           <DataSourceNote />
         </FadeIn>
       </div>
+      {/* room for the pinned buy bar, so it never covers the page's last lines */}
+      {stickyShop && <div aria-hidden="true" className="h-20" />}
+      {stickyShop && (
+        <StickyBuyBar
+          href={stickyShop.url}
+          shopLabel={stickyShop.label}
+          price={stickyPrice !== null ? yen(stickyPrice) : null}
+          isLowest={stickyShop.isLowest}
+          sponsored={stickyShop.sponsored}
+          productName={product.name}
+          trackParams={{
+            product_id: product.id,
+            product_slug: product.slug,
+            product_name: product.name,
+            cta_type: stickyShop.ctaType,
+            shop: stickyShop.key,
+            buy_score: product.buy_score,
+          }}
+          productId={product.id}
+          category={product.category}
+        />
+      )}
     </article>
   );
 }

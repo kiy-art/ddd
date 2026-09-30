@@ -387,6 +387,16 @@ def get_affiliate_click_summary(db: Session) -> schemas.AffiliateClickSummary:
     ).all()
     by_shop = [schemas.ShopClickCount(shop=shop, count=count) for shop, count in by_shop_rows]
 
+    by_placement_rows = db.execute(
+        select(models.AffiliateClick.placement, func.count())
+        .group_by(models.AffiliateClick.placement)
+        .order_by(func.count().desc())
+    ).all()
+    by_placement = [
+        schemas.PlacementClickCount(placement=placement or "unknown", count=count)
+        for placement, count in by_placement_rows
+    ]
+
     top_rows = db.execute(
         select(models.AffiliateClick.product_id, func.count().label("clicks"))
         .where(models.AffiliateClick.product_id.is_not(None))
@@ -426,7 +436,9 @@ def get_affiliate_click_summary(db: Session) -> schemas.AffiliateClickSummary:
             )
         )
 
-    return schemas.AffiliateClickSummary(total=total, by_shop=by_shop, top_products=top_products, recent=recent)
+    return schemas.AffiliateClickSummary(
+        total=total, by_shop=by_shop, by_placement=by_placement, top_products=top_products, recent=recent
+    )
 
 
 # --- Error logs ----------------------------------------------------------------

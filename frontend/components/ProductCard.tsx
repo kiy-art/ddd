@@ -4,13 +4,16 @@ import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
 import CompareButton from "@/components/CompareButton";
+import CtaArrow from "@/components/CtaArrow";
 import FavoriteButton from "@/components/FavoriteButton";
 import MiniPriceRangeBar from "@/components/MiniPriceRangeBar";
 import SafeProductImage from "@/components/SafeProductImage";
+import TrackedCta from "@/components/TrackedCta";
 import { CATEGORY_LABELS, Product } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
 import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
 import { comparePrice } from "@/lib/priceCopy";
+import { shopOf } from "@/lib/shopRows";
 
 // See app/products/[slug]/page.tsx for why this threshold exists: a
 // "30-day average" claim needs more than a day or two of real data behind it.
@@ -61,8 +64,12 @@ export default function ProductCard({ product, listSource }: { product: Product;
         ? comparePrice(product.current_price, product.average_price, "30日平均")
         : null;
   const referencePrice = product.msrp !== null ? product.msrp : product.average_price;
+  // STEP65 (CRO): the shop the card's price came from, one tap away - a
+  // list visitor no longer has to open the product page first to reach it.
+  const shop = product.affiliate_url ? shopOf(product.affiliate_url) : null;
 
   return (
+    <article className="card-lux group flex flex-col overflow-hidden rounded-2xl">
     <Link
       href={`/products/${product.slug}`}
       onClick={() =>
@@ -72,7 +79,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
           list_source: listSource ?? "unknown",
         })
       }
-      className="card-lux group flex flex-col overflow-hidden rounded-2xl"
+      className="flex flex-1 flex-col"
     >
       <div className="relative aspect-[4/3] w-full bg-background">
         <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5">
@@ -193,8 +200,37 @@ export default function ProductCard({ product, listSource }: { product: Product;
           )}
         </div>
 
-        <CompareButton slug={product.slug} />
       </div>
     </Link>
+
+      {/* Outside the product link: a link inside a link is invalid HTML. */}
+      <div className="flex items-center gap-2 px-6 pb-6">
+        {shop && product.affiliate_url && (
+          <TrackedCta
+            href={product.affiliate_url}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            className="btn-shop tap inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 text-[13px] font-semibold"
+            event="cta_click"
+            params={{
+              product_id: product.id,
+              product_slug: product.slug,
+              product_name: product.name,
+              cta_type: "affiliate",
+              shop: shop.key,
+              buy_score: product.buy_score,
+              list_source: listSource ?? "unknown",
+            }}
+            productId={product.id}
+            category={product.category}
+            placement="product_card"
+          >
+            {shop.label}で見る
+            <CtaArrow className="h-3.5 w-3.5" />
+          </TrackedCta>
+        )}
+        <CompareButton slug={product.slug} />
+      </div>
+    </article>
   );
 }

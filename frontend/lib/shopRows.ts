@@ -29,7 +29,7 @@ export type ShopRow = {
   ctaType: "affiliate" | "affiliate_search" | "marketplace_search" | "official";
 };
 
-function shopOf(url: string): { key: ShopKey; label: string } {
+export function shopOf(url: string): { key: ShopKey; label: string } {
   try {
     const host = new URL(url).hostname;
     if (host.includes("rakuten.co.jp")) return { key: "rakuten", label: "楽天市場" };

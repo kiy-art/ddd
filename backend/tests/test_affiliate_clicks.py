@@ -73,6 +73,7 @@ def test_affiliate_click_summary_empty(client, admin_headers):
     data = resp.json()
     assert data["total"] == 0
     assert data["by_shop"] == []
+    assert data["by_placement"] == []
     assert data["top_products"] == []
     assert data["recent"] == []
 
@@ -97,6 +98,9 @@ def test_affiliate_click_summary_aggregates_across_shops_and_products(client, db
 
     by_shop = {row["shop"]: row["count"] for row in data["by_shop"]}
     assert by_shop == {"rakuten": 2, "amazon": 1, "yahoo": 1}
+
+    by_placement = {row["placement"]: row["count"] for row in data["by_placement"]}
+    assert by_placement == {"store_comparison": 2, "product_detail_cta": 1, "compare_table": 1}
 
     # p1 has 3 clicks (most-clicked), p2 has 1
     assert data["top_products"][0]["product_id"] == p1.id

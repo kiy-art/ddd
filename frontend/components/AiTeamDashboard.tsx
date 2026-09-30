@@ -384,6 +384,22 @@ function ShopBars({ byShop }: { byShop: AffiliateClickSummary["by_shop"] }) {
   );
 }
 
+// STEP65: where on the site each shop click came from.
+const PLACEMENT_LABELS: Record<string, string> = {
+  product_detail_cta: "商品ページ・購入ボタン",
+  product_detail_cta_alt: "商品ページ・他ショップ",
+  product_sticky_bar: "画面下の固定ボタン",
+  product_card: "一覧カードのボタン",
+  store_comparison_top: "価格比較・最安バナー",
+  store_comparison: "価格比較・各ショップ",
+  compare_table: "比較ページ",
+  compare_strip: "比較バー",
+  popular_rakuten_ranking: "楽天ランキング",
+  consumables_home: "消耗品（トップ）",
+  consumables_product: "消耗品（商品ページ）",
+  consumables_category: "消耗品（カテゴリ）",
+};
+
 export default function AiTeamDashboard({ token }: { token: string | null }) {
   const { run } = useLiveJobUpdates(token);
   const [clicks, setClicks] = useState<AffiliateClickSummary | null>(null);
@@ -803,6 +819,23 @@ export default function AiTeamDashboard({ token }: { token: string | null }) {
                 <span className="ml-1 text-xs font-normal text-foreground/40">件（累計）</span>
               </p>
               <ShopBars byShop={clicks.by_shop} />
+              {clicks.by_placement && clicks.by_placement.length > 0 && (
+                <div className="mt-2 border-t border-border pt-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground/40">
+                    押された場所
+                  </span>
+                  <ul className="mt-1.5 flex flex-col gap-1">
+                    {clicks.by_placement.slice(0, 8).map((p) => (
+                      <li key={p.placement} className="flex items-center gap-2 text-xs">
+                        <span className="flex-1 truncate text-foreground/70">
+                          {PLACEMENT_LABELS[p.placement] ?? p.placement}
+                        </span>
+                        <span className="shrink-0 font-semibold text-foreground">{p.count}件</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {clicks.top_products.length > 0 && (
                 <div className="mt-2 border-t border-border pt-2">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground/40">

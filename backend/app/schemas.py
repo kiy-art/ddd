@@ -239,6 +239,11 @@ class ShopClickCount(BaseModel):
     count: int
 
 
+class PlacementClickCount(BaseModel):
+    placement: str
+    count: int
+
+
 class ProductClickCount(BaseModel):
     product_id: int
     product_name: str
@@ -249,6 +254,9 @@ class ProductClickCount(BaseModel):
 class AffiliateClickSummary(BaseModel):
     total: int
     by_shop: list[ShopClickCount]
+    # STEP65: which button on the page was clicked (buy box, pinned bar,
+    # list card, ...) - to see which CRO change actually earns clicks.
+    by_placement: list[PlacementClickCount] = []
     top_products: list[ProductClickCount]
     recent: list[AffiliateClickRecentOut]
 
