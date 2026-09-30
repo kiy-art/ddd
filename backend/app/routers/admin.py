@@ -1,14 +1,16 @@
 import dataclasses
+import datetime
 import queue
+import threading
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, product_facts, progress, schemas, self_heal, title_migration, x_post
 from app.auth import require_admin
-from app.database import get_db
+from app.database import SessionLocal, get_db
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -238,8 +240,55 @@ def run_update(db: Session = Depends(get_db)):
     return {"products_checked": updated, "ai_regenerated": regenerated}
 
 
+# STEP66: the daily job now takes longer than one HTTP request should (the
+# catalog grew; every external call is rate-limited), and GitHub Actions'
+# curl gave up after 15 minutes (exit 28) - then its retry started a second
+# full run on top of the first, which was still going server-side. With
+# ?background=true the job runs in a thread and the request returns at
+# once; the workflow polls GET /daily-job/status until it finishes. The
+# lock makes a second start while one is running a no-op in either mode.
+_daily_job_lock = threading.Lock()
+_daily_job_state: dict = {"status": "idle", "started_at": None, "finished_at": None, "result": None, "error": None}
+# Separate from get_db so a background thread opens its own session (a
+# request's session is closed when the request ends); tests point it at
+# their own database.
+_job_session_factory = SessionLocal
+
+
+def _claim_daily_job() -> bool:
+    with _daily_job_lock:
+        if _daily_job_state["status"] == "running":
+            return False
+        _daily_job_state.update(
+            status="running", started_at=datetime.datetime.utcnow().isoformat(), finished_at=None, result=None, error=None
+        )
+        return True
+
+
+def _release_daily_job(result: dict | None, error: str | None) -> None:
+    with _daily_job_lock:
+        _daily_job_state.update(
+            status="failed" if error else "completed",
+            finished_at=datetime.datetime.utcnow().isoformat(),
+            result=result,
+            error=error,
+        )
+
+
+def _daily_job_thread(settings) -> None:
+    db = _job_session_factory()
+    try:
+        result = _run_daily_job(db, settings)
+    except Exception as exc:  # noqa: BLE001 - reported through /daily-job/status
+        _release_daily_job(None, f"{type(exc).__name__}: {exc}")
+    else:
+        _release_daily_job(result, None)
+    finally:
+        db.close()
+
+
 @router.post("/fetch-rakuten")
-def fetch_rakuten(db: Session = Depends(get_db)):
+def fetch_rakuten(background: bool = False, db: Session = Depends(get_db)):
     from app.config import get_settings
 
     settings = get_settings()
@@ -252,7 +301,36 @@ def fetch_rakuten(db: Session = Depends(get_db)):
                 f"access_key_len={len(settings.rakuten_access_key)})"
             ),
         )
+    if not _claim_daily_job():
+        return JSONResponse(status_code=409, content={**_daily_job_snapshot(), "status": "already_running"})
 
+    if background:
+        threading.Thread(target=_daily_job_thread, args=(settings,), daemon=True, name="daily-job").start()
+        return JSONResponse(status_code=202, content={"status": "started"})
+
+    try:
+        result = _run_daily_job(db, settings)
+    except Exception as exc:
+        _release_daily_job(None, f"{type(exc).__name__}: {exc}")
+        raise
+    _release_daily_job(result, None)
+    return result
+
+
+def _daily_job_snapshot() -> dict:
+    with _daily_job_lock:
+        return dict(_daily_job_state)
+
+
+@router.get("/daily-job/status")
+def daily_job_status():
+    """STEP66: idle / running / completed / failed, with the last run's
+    result - what the GitHub Actions workflow polls after starting the job
+    with ?background=true."""
+    return _daily_job_snapshot()
+
+
+def _run_daily_job(db: Session, settings) -> dict:
     # STEP54: everything logged after this point is this run's - the
     # self-heal pass below only looks at those rows.
     heal_since_id = self_heal.latest_watermark(db)

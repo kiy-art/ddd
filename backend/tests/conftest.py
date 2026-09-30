@@ -53,6 +53,18 @@ def _fresh_progress_state():
     progress._current_run = None
 
 
+@pytest.fixture(autouse=True)
+def _fresh_daily_job_state(monkeypatch):
+    # STEP66: routers/admin.py keeps the daily job's running/completed state
+    # at module level and opens its own session for a background run - reset
+    # the state per test and point that session at the test database.
+    from app.routers import admin as admin_router
+
+    admin_router._daily_job_state.update(status="idle", started_at=None, finished_at=None, result=None, error=None)
+    monkeypatch.setattr(admin_router, "_job_session_factory", TestingSessionLocal)
+    yield
+
+
 def _override_get_db():
     db = TestingSessionLocal()
     try:
