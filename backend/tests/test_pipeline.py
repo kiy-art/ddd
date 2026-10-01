@@ -337,6 +337,7 @@ def test_fetch_yahoo_prices_never_touches_rakuten_sourced_fields(db_session, mon
 
 def test_fetch_yahoo_prices_wraps_affiliate_url_when_configured(db_session, monkeypatch):
     monkeypatch.setenv("YAHOO_AFFILIATE_ID", "test-sid-123")
+    monkeypatch.setenv("YAHOO_AFFILIATE_PID", "test-pid-456")  # STEP67: both are required
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -352,7 +353,9 @@ def test_fetch_yahoo_prices_wraps_affiliate_url_when_configured(db_session, monk
         pipeline.fetch_yahoo_prices(db_session)
 
         db_session.refresh(product)
-        assert product.yahoo_url.startswith("https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=test-sid-123")
+        assert product.yahoo_url.startswith(
+            "https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=test-sid-123&pid=test-pid-456&vc_url="
+        )
     finally:
         get_settings.cache_clear()
 

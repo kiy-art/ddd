@@ -167,15 +167,27 @@ def test_to_affiliate_url_returns_none_when_not_configured(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_to_affiliate_url_needs_both_sid_and_pid(monkeypatch):
+    # STEP67: a MyLink with an empty pid isn't credited by ValueCommerce.
+    monkeypatch.setenv("YAHOO_AFFILIATE_ID", "3123456")
+    monkeypatch.setenv("YAHOO_AFFILIATE_PID", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    assert yahoo.to_affiliate_url("https://store.shopping.yahoo.co.jp/example/g440.html") is None
+    get_settings.cache_clear()
+
+
 def test_to_affiliate_url_wraps_the_item_url_with_the_configured_id(monkeypatch):
-    monkeypatch.setenv("YAHOO_AFFILIATE_ID", "test-sid-123")
+    monkeypatch.setenv("YAHOO_AFFILIATE_ID", "3123456")
+    monkeypatch.setenv("YAHOO_AFFILIATE_PID", "887654321")
     from app.config import get_settings
 
     get_settings.cache_clear()
 
     result = yahoo.to_affiliate_url("https://store.shopping.yahoo.co.jp/example/g440.html")
     assert result is not None
-    assert result.startswith("https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=test-sid-123")
+    assert result.startswith("https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=3123456&pid=887654321&vc_url=")
     assert "store.shopping.yahoo.co.jp%2Fexample%2Fg440.html" in result
 
     get_settings.cache_clear()

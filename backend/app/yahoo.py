@@ -55,14 +55,17 @@ class YahooSearchResult:
 
 def to_affiliate_url(item_url: str) -> str | None:
     """Wraps a plain Yahoo!ショッピング item URL in this site's ValueCommerce
-    affiliate tracking link. Returns None (caller keeps the plain URL) when
-    YAHOO_AFFILIATE_ID isn't set - that's a separate, manual registration
-    step (ValueCommerce or Yahoo!アフィリエイト), same as Rakuten Affiliate."""
+    affiliate tracking link (MyLink). Returns None (caller keeps the plain
+    URL) unless both YAHOO_AFFILIATE_ID (sid) and YAHOO_AFFILIATE_PID (pid)
+    are set - STEP67: the pid used to be sent empty, which ValueCommerce
+    doesn't credit, so a half-configured link is never emitted."""
     settings = get_settings()
-    if not settings.yahoo_affiliate_id:
+    sid = settings.yahoo_affiliate_id.strip()
+    pid = settings.yahoo_affiliate_pid.strip()
+    if not sid or not pid:
         return None
     encoded = urllib.parse.quote(item_url, safe="")
-    return f"{AFFILIATE_LINK_BASE}?sid={settings.yahoo_affiliate_id}&pid=&vc_url={encoded}"
+    return f"{AFFILIATE_LINK_BASE}?sid={urllib.parse.quote(sid)}&pid={urllib.parse.quote(pid)}&vc_url={encoded}"
 
 
 def _item_to_result(item: dict) -> YahooSearchResult:

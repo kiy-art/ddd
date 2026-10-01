@@ -45,7 +45,10 @@ services:
         sync: false
       - key: YAHOO_CLIENT_ID
         sync: false
+      # ValueCommerce MyLink IDs for Yahoo!ショッピング: sid and pid (STEP67).
       - key: YAHOO_AFFILIATE_ID
+        sync: false
+      - key: YAHOO_AFFILIATE_PID
         sync: false
       # GA4 Data API + Search Console API (see README section 6) - power
       # /admin/analytics and the STEP42 autonomous content-optimization
@@ -116,6 +119,13 @@ services:
       # 何も収集されない（lib/analytics.ts参照）。sync: falseのため
       # 実際の値はRenderダッシュボードで設定する。
       - key: NEXT_PUBLIC_GA_MEASUREMENT_ID
+        sync: false
+      # STEP67: ValueCommerce MyLink IDs (same values as the backend's
+      # YAHOO_AFFILIATE_ID / YAHOO_AFFILIATE_PID) - wraps the Yahoo!ショッピング
+      # search links. Baked in at build time, like every NEXT_PUBLIC_* var.
+      - key: NEXT_PUBLIC_VC_SID
+        sync: false
+      - key: NEXT_PUBLIC_VC_PID
         sync: false
       - key: NEXT_PUBLIC_AMAZON_AFFILIATE_TAG
         sync: false

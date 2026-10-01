@@ -16,7 +16,13 @@ class Settings(BaseSettings):
     rakuten_referer: str = "https://golf-deals-backend.onrender.com"
     rakuten_affiliate_id: str = ""
     yahoo_client_id: str = ""
+    # ValueCommerce MyLink for Yahoo!ショッピング: sid = this site's ID,
+    # pid = the Yahoo!ショッピング program's ID for this site (both shown in
+    # any MyLink code ValueCommerce generates: ...referral?sid=XXX&pid=YYY).
+    # Both are public (they appear in every link). A link with an empty pid
+    # isn't credited, so nothing is wrapped until both are set.
     yahoo_affiliate_id: str = ""
+    yahoo_affiliate_pid: str = ""
     resend_api_key: str = ""
     # Resend's own shared sending address - works with zero setup (no
     # domain verification, no cost) on the free plan, which is exactly why

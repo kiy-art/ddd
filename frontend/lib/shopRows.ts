@@ -1,7 +1,7 @@
 import { getAmazonSearchUrl } from "@/lib/amazon";
 import type { Product } from "@/lib/api";
 import { getLowestOffer, getShopOffers, parseUtc, type ShopOffer } from "@/lib/shopOffers";
-import { getYahooSearchUrl } from "@/lib/yahoo";
+import { YAHOO_SEARCH_IS_AFFILIATE, getYahooSearchUrl } from "@/lib/yahoo";
 
 // STEP57: every shop link on the product page - the hero's buy buttons and
 // the store comparison board - is built from this one list, so both always
@@ -123,12 +123,13 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
       url: getYahooSearchUrl(product.name),
       price: null,
       kind: "search",
-      sponsored: false, // plain search URL, no affiliate tag (lib/yahoo.ts)
+      // A MyLink once ValueCommerce's sid/pid are set (lib/yahoo.ts), else a plain search URL.
+      sponsored: YAHOO_SEARCH_IS_AFFILIATE,
       updatedAt: null,
       isLowest: false,
       note: "出品一覧から価格を確認できます",
       cta: "Yahoo!で価格をチェック",
-      ctaType: "marketplace_search",
+      ctaType: YAHOO_SEARCH_IS_AFFILIATE ? "affiliate_search" : "marketplace_search",
     });
   }
   if (product.product_url && product.product_url !== product.affiliate_url) {
