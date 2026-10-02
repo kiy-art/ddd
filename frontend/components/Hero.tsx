@@ -47,8 +47,7 @@ export default function Hero({
             </span>
           </h1>
           <p className="max-w-md text-base leading-relaxed text-foreground/65 sm:text-lg">
-            「最安値」を探すサイトではありません。過去の価格データを毎日分析し、
-            「今が買い時か」をスコアでお伝えします。
+            過去の価格データを毎日分析し、「今が買い時か」をスコアでお伝えします。
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Link href="#best-buy" className="btn-shop rounded-full px-7 py-3.5 text-sm font-semibold">
