@@ -34,6 +34,7 @@ import LiveJobDashboard from "@/components/LiveJobDashboard";
 
 const OPTIMIZATION_ACTION_LABELS: Record<string, string> = {
   rewrite_product: "商品説明のリライト",
+  retitle_product: "検索タイトルの最適化",
   new_guide: "新規ガイド作成",
   reorder_homepage: "トップページ注目商品の入れ替え",
 };
@@ -872,7 +873,7 @@ export default function AdminDashboard() {
                     </span>
                   </p>
                 )}
-                {action.action_type === "rewrite_product" && action.status === "applied" && (
+                {(action.action_type === "rewrite_product" || action.action_type === "retitle_product") && action.status === "applied" && (
                   <button
                     onClick={() => handleRevertAction(action.id)}
                     disabled={busy}

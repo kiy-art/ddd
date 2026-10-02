@@ -94,6 +94,7 @@ const SHOP_LABELS: Record<string, string> = {
 
 const OPTIMIZATION_ACTION_SHORT_LABELS: Record<string, string> = {
   rewrite_product: "商品説明リライト",
+  retitle_product: "検索タイトルの最適化",
   new_guide: "新規ガイド作成",
   reorder_homepage: "注目商品の入れ替え",
 };

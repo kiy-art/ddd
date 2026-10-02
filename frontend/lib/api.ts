@@ -22,6 +22,8 @@ export interface Product {
   // STEP61: seller-stated specs parsed from the matched Rakuten listing
   // ({loft: "9°/10.5°", shaft: "..."}) - labels in lib/productSpecs.ts.
   specs?: Record<string, string>;
+  // STEP68: search intent the <title> leads with (lib/productSeo.ts)
+  seo_title_intent?: string | null;
   popularity_rank: number | null;
   popularity_updated_at: string | null;
   yahoo_price: number | null;
@@ -706,7 +708,7 @@ export function adminGetXPostPreview(token: string) {
 
 export interface AiOptimizationAction {
   id: number;
-  action_type: "rewrite_product" | "new_guide" | "reorder_homepage";
+  action_type: "rewrite_product" | "new_guide" | "reorder_homepage" | "retitle_product";
   target_path: string;
   product_id: number | null;
   guide_slug: string | null;

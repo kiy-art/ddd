@@ -525,6 +525,26 @@ class OptimizationActionNotRevertible(Exception):
     pass
 
 
+def _revert_retitle(db: Session, action: models.AiOptimizationAction, reason: str) -> models.AiOptimizationAction:
+    """STEP68: a retitle only changed product.seo_title_intent - put the
+    previous key back (only if the title is still this action's)."""
+    import json as _json
+
+    product = db.get(models.Product, action.product_id) if action.product_id else None
+    if product is None:
+        raise OptimizationActionNotRevertible("The product this action changed no longer exists")
+    before = _json.loads(action.content_before or "{}").get("seo_title_intent")
+    after = _json.loads(action.content_after or "{}").get("seo_title_intent")
+    if product.seo_title_intent == after:
+        product.seo_title_intent = before
+    action.reverted_at = datetime.datetime.utcnow()
+    action.status = "reverted"
+    action.revert_reason = reason
+    db.commit()
+    db.refresh(action)
+    return action
+
+
 def revert_optimization_action(db: Session, action_id: int, reason: str = "manual") -> models.AiOptimizationAction:
     """Restores the product's ai_title/ai_summary/ai_caution from the
     action's own content_before snapshot - the concrete "if it was wrong,
@@ -538,6 +558,8 @@ def revert_optimization_action(db: Session, action_id: int, reason: str = "manua
     action = db.get(models.AiOptimizationAction, action_id)
     if action is None:
         raise ValueError("Optimization action not found")
+    if action.action_type == "retitle_product" and action.status == "applied" and action.reverted_at is None:
+        return _revert_retitle(db, action, reason)
     if action.action_type != "rewrite_product" or action.status != "applied":
         raise OptimizationActionNotRevertible("Only an applied rewrite_product action can be reverted")
     if action.reverted_at is not None:

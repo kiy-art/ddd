@@ -51,6 +51,7 @@ ADDED_COLUMNS = [
     ("products", "yahoo_checked_at", "TIMESTAMP"),
     ("products", "specs_json", "TEXT"),
     ("products", "ai_copy_source_action_id", "INTEGER"),
+    ("products", "seo_title_intent", "VARCHAR(20)"),
     ("ai_optimization_actions", "revert_reason", "VARCHAR(30)"),
 ]
 

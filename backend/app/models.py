@@ -132,6 +132,10 @@ class Product(Base):
     # copy the next day), and lets evaluate_past_actions tell whether the
     # copy it's measuring is still the one that decision produced.
     ai_copy_source_action_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # STEP68: which search intent this page's <title> leads with (an
+    # app/seo_intent.py key, set by content_optimizer's retitle action from
+    # real Search Console queries). None = the default title.
+    seo_title_intent: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     # STEP61: the seller's stated specs (loft, shaft, ...) as a JSON object
     # {spec key: value as written}, parsed from the matched Rakuten

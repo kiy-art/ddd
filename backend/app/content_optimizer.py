@@ -23,7 +23,7 @@ import re
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import ai, content_metrics, content_rewriter, crud, models, pipeline, search_console
+from app import ai, content_metrics, content_rewriter, crud, models, pipeline, search_console, seo_intent
 from app.brands import match_brand
 from app.config import get_settings
 
@@ -47,6 +47,10 @@ MIN_BASELINE_SEARCH_IMPRESSIONS = 20
 # hasn't been measured yet (see evaluate_past_actions) - otherwise the
 # loop could churn the same page's copy every single day.
 REWRITE_COOLDOWN_DAYS = 7
+# STEP68: <title> retitles from real search queries are free (no Claude
+# call, a fixed phrase per intent), so they're outside DAILY_ACTION_CAP -
+# but still capped, so one day's changes stay reviewable.
+RETITLE_DAILY_CAP = 10
 
 TRENDING_LOOKBACK_DAYS = 7
 TRENDING_LIMIT = 6
@@ -489,6 +493,57 @@ def _apply_product_rewrite(db: Session, opportunity: ImprovementOpportunity) -> 
     return action
 
 
+def _recent_retitle_exists(db: Session, product_id: int) -> bool:
+    cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=REWRITE_COOLDOWN_DAYS)
+    return (
+        db.execute(
+            select(models.AiOptimizationAction.id).where(
+                models.AiOptimizationAction.product_id == product_id,
+                models.AiOptimizationAction.action_type == "retitle_product",
+                models.AiOptimizationAction.status == "applied",
+                models.AiOptimizationAction.created_at >= cutoff,
+            )
+        ).first()
+        is not None
+    )
+
+
+def _apply_seo_retitle(db: Session, opportunity: ImprovementOpportunity) -> models.AiOptimizationAction | None:
+    """STEP68: point the page's <title> at what its real searchers want.
+
+    Reads the page's real Search Console queries, picks the clearly leading
+    intent (app/seo_intent.py) and stores it as product.seo_title_intent -
+    the frontend turns that key into a fixed, truthful phrase. Returns None
+    (no action) when there's no clear intent, it's already the current one,
+    or the page was retitled within the cooldown."""
+    product = opportunity.product
+    if _recent_retitle_exists(db, product.id):
+        return None
+    queries = _real_queries_for(db, product)
+    intent, totals = seo_intent.dominant_intent(queries)
+    current = product.seo_title_intent or seo_intent.DEFAULT_INTENT
+    if intent is None or intent == current:
+        return None
+    breakdown = "・".join(f"{k} {v}回" for k, v in sorted(totals.items(), key=lambda kv: -kv[1]))
+    action = models.AiOptimizationAction(
+        action_type="retitle_product",
+        target_path=f"/products/{product.slug}",
+        product_id=product.id,
+        decision_basis=(
+            f"{opportunity.decision_basis}【検索意図】実際の検索クエリの表示回数（{breakdown}）から"
+            f"「{intent}」が最多のため、タイトルの訴求をそれに合わせて変更"
+        ),
+        content_before=json.dumps({"seo_title_intent": product.seo_title_intent}, ensure_ascii=False),
+        content_after=json.dumps({"seo_title_intent": intent, "queries": queries}, ensure_ascii=False),
+        status="applied",
+    )
+    db.add(action)
+    product.seo_title_intent = intent
+    db.commit()
+    db.refresh(action)
+    return action
+
+
 def _apply_new_guide(db: Session, opportunity: GuideOpportunity) -> models.AiOptimizationAction:
     basis = f"検索クエリ「{opportunity.query_text}」（インプレッション{opportunity.impressions}件）に対応する既存ガイドが無いため新規作成"
     try:
@@ -552,6 +607,11 @@ def _evaluate_content_action(db: Session, action: models.AiOptimizationAction) -
     both the before and after numbers rest on enough real traffic to act on
     automatically (STEP44 auto-revert) - the verdict itself is recorded
     either way, as knowledge."""
+    if action.action_type == "retitle_product":
+        product = db.get(models.Product, action.product_id) if action.product_id else None
+        applied = json.loads(action.content_after or "{}").get("seo_title_intent")
+        if product is None or product.seo_title_intent != applied:
+            return ("評価期間中にタイトルが別の変更で置き換わったため、この施策単独の効果は判定できません", "inconclusive", False)
     if action.action_type == "rewrite_product":
         product = db.get(models.Product, action.product_id) if action.product_id else None
         if product is None or product.ai_copy_source_action_id != action.id:
@@ -682,6 +742,28 @@ def _auto_revert_worse_rewrite(db: Session, action: models.AiOptimizationAction)
     return True
 
 
+def _auto_revert_worse_retitle(db: Session, action: models.AiOptimizationAction) -> bool:
+    """STEP68: put a retitle judged "worse" back - just the stored intent
+    key, no regeneration and so no Claude call."""
+    try:
+        crud.revert_optimization_action(db, action.id, reason="auto_worse")
+    except Exception as exc:  # noqa: BLE001 - one failed revert must not stop the daily run
+        db.rollback()
+        crud.create_error_log(
+            db, source="content_optimizer", product_id=action.product_id,
+            message=f"Auto-revert of optimization action {action.id} failed: {exc}",
+        )
+        return False
+    db.refresh(action)
+    action.effect_summary = f"{action.effect_summary} → 悪化と判定したため自動でタイトルを元に戻しました"
+    db.commit()
+    crud.create_error_log(
+        db, source="content_optimizer", level="warning", product_id=action.product_id,
+        message=f"自動差し戻し: {action.target_path} のタイトル変更を元に戻しました（{action.effect_summary}）",
+    )
+    return True
+
+
 def evaluate_past_actions(db: Session, delay_days: int = EFFECT_EVALUATION_DELAY_DAYS) -> EvaluationRunResult:
     """Fills in effect_summary/effect_verdict on any applied action old
     enough to judge, using real snapshot/click data from before vs after -
@@ -713,17 +795,22 @@ def evaluate_past_actions(db: Session, delay_days: int = EFFECT_EVALUATION_DELAY
         summary, verdict, sample_sufficient = result
         action.effect_evaluated_at = datetime.datetime.utcnow()
         action.effect_verdict = verdict
-        if verdict == "worse" and action.action_type == "rewrite_product" and not sample_sufficient:
+        revertible = action.action_type in ("rewrite_product", "retitle_product")
+        if verdict == "worse" and revertible and not sample_sufficient:
             summary += "（サンプル数が少ないため自動では元に戻していません）"
         action.effect_summary = summary
         evaluated += 1
-        if verdict == "worse" and action.action_type == "rewrite_product" and sample_sufficient:
+        if verdict == "worse" and revertible and sample_sufficient:
             to_revert.append(action)
 
     if evaluated:
         db.commit()
 
-    auto_reverted = [action for action in to_revert if _auto_revert_worse_rewrite(db, action)]
+    auto_reverted = [
+        action
+        for action in to_revert
+        if (_auto_revert_worse_retitle(db, action) if action.action_type == "retitle_product" else _auto_revert_worse_rewrite(db, action))
+    ]
     return EvaluationRunResult(evaluated=evaluated, auto_reverted=auto_reverted)
 
 
@@ -738,13 +825,28 @@ def run_daily_optimization(db: Session) -> OptimizationRunResult:
         actions.append(_apply_homepage_reorder(db, trending))
 
     # Each auto-revert's routine regeneration may have spent a Claude call -
-    # it comes out of the same approved daily budget.
-    remaining = DAILY_ACTION_CAP - len(evaluation.auto_reverted)
-    for opportunity in find_improvement_opportunities(db):
+    # it comes out of the same approved daily budget. A retitle revert
+    # costs nothing, so it doesn't count.
+    remaining = DAILY_ACTION_CAP - sum(1 for a in evaluation.auto_reverted if a.action_type == "rewrite_product")
+    opportunities = find_improvement_opportunities(db)
+    for opportunity in opportunities:
         if remaining <= 0:
             break
         actions.append(_apply_product_rewrite(db, opportunity))
         remaining -= 1
+
+    # STEP68: free <title> retitles for the search-CTR opportunities, from
+    # each page's real Search Console queries.
+    retitled = 0
+    for opportunity in opportunities:
+        if retitled >= RETITLE_DAILY_CAP:
+            break
+        if opportunity.goal != GOAL_SEARCH_CTR:
+            continue
+        retitle = _apply_seo_retitle(db, opportunity)
+        if retitle is not None:
+            actions.append(retitle)
+            retitled += 1
 
     if remaining > 0:
         for opportunity in find_new_guide_opportunities(db):

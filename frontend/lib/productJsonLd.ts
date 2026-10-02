@@ -21,6 +21,7 @@
 
 import type { ProductDetail } from "@/lib/api";
 import { normalizeImageUrl } from "@/lib/imageUrl";
+import { getShopOffers } from "@/lib/shopOffers";
 
 // sku must be a stable, unique, non-empty ASCII string. model_number is not
 // that (shared across colour/loft variants, may be empty or contain spaces
@@ -73,12 +74,17 @@ export function buildProductJsonLd({
       : photo
     : `${pageUrl}/opengraph-image`;
 
-  const prices: number[] = [];
-  if (product.current_price !== null) prices.push(product.current_price);
-  if (product.yahoo_price !== null && product.yahoo_url) prices.push(product.yahoo_price);
-
   const lastRecordedAt =
     product.price_history.length > 0 ? product.price_history[product.price_history.length - 1].recorded_at : null;
+
+  // STEP68: the same prices the page shows (lib/shopOffers.ts - only shops
+  // with a price fetched in the last few days), so the markup never states
+  // a lower price than the visible page does (Google requires structured
+  // data to match the page). With no fresh offer, the page shows Rakuten's
+  // current price, and so does this.
+  const offerPrices = getShopOffers(product, lastRecordedAt, now.getTime()).map((offer) => offer.price);
+  const prices: number[] =
+    offerPrices.length > 0 ? offerPrices : product.current_price !== null ? [product.current_price] : [];
   // validFrom: when this price was actually recorded (the last real price
   // fetch) - not "now", which would claim a price was checked at render
   // time when it wasn't.

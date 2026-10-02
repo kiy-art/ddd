@@ -30,6 +30,7 @@ import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { MODEL_CYCLE_DISCLAIMER, MODEL_CYCLE_FACT_NOTE, getModelCycleInsight } from "@/lib/modelCycle";
 import { normalizeImageUrl } from "@/lib/imageUrl";
 import { buildProductJsonLd } from "@/lib/productJsonLd";
+import { productSeoDescription, productSeoTitle } from "@/lib/productSeo";
 import { getLowestOffer, getShopOffers } from "@/lib/shopOffers";
 import { SHOP_MARKS, buildShopBoard } from "@/lib/shopRows";
 import { SITE_URL } from "@/lib/siteUrl";
@@ -72,20 +73,6 @@ function yen(value: number | null): string {
 // and were never written with search intent in mind ("最安値", "買い時判定",
 // "安くなる時期"), so preferring them for metadata would silently make every
 // AI-enriched product's SEO worse than a brand-new, not-yet-processed one's.
-function seoTitle(product: Product): string {
-  // No manual "- PAR." suffix: the root layout's title.template
-  // ("%s | PAR.") already appends the brand to every page title, so
-  // adding it here too would show it twice in the tab title/SERP snippet.
-  const modelPart = product.model_number ? ` ${product.model_number}` : "";
-  return `${product.brand} ${product.name}${modelPart}の最安値・買い時判定｜価格推移とAI予測`;
-}
-
-function seoDescription(product: Product): string {
-  const lowestPart = product.lowest_price !== null ? `（過去最安値 ${yen(product.lowest_price)}）` : "";
-  const currentPart = product.current_price !== null ? yen(product.current_price) : "価格情報";
-  return `${product.brand} ${product.name}の価格推移${lowestPart}をもとに、今が買い時かをAIが分析。値下がりしやすい時期の目安も掲載しています。現在価格は${currentPart}です。`;
-}
-
 async function loadProduct(slug: string) {
   try {
     return await getProduct(slug);
@@ -101,15 +88,15 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
   const siteUrl = SITE_URL;
   const url = `${siteUrl}/products/${product.slug}`;
-  const title = seoTitle(product);
-  const description = seoDescription(product);
-  // openGraph/twitter titles aren't run through the root layout's
-  // title.template ("%s | PAR.") the way the <title> field is, so the
-  // brand needs to be appended explicitly here to match.
-  const ogTitle = `${title} - PAR.`;
+  // STEP68: the full title already ends with the site name, so it's set
+  // as `absolute` - the root layout's title.template ("%s | PAR.") would
+  // otherwise add the brand a second time.
+  const title = productSeoTitle(product);
+  const description = productSeoDescription(product);
+  const ogTitle = title;
 
   return {
-    title,
+    title: { absolute: title },
     description,
     alternates: { canonical: url },
     openGraph: {
@@ -225,7 +212,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
   // Product markup (product-snippet shape - see lib/productJsonLd.ts for
   // why this is an AggregateOffer and carries no shipping/return policy).
-  const jsonLd = buildProductJsonLd({ product, siteUrl, description: seoDescription(product) });
+  const jsonLd = buildProductJsonLd({ product, siteUrl, description: productSeoDescription(product) });
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
