@@ -31,3 +31,24 @@ export function categoryHref(category: string, params: { sort?: string | null; b
   const query = qs.toString();
   return `/category/${category}${query ? `?${query}` : ""}`;
 }
+
+// STEP69: the brand x category page URL (/category/driver/ping). Brands
+// are stored as canonical English names (backend app/brands.py), so a
+// lowercase ASCII slug is stable; anything else falls back to encoding.
+export function brandSlug(brand: string): string {
+  const slug = brand
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || encodeURIComponent(brand.trim());
+}
+
+export function brandCategoryHref(category: string, brand: string, sort?: string | null): string {
+  const base = `/category/${category}/${brandSlug(brand)}`;
+  return sort && sort !== "discount" ? `${base}?sort=${sort}` : base;
+}
+
+// Fewer than this and the page is too thin to be worth a search result
+// of its own (still reachable, but noindex and left out of the sitemap).
+export const BRAND_PAGE_MIN_PRODUCTS = 2;

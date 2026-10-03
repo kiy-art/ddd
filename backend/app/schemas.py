@@ -120,11 +120,19 @@ class BrandSummary(BaseModel):
 
 class SiteStats(BaseModel):
     published_products: int
+    # STEP69: whether a visitor who sets a price alert will really get the
+    # email (see email.can_email_visitors) - the forms are hidden otherwise.
+    price_alerts_enabled: bool = False
 
 
 class SitemapProduct(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     slug: str
     updated_at: datetime.datetime
+    brand: str
+    category: str
+    current_price: int | None = None
 
 
 class BrandPriceMover(BaseModel):

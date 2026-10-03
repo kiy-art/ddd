@@ -161,6 +161,8 @@ export function getCategoryProducts(category: string, init?: RequestInit, limit:
 // so the length of one page is not the total).
 export interface SiteStats {
   published_products: number;
+  // STEP69: a price alert email can really reach a visitor
+  price_alerts_enabled?: boolean;
 }
 
 export function getSiteStats() {
@@ -168,8 +170,16 @@ export function getSiteStats() {
 }
 
 // Every published product's slug, for the sitemap.
+export interface SitemapProduct {
+  slug: string;
+  updated_at: string;
+  brand: string;
+  category: string;
+  current_price: number | null;
+}
+
 export function getSitemapProducts() {
-  return apiFetch<{ slug: string; updated_at: string }[]>("/api/sitemap/products");
+  return apiFetch<SitemapProduct[]>("/api/sitemap/products");
 }
 
 // --- STEP42: autonomous content-optimization loop -----------------------

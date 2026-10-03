@@ -19,7 +19,7 @@ def test_stats_counts_every_published_product_not_one_page(client, db_session):
     db_session.commit()
 
     assert len(client.get("/api/products").json()) == 50  # one page only
-    assert client.get("/api/stats").json() == {"published_products": 60}
+    assert client.get("/api/stats").json()["published_products"] == 60
 
 
 def test_sitemap_products_lists_all_published_slugs(client, db_session):
@@ -53,3 +53,19 @@ def test_accessory_category_pages_list_approved_products_without_a_score_yet(cli
     assert gloves == [glove.slug]  # approved but unscored: listed; pending: never
     # Club pages keep the "scored products only" rule.
     assert unscored_driver.slug not in [p["slug"] for p in client.get("/api/categories/driver").json()]
+
+
+def test_price_alerts_are_only_offered_when_visitor_mail_can_be_delivered(client, monkeypatch):
+    from app.config import get_settings
+
+    cases = [
+        ("", "PAR. <alerts@par-gear.com>", False),  # no API key
+        ("re_test", "PAR. <onboarding@resend.dev>", False),  # shared test sender: owner-only delivery
+        ("re_test", "PAR. <alerts@par-gear.com>", True),
+    ]
+    for key, sender, expected in cases:
+        monkeypatch.setenv("RESEND_API_KEY", key)
+        monkeypatch.setenv("RESEND_FROM_EMAIL", sender)
+        get_settings.cache_clear()
+        assert client.get("/api/stats").json()["price_alerts_enabled"] is expected
+    get_settings.cache_clear()

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
+import BrandFilterNav from "@/components/BrandFilterNav";
 import CategoryGuide from "@/components/CategoryGuide";
 import ConsumablesCorner from "@/components/ConsumablesCorner";
 import CuratedPickCard from "@/components/CuratedPickCard";
@@ -9,23 +10,15 @@ import FadeIn from "@/components/FadeIn";
 import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
-import { brandCounts, categoryHref, selectedBrand } from "@/lib/brandFilter";
+import { brandCategoryHref, brandCounts, categoryHref, selectedBrand } from "@/lib/brandFilter";
 import { curateTodaysPicks } from "@/lib/curatePicks";
 import { GUIDES } from "@/lib/guides";
+import { SORT_LABELS, SORT_OPTIONS, type SortOption, isSortOption, sortProducts } from "@/lib/productSort";
 import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
 
 type Params = { category: string };
-
-const SORT_OPTIONS = ["discount", "signal", "price_asc"] as const;
-type SortOption = (typeof SORT_OPTIONS)[number];
-
-const SORT_LABELS: Record<SortOption, string> = {
-  discount: "値下がり幅順",
-  signal: "買い時順",
-  price_asc: "価格が安い順",
-};
 
 // STEP63: the consumables corner items (app/consumables_catalog.py) that
 // belong on a category page - the gloves and tees/care items shown under
@@ -35,22 +28,6 @@ const CATEGORY_CONSUMABLE_KINDS: Record<string, string[]> = {
   glove: ["glove"],
   other: ["tee", "care"],
 };
-
-function isSortOption(value: string | undefined): value is SortOption {
-  return !!value && (SORT_OPTIONS as readonly string[]).includes(value);
-}
-
-function sortProducts(products: Product[], sort: SortOption): Product[] {
-  const list = [...products];
-  if (sort === "signal") {
-    return list.sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1));
-  }
-  if (sort === "price_asc") {
-    return list.sort((a, b) => (a.current_price ?? Infinity) - (b.current_price ?? Infinity));
-  }
-  // "discount": already the API's default order (price_change_percent ascending), kept as-is
-  return list;
-}
 
 export function generateStaticParams() {
   return CATEGORIES.map((category) => ({ category }));
@@ -106,9 +83,10 @@ export default async function CategoryPage({
   }
 
   const brands = brandCounts(products);
+  // STEP69: the old ?brand= filter moved to its own page per maker.
   const brand = selectedBrand(brandParam, brands);
-  const listedProducts = brand ? products.filter((p) => p.brand === brand) : products;
-  const sortedProducts = sortProducts(listedProducts, sort);
+  if (brand) permanentRedirect(brandCategoryHref(category, brand, sort));
+  const sortedProducts = sortProducts(products, sort);
 
   const droppedRecently = products.filter(
     (p) => p.current_price !== null && p.previous_price !== null && p.current_price < p.previous_price
@@ -157,40 +135,14 @@ export default async function CategoryPage({
             </p>
           ) : (
             <>
-              {/* STEP64: maker filter - only when there's more than one maker to pick. */}
-              {brands.length > 1 && (
-                <nav aria-label="メーカーで絞り込む" className="mb-5">
-                  <span className="text-xs text-foreground/45">メーカー:</span>
-                  <div className="-mx-6 mt-2 flex gap-2 overflow-x-auto px-6 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-                    {[{ brand: null as string | null, count: products.length }, ...brands].map((entry) => {
-                      const active = entry.brand === brand;
-                      return (
-                        <Link
-                          key={entry.brand ?? "all"}
-                          href={categoryHref(category, { sort, brand: entry.brand })}
-                          scroll={false}
-                          aria-current={active ? "page" : undefined}
-                          className={`tap shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                            active
-                              ? "border-brand bg-brand text-on-brand"
-                              : "border-border bg-background text-foreground/65 hover:border-brand/40 hover:text-brand"
-                          }`}
-                        >
-                          {entry.brand ?? "すべて"}
-                          <span className={`ml-1 font-num ${active ? "text-on-brand/80" : "text-foreground/35"}`}>{entry.count}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </nav>
-              )}
+              <BrandFilterNav category={category} brands={brands} activeBrand={null} totalCount={products.length} sort={sort} />
 
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-foreground/45">並び替え:</span>
                 {SORT_OPTIONS.map((opt) => (
                   <Link
                     key={opt}
-                    href={categoryHref(category, { sort: opt, brand })}
+                    href={categoryHref(category, { sort: opt })}
                     scroll={false}
                     className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                       sort === opt
@@ -202,20 +154,6 @@ export default async function CategoryPage({
                   </Link>
                 ))}
               </div>
-
-              {brand && (
-                <p className="mt-5 text-sm text-foreground/60">
-                  <span className="font-semibold text-foreground">{brand}</span>の{categoryLabel}：
-                  <span className="font-num font-semibold text-foreground">{listedProducts.length}</span>点
-                  <Link
-                    href={categoryHref(category, { sort, brand: null })}
-                    scroll={false}
-                    className="ml-3 text-xs font-semibold text-brand hover:underline"
-                  >
-                    絞り込みを解除
-                  </Link>
-                </p>
-              )}
 
               <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {sortedProducts.map((product, i) => (

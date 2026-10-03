@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import consumables_merchandiser, crud, models, popularity, schemas
+from app import consumables_merchandiser, crud, email, models, popularity, schemas
 from app.database import get_db
 from app.models import CATEGORIES
 
@@ -58,13 +58,16 @@ def list_products(
 def site_stats(db: Session = Depends(get_db)):
     """The homepage's "掲載中の商品" number - the real total, not the length
     of one paginated /products page."""
-    return schemas.SiteStats(published_products=crud.count_published_products(db))
+    return schemas.SiteStats(
+        published_products=crud.count_published_products(db),
+        price_alerts_enabled=email.can_email_visitors(),
+    )
 
 
 @router.get("/sitemap/products", response_model=list[schemas.SitemapProduct])
 def sitemap_products(db: Session = Depends(get_db)):
     """Every published product's slug + updated_at, for app/sitemap.ts."""
-    return [schemas.SitemapProduct(slug=s, updated_at=u) for s, u in crud.list_published_slugs(db)]
+    return crud.list_published_slugs(db)
 
 
 @router.get("/brands", response_model=list[schemas.BrandSummary])

@@ -20,6 +20,21 @@ class ResendNotConfigured(Exception):
     pass
 
 
+# Resend's shared test sender only delivers to the Resend account owner's
+# own address - fine for the daily report to the president, but a
+# visitor's price-alert email would never arrive. STEP69.
+_SHARED_TEST_SENDER_DOMAIN = "resend.dev"
+
+
+def can_email_visitors() -> bool:
+    """True when mail to an arbitrary visitor can really be delivered: an
+    API key is set and the sender is on a domain verified in Resend (i.e.
+    not the shared onboarding@resend.dev test address)."""
+    settings = get_settings()
+    sender = settings.resend_from_email.strip().lower()
+    return bool(settings.resend_api_key) and bool(sender) and _SHARED_TEST_SENDER_DOMAIN not in sender
+
+
 class EmailSendError(Exception):
     pass
 

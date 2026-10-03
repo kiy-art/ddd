@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 
 import { CATEGORIES, getBrands, getSitemapProducts } from "@/lib/api";
+import { BRAND_PAGE_MIN_PRODUCTS, brandCategoryHref } from "@/lib/brandFilter";
+import { nearestRivals, pairHref } from "@/lib/comparePairs";
 import { GUIDES } from "@/lib/guides";
 import { SITE_URL } from "@/lib/siteUrl";
 
@@ -109,6 +111,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }));
 
+  // STEP69: maker x category pages with enough products to stand on their
+  // own (thinner ones are noindex), and each product's two closest-priced
+  // rivals as "A vs B" pages - the same pairs the product pages link to.
+  const brandCategoryCounts = new Map<string, { category: string; brand: string; count: number }>();
+  for (const p of products) {
+    const key = brandCategoryHref(p.category, p.brand);
+    const entry = brandCategoryCounts.get(key) ?? { category: p.category, brand: p.brand, count: 0 };
+    entry.count += 1;
+    brandCategoryCounts.set(key, entry);
+  }
+  const brandCategoryEntries: MetadataRoute.Sitemap = [...brandCategoryCounts.entries()]
+    .filter(([, e]) => e.count >= BRAND_PAGE_MIN_PRODUCTS)
+    .map(([path]) => ({ url: sitemapUrl(path), changeFrequency: "daily" as const, priority: 0.7 }));
+
+  const pairPaths = new Set<string>();
+  for (const p of products) {
+    for (const rival of nearestRivals(p, products, 2)) pairPaths.add(pairHref(p.slug, rival.slug));
+  }
+  const pairEntries: MetadataRoute.Sitemap = [...pairPaths].map((path) => ({
+    url: sitemapUrl(path),
+    changeFrequency: "weekly" as const,
+    priority: 0.5,
+  }));
+
   const brandEntries: MetadataRoute.Sitemap = brands
     .filter((b) => Boolean(b.brand))
     .map((b) => ({
@@ -121,7 +147,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // duplicate <loc> entries, and this guarantees one can never slip
   // through even if two data sources happened to produce the same URL.
   const seen = new Set<string>();
-  return [...staticEntries, ...productEntries, ...brandEntries].filter((entry) => {
+  return [...staticEntries, ...productEntries, ...brandCategoryEntries, ...pairEntries, ...brandEntries].filter((entry) => {
     if (seen.has(entry.url)) return false;
     seen.add(entry.url);
     return true;

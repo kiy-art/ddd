@@ -93,11 +93,12 @@ def count_published_products(db: Session) -> int:
     return db.execute(_published(select(func.count(models.Product.id)))).scalar_one()
 
 
-def list_published_slugs(db: Session) -> list[tuple[str, datetime.datetime]]:
-    """(slug, updated_at) for every published product - the sitemap needs all
-    of them, not one page of full ProductOut rows."""
-    query = _published(select(models.Product.slug, models.Product.updated_at)).order_by(models.Product.id)
-    return [(slug, updated_at) for slug, updated_at in db.execute(query).all()]
+def list_published_slugs(db: Session) -> list[models.Product]:
+    """Every published product, for the sitemap - which also builds the
+    brand x category pages and comparison pairs from them (STEP69), so it
+    needs brand/category/price, not one page of full ProductOut rows."""
+    query = _published(select(models.Product)).order_by(models.Product.id)
+    return list(db.execute(query).scalars().all())
 
 
 # Same bar the frontend uses (THIN_DATA_DAYS in ProductCard.tsx/product

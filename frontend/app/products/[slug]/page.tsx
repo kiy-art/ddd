@@ -12,7 +12,7 @@ import DataSourceNote from "@/components/DataSourceNote";
 import FadeIn from "@/components/FadeIn";
 import FavoriteButton from "@/components/FavoriteButton";
 import MonthlyTrendChart from "@/components/MonthlyTrendChart";
-import PriceAlertForm from "@/components/PriceAlertForm";
+import PriceAlertForm, { type AlertSuggestion } from "@/components/PriceAlertForm";
 import PriceForecast from "@/components/PriceForecast";
 import PriceHistoryChartPanel from "@/components/PriceHistoryChartPanel";
 import PriceRangeBar from "@/components/PriceRangeBar";
@@ -24,11 +24,12 @@ import StickyBuyBar from "@/components/StickyBuyBar";
 import StoreComparisonTable from "@/components/StoreComparisonTable";
 import TrackedCta from "@/components/TrackedCta";
 import TrackViewed from "@/components/TrackViewed";
-import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct } from "@/lib/api";
+import { CATEGORY_LABELS, Product, ProductDetail, getCategoryProducts, getProduct, getSiteStats } from "@/lib/api";
 import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { MODEL_CYCLE_DISCLAIMER, MODEL_CYCLE_FACT_NOTE, getModelCycleInsight } from "@/lib/modelCycle";
 import { normalizeImageUrl } from "@/lib/imageUrl";
+import { nearestRivals, pairHref } from "@/lib/comparePairs";
 import { buildProductJsonLd } from "@/lib/productJsonLd";
 import { productSeoDescription, productSeoTitle } from "@/lib/productSeo";
 import { getLowestOffer, getShopOffers } from "@/lib/shopOffers";
@@ -73,6 +74,24 @@ function yen(value: number | null): string {
 // and were never written with search intent in mind ("最安値", "買い時判定",
 // "安くなる時期"), so preferring them for metadata would silently make every
 // AI-enriched product's SEO worse than a brand-new, not-yet-processed one's.
+// STEP69: one-tap target prices for the alert form - only real numbers
+// from this page, each labeled with its source, and only ones below
+// today's price (an alert at or above it would fire at once).
+function priceAlertSuggestions(product: ProductDetail): AlertSuggestion[] {
+  const current = product.current_price;
+  if (current === null) return [];
+  const out: AlertSuggestion[] = [];
+  const add = (label: string, price: number | null) => {
+    if (price === null || price <= 0 || price >= current) return;
+    const rounded = Math.floor(price / 100) * 100;
+    if (rounded > 0 && !out.some((s) => s.price === rounded)) out.push({ label, price: rounded });
+  };
+  add("今より5%安い", current * 0.95);
+  add("過去最安値", product.lowest_price);
+  add("予測レンジ下限", product.forecast_low_price);
+  return out.slice(0, 3);
+}
+
 async function loadProduct(slug: string) {
   try {
     return await getProduct(slug);
@@ -192,11 +211,22 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
     product.current_price !== null;
 
   let categoryProducts: Product[] = [];
+  // STEP69: price alerts are only offered when the email can really reach
+  // a visitor (backend email.can_email_visitors).
+  const statsPromise = getSiteStats().catch(() => null);
   try {
     categoryProducts = await getCategoryProducts(product.category, undefined, 50); // candidates for related items only
   } catch {
     categoryProducts = [];
   }
+  const alertsEnabled = (await statsPromise)?.price_alerts_enabled === true;
+  // "Not a buy today" - the visitor most likely to leave without clicking.
+  const waitVerdict = !(hasReliableTrend && (product.buy_score === "buy" || product.buy_score === "strong_buy"));
+  const showInlineAlert = alertsEnabled && waitVerdict && product.current_price !== null;
+  const alertSuggestions = priceAlertSuggestions(product);
+  // STEP69: closest-priced rivals in the same category (other makers
+  // first) - each links to its "A vs B" comparison page.
+  const rivals = nearestRivals(product, categoryProducts, 3);
   const compareProducts = [
     product,
     ...categoryProducts
@@ -536,6 +566,15 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               )}
             </div>
 
+            {showInlineAlert && (
+              <PriceAlertForm
+                slug={product.slug}
+                currentPrice={product.current_price}
+                variant="inline"
+                suggestions={alertSuggestions}
+              />
+            )}
+
             {hasFullRange && (
               <PriceRangeBar
                 low={product.lowest_price!}
@@ -646,6 +685,20 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
           <FadeIn className="mt-10">
             <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Related</span>
             <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">関連商品・同じカテゴリの候補と比較</h2>
+            {rivals.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="self-center text-xs text-foreground/45">価格帯の近いモデルと比較:</span>
+                {rivals.map((r) => (
+                  <Link
+                    key={r.slug}
+                    href={pairHref(product.slug, r.slug)}
+                    className="rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-semibold text-foreground/70 hover:border-brand/40 hover:text-brand"
+                  >
+                    vs {r.brand} {r.name}
+                  </Link>
+                ))}
+              </div>
+            )}
             <div className="mt-6">
               <CompareStrip products={compareProducts} currentId={product.id} />
             </div>
@@ -657,9 +710,11 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             comparison table (this product itself is left out). */}
         <ConsumablesCorner variant="product" excludeProductId={product.id} />
 
-        <FadeIn className="mt-10">
-          <PriceAlertForm slug={product.slug} currentPrice={product.current_price} />
-        </FadeIn>
+        {alertsEnabled && !showInlineAlert && (
+          <FadeIn className="mt-10">
+            <PriceAlertForm slug={product.slug} currentPrice={product.current_price} suggestions={alertSuggestions} />
+          </FadeIn>
+        )}
 
         {product.ai_summary && product.ai_summary !== product.buy_reason && (
           <FadeIn className="mt-10 border-t border-border pt-10">
