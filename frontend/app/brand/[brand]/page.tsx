@@ -6,6 +6,7 @@ import FadeIn from "@/components/FadeIn";
 import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { BrandPriceStats, getBrandPriceStats, getBrandProducts } from "@/lib/api";
+import PrNotice from "@/components/PrNotice";
 
 export const revalidate = 0;
 
@@ -122,12 +123,15 @@ export default async function BrandPage({ params }: { params: Promise<Params> })
               現在このブランドで表示できる商品がありません。
             </p>
           ) : (
+            <div>
+            <PrNotice className="mb-6" />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {products.map((product, i) => (
                 <FadeIn key={product.id} delay={(i % 6) * 60}>
                   <ProductCard product={product} listSource="brand" />
                 </FadeIn>
               ))}
+            </div>
             </div>
           )}
         </div>

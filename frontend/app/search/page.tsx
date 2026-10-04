@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import FadeIn from "@/components/FadeIn";
 import ProductCard from "@/components/ProductCard";
 import { Product, getProducts } from "@/lib/api";
+import PrNotice from "@/components/PrNotice";
 
 export const revalidate = 0;
 
@@ -71,12 +72,15 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                 該当する商品が見つかりませんでした。別のキーワードでお試しください。
               </p>
             ) : (
+              <div>
+              <PrNotice className="mb-6" />
               <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {results.map((product, i) => (
                   <FadeIn key={product.id} delay={(i % 6) * 60}>
                     <ProductCard product={product} listSource="search" />
                   </FadeIn>
                 ))}
+              </div>
               </div>
             )}
           </>

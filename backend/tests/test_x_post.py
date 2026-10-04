@@ -376,7 +376,9 @@ def test_post_has_cta_product_link_and_clean_hashtags(db_session):
     assert x_post.CTA_LINE in text
     # One post, one link - the lead product's own page (its share card
     # carries the photo), never a category page.
-    assert _url_line(text).endswith(f"/products/{lead.slug}")
+    assert _url_line(text).split("?")[0].endswith(f"/products/{lead.slug}")
+    # STEP74: tagged so GA4 can count visits from X per time slot.
+    assert "utm_source=x" in _url_line(text) and "utm_campaign=morning" in _url_line(text)
     assert text.split("\n")[-1].startswith("#ゴルフ #ドライバー")
     assert "#Bridgestone" in text
 
@@ -414,3 +416,16 @@ def test_generated_post_passes_the_ad_law_validator_for_every_hook(db_session):
         marketing_playbook.validate_copy([text.replace(_url_line(text), "")], yen, percents, allow_lowest_price_claim=lowest)
     # The template never needed its compliance fallback.
     assert not [log for log in crud.list_error_logs(db_session) if "compliance" in log.message]
+
+
+def test_tracked_url_joins_existing_query_and_encodes():
+    url = x_post._tracked_url("/popular", "evening", {"category": "driver"})
+    path, query = url.split("?", 1)
+    assert path.endswith("/popular")
+    assert dict(p.split("=") for p in query.split("&")) == {
+        "category": "driver",
+        "utm_source": "x",
+        "utm_medium": "social",
+        "utm_campaign": "evening",
+        "utm_content": "post",
+    }

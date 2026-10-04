@@ -93,3 +93,14 @@ def test_market_trend_compares_only_products_priced_in_both_windows(db_session):
     assert (m["by_category"]["driver"]["down"], m["by_category"]["driver"]["up"], m["by_category"]["driver"]["flat"]) == (1, 1, 1)
     assert m["by_category"]["driver"]["median_change_pct"] == 0.4
     assert m["by_category"]["ball"] == {"compared": 1, "down": 1, "up": 0, "flat": 0, "median_change_pct": -10.0}
+
+
+def test_daily_job_counts_are_parsed_and_blank_when_missing():
+    spec = importlib.util.spec_from_file_location("kpi_snapshot", pathlib.Path(__file__).parents[1] / "scripts" / "kpi_snapshot.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    line = "日次更新ジョブ完了: 楽天更新327件/スキップ257件, Yahoo更新21件/スキップ563件, 新商品発見4件"
+    assert mod.daily_job_counts(line) == {"rakuten_updated": 327, "rakuten_total": 584, "yahoo_updated": 21, "yahoo_total": 584}
+    assert mod.daily_job_counts(None) == {"rakuten_updated": "", "rakuten_total": "", "yahoo_updated": "", "yahoo_total": ""}
+    row = mod.ledger_row({"errors_last_7d": {"error": 5, "warning": 2, "info": 9}}, datetime.date(2026, 10, 5))
+    assert (row["errors_7d"], row["errors_7d_error"], row["errors_7d_warning"]) == (16, 5, 2)

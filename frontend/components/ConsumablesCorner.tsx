@@ -195,7 +195,7 @@ export default async function ConsumablesCorner({
               {name}開催中
             </span>
           ))}
-          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-foreground/45">PR</span>
+          <span className="rounded border border-foreground/30 px-1.5 py-0.5 text-[11px] font-semibold text-foreground/70">PR</span>
         </div>
         <h2
           id={headingId}

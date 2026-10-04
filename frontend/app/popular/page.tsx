@@ -31,6 +31,8 @@ export const metadata: Metadata = {
   title: "人気ランキング｜楽天市場の売れ筋ゴルフ用品",
   description:
     "楽天市場のカテゴリ別売れ筋ランキング（ドライバー・アイアン・ウェッジ・パター・ボール）を毎日更新。価格とレビュー、PAR.の買い時判定もあわせて確認できます。",
+  // STEP74: X posts link here with utm/category query strings - one canonical page.
+  alternates: { canonical: "/popular" },
 };
 
 function yen(value: number | null): string {
@@ -195,7 +197,7 @@ export default async function PopularPage({
                   {CATEGORY_LABELS[active.category] ?? active.category}の売れ筋ランキング
                 </h2>
               </div>
-              <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-foreground/45">PR</span>
+              <span className="rounded border border-foreground/30 px-1.5 py-0.5 text-[11px] font-semibold text-foreground/70">PR</span>
             </div>
 
             {/* Category tabs - scroll sideways on a phone. */}
@@ -233,7 +235,7 @@ export default async function PopularPage({
               </div>
             )}
 
-            <p className="mt-6 text-[11px] leading-relaxed text-foreground/40">
+            <p className="mt-6 text-xs leading-relaxed text-foreground/65">
               順位・価格・レビューは楽天市場の売れ筋ランキングAPIから取得した時点の情報です（毎日更新）。価格・在庫は変動するため、購入前に販売ページでご確認ください。
               ※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。
             </p>

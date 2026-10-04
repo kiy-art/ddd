@@ -42,6 +42,19 @@ def test_classify_setup_quota_and_transient():
     assert self_heal.classify(row("RAKUTEN_ACCESS_KEY is not configured")) == "setup"
     assert self_heal.classify(row("Yahoo: quota exhausted, stopping")) == "quota"
     assert self_heal.classify(row("G430: Rakuten API 429: too many requests")) == "quota"
+
+
+def test_rakuten_keyword_400_is_not_reported_as_a_setup_problem():
+    # STEP74: Rakuten's body carries "wrong_parameter" for a bad keyword too.
+    def row(message):
+        return models.ErrorLog(source="price_fetch", level="error", message=message)
+
+    bad_keyword = 'G440 K: Rakuten API 400: {"error_description":"keyword is not valid","error":"wrong_parameter"}'
+    too_long = 'X: Rakuten API 400: {"error_description":"keyword must be under 128 length","error":"wrong_parameter"}'
+    bad_app_id = 'X: Rakuten API 400: {"error_description":"specify valid applicationId","error":"wrong_parameter"}'
+    assert self_heal.classify(row(bad_keyword)) == "keyword"
+    assert self_heal.classify(row(too_long)) == "keyword"
+    assert self_heal.classify(row(bad_app_id)) == "setup"
     assert self_heal.classify(row("G430: ReadTimeout('timed out')")) == "transient"
     assert self_heal.classify(row("G430: Rakuten API 503: unavailable")) == "transient"
 
@@ -218,7 +231,7 @@ def test_fetch_rakuten_prices_can_be_limited_to_some_products(db_session, monkey
     monkeypatch.setattr(pipeline.time, "sleep", lambda s: None)
     monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: looked_up.append(keyword))
     pipeline.fetch_rakuten_prices(db_session, only_product_ids=[b.id])
-    assert looked_up == ["PING B"]
+    assert looked_up == ["PING Ｂ"]  # STEP74: a lone half-width "B" is sent full-width
     assert a.id != b.id
 
 

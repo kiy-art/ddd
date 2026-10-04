@@ -5,6 +5,7 @@ import CompareTable from "@/components/CompareTable";
 import PageHeader from "@/components/PageHeader";
 import { ProductDetail, getProduct } from "@/lib/api";
 import { MAX_COMPARE } from "@/lib/compare";
+import PrNotice from "@/components/PrNotice";
 
 export const revalidate = 0;
 
@@ -59,7 +60,10 @@ export default async function ComparePage({
               </Link>
             </div>
           ) : (
+            <div>
+            <PrNotice className="mb-6" />
             <CompareTable products={products} removable />
+            </div>
           )}
         </div>
       </section>

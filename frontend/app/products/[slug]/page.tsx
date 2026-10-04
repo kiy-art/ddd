@@ -33,7 +33,7 @@ import { nearestRivals, pairHref } from "@/lib/comparePairs";
 import { buildProductJsonLd } from "@/lib/productJsonLd";
 import { productSeoDescription, productSeoTitle } from "@/lib/productSeo";
 import { getLowestOffer, getShopOffers } from "@/lib/shopOffers";
-import { SHOP_MARKS, buildShopBoard } from "@/lib/shopRows";
+import { SHOP_MARKS, buildShopBoard, staleLabel } from "@/lib/shopRows";
 import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
@@ -164,10 +164,11 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   // The history stats (30-day average, record low, previous price) are
   // Rakuten's own series - say so when a cheaper Yahoo! price is on top.
   const shopBoard = buildShopBoard(product, lastPriceUpdatedAt);
+  // STEP74: rows come fresh-first (lib/shopRows.ts), so with no comparison
+  // the main button is the shop with the most recent price - never a shop
+  // whose last price is days old just because that old number was lower.
   const primaryShop =
-    shopBoard.rows.find((row) => row.isLowest) ??
-    shopBoard.rows.find((row) => row.kind === "price" && row.price !== null) ??
-    null;
+    shopBoard.rows.find((row) => row.isLowest) ?? shopBoard.rows.find((row) => row.kind === "price") ?? null;
   const secondaryShops = shopBoard.rows.filter((row) => row !== primaryShop && row.kind !== "official");
   const officialShop = shopBoard.rows.find((row) => row.kind === "official") ?? null;
   // STEP65: the pinned buy bar - the buy box's main shop, or (no fetched
@@ -417,7 +418,11 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             <div id="buy-box" className="card-lux flex scroll-mt-24 flex-col gap-3 rounded-2xl p-5">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-xs text-foreground/45">
-                  {comparedOffers && lowestOffer ? `現在の最安値（${lowestOffer.label}）` : "現在価格"}
+                  {comparedOffers && lowestOffer
+                    ? `現在の最安値（${lowestOffer.label}）`
+                    : !lowestOffer && primaryShop?.stale
+                      ? `最後に取得した価格（${primaryShop.ageDays ?? "?"}日前）`
+                      : "現在価格"}
                 </span>
                 <span className="font-num text-2xl font-semibold text-foreground">{yen(displayPrice)}</span>
               </div>
@@ -446,7 +451,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               )}
               {primaryShop && (
                 <p className="-mt-1 text-center text-[11px] text-foreground/45">
-                  在庫・送料・ポイントは{primaryShop.label}のページで確認できます
+                  {primaryShop.stale
+                    ? `${staleLabel(primaryShop)}です。最新の価格・在庫・送料は${primaryShop.label}のページで確認できます`
+                    : `在庫・送料・ポイントは${primaryShop.label}のページで確認できます`}
                 </p>
               )}
               {secondaryShops.length > 0 && (
@@ -479,7 +486,11 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                       </span>
                       <span className="flex-1 truncate text-left">{row.label}</span>
                       <span className="font-num text-xs text-foreground/55">
-                        {row.kind === "price" && row.price !== null ? yen(row.price) : "価格を見る"}
+                        {row.kind === "price" && row.price !== null
+                          ? row.stale
+                            ? `${yen(row.price)}（${row.ageDays ?? "?"}日前）`
+                            : yen(row.price)
+                          : "価格を見る"}
                       </span>
                     </TrackedCta>
                   ))}
@@ -508,7 +519,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   </TrackedCta>
                 )}
               </div>
-              <p className="text-[11px] leading-relaxed text-foreground/35">
+              <p className="text-xs leading-relaxed text-foreground/65">
                 ※広告・PRを含みます。リンクにはアフィリエイトリンクが含まれ、リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
               </p>
             </div>

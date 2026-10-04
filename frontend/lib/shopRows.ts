@@ -1,6 +1,14 @@
 import { getAmazonSearchUrl } from "@/lib/amazon";
 import type { Product } from "@/lib/api";
-import { getLowestOffer, getShopOffers, parseUtc, type ShopOffer } from "@/lib/shopOffers";
+import {
+  OFFER_MAX_SHOWN_DAYS,
+  ageDays,
+  getLowestOffer,
+  getShopOffers,
+  isFresh,
+  parseUtc,
+  type ShopOffer,
+} from "@/lib/shopOffers";
 import { YAHOO_SEARCH_IS_AFFILIATE, getYahooSearchUrl } from "@/lib/yahoo";
 
 // STEP57: every shop link on the product page - the hero's buy buttons and
@@ -23,6 +31,12 @@ export type ShopRow = {
   kind: "price" | "search" | "official";
   sponsored: boolean;
   updatedAt: string | null;
+  // STEP74: a fetched price older than OFFER_FRESH_DAYS. Such a row is never
+  // "最安", sorts after every fresh one and says how old its price is - an old
+  // price must not pass for today's (景品表示法), nor send the main button to
+  // whichever shop happened to be cheap last week.
+  stale: boolean;
+  ageDays: number | null;
   isLowest: boolean;
   note: string;
   cta: string;
@@ -80,6 +94,8 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
       kind: "price",
       sponsored: true,
       updatedAt: rakutenUpdatedAt,
+      stale: false,
+      ageDays: null,
       isLowest: false,
       note: "",
       cta: `${shop.label}で見る`,
@@ -87,18 +103,23 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
     });
   }
   if (product.yahoo_price !== null && product.yahoo_url) {
+    // STEP74: a stored Yahoo! listing URL earns a referral only once it is a
+    // ValueCommerce MyLink (sid/pid set) - until then it's a plain link.
+    const yahooIsAffiliate = YAHOO_SEARCH_IS_AFFILIATE || product.yahoo_url.includes("valuecommerce");
     priced.push({
       key: "yahoo",
       label: "Yahoo!ショッピング",
       url: product.yahoo_url,
       price: product.yahoo_price,
       kind: "price",
-      sponsored: true,
+      sponsored: yahooIsAffiliate,
       updatedAt: product.yahoo_updated_at,
+      stale: false,
+      ageDays: null,
       isLowest: false,
       note: "",
       cta: "Yahoo!ショッピングで見る",
-      ctaType: "affiliate",
+      ctaType: yahooIsAffiliate ? "affiliate" : "marketplace_search",
     });
   }
   // Amazon: no price API yet (PA-API needs sales history first) - a tagged
@@ -111,6 +132,8 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
     kind: "search",
     sponsored: true,
     updatedAt: null,
+    stale: false,
+    ageDays: null,
     isLowest: false,
     note: "Amazonでの販売価格を確認できます",
     cta: "Amazonで価格をチェック",
@@ -126,6 +149,8 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
       // A MyLink once ValueCommerce's sid/pid are set (lib/yahoo.ts), else a plain search URL.
       sponsored: YAHOO_SEARCH_IS_AFFILIATE,
       updatedAt: null,
+      stale: false,
+      ageDays: null,
       isLowest: false,
       note: "出品一覧から価格を確認できます",
       cta: "Yahoo!で価格をチェック",
@@ -141,6 +166,8 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
       kind: "official",
       sponsored: false,
       updatedAt: null,
+      stale: false,
+      ageDays: null,
       isLowest: false,
       note: "メーカーの商品ページ（価格は販売店と異なる場合があります）",
       cta: "公式サイトを見る",
@@ -148,11 +175,28 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
     });
   }
 
+  const now = Date.now();
   for (const row of priced) {
     row.isLowest = lowest !== null && row.url === lowest.url;
+    row.stale = !isFresh(row.updatedAt, now);
+    row.ageDays = ageDays(row.updatedAt, now);
+    // Too old to show at all: keep the listing link, drop the number.
+    if (row.stale && (row.ageDays === null || row.ageDays > OFFER_MAX_SHOWN_DAYS)) row.price = null;
   }
-  priced.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
-  return { rows: [...priced, ...links], lowest, savings };
+  // Fresh prices cheapest-first; then stale ones newest-first (an old price
+  // has no claim to be compared on price); then the search/maker links.
+  const fresh = priced.filter((row) => !row.stale).sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+  const stale = priced
+    .filter((row) => row.stale)
+    .sort((a, b) => (b.updatedAt ? parseUtc(b.updatedAt) : 0) - (a.updatedAt ? parseUtc(a.updatedAt) : 0));
+  return { rows: [...fresh, ...stale, ...links], lowest, savings };
+}
+
+// "3日前の価格" for a stale row; null for a fresh one.
+export function staleLabel(row: ShopRow): string | null {
+  if (!row.stale) return null;
+  if (row.price === null) return "価格は販売ページで確認";
+  return row.ageDays !== null ? `${row.ageDays}日前の価格` : "取得日時不明の価格";
 }
 
 export const SHOP_MARKS: Record<ShopKey, { glyph: string; className: string }> = {

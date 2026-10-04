@@ -13,6 +13,7 @@ import { computeDeals } from "@/lib/deals";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { GUIDES } from "@/lib/guides";
 import { freshPopularityRank } from "@/lib/popularity";
+import PrNotice from "@/components/PrNotice";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -196,6 +197,7 @@ export default async function Home({
               </p>
             </FadeIn>
 
+            <PrNotice className="mt-6" />
             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {bestBuy.map((product, i) => (
                 <FadeIn key={product.id} delay={i * 90}>

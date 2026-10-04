@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import crud, image_urls, models, pipeline, rakuten, yahoo
+from app.search_keyword import build_search_keyword
 
 
 @dataclasses.dataclass
@@ -73,12 +74,15 @@ def backfill_product_images(db: Session, verify_existing: bool = True) -> ImageB
                 db.commit()
             continue
 
-        keyword = f"{product.brand} {product.name}".strip()
+        keyword = f"{product.brand} {product.name}".strip()  # Yahoo! accepts it as-is
+        rakuten_keyword = build_search_keyword(product.brand, product.name)  # STEP74
         new_image: str | None = None
         source = None
         try:
+            if rakuten_keyword is None:
+                raise ValueError("楽天の検索条件に合う検索キーワードを作れませんでした")
             _pace(pipeline.RAKUTEN_REQUEST_INTERVAL_SECONDS)
-            found = rakuten.search_lowest_price(keyword)
+            found = rakuten.search_lowest_price(rakuten_keyword)
             if _listing_matches(product, found):
                 new_image = image_urls.normalize_image_url(found.image_url)
                 source = "rakuten"

@@ -9,6 +9,7 @@ import { PERFORMANCE_TYPE_LABELS, SKILL_LEVEL_LABELS } from "@/lib/badges";
 import { pairCandidates, pairHref, pairSlug, nearestRivals } from "@/lib/comparePairs";
 import { productDisplayName } from "@/lib/productSeo";
 import { SITE_URL } from "@/lib/siteUrl";
+import PrNotice from "@/components/PrNotice";
 
 // STEP69: "A vs B" pages for searches like "Qi35 G440 比較 / 違い".
 // Same category only. Every line of "違いのポイント" is built from stored
@@ -200,6 +201,7 @@ export default async function ComparePairPage({ params }: { params: Promise<Para
             </div>
           )}
 
+          <PrNotice className="mt-6" />
           <CompareTable products={[first, second]} placement="compare_pair" />
 
           <div className="mt-10 grid gap-3 sm:grid-cols-2">

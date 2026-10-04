@@ -5,6 +5,7 @@ import FadeIn from "@/components/FadeIn";
 import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
+import PrNotice from "@/components/PrNotice";
 
 export const revalidate = 0;
 
@@ -187,12 +188,15 @@ export default async function FinderPage({
                     条件に合う商品が見つかりませんでした。予算を変えてお試しください。
                   </p>
                 ) : (
+                  <div>
+                  <PrNotice className="mb-6" />
                   <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {results.map((product, i) => (
                       <FadeIn key={product.id} delay={(i % 6) * 60}>
                         <ProductCard product={product} listSource="finder" />
                       </FadeIn>
                     ))}
+                  </div>
                   </div>
                 )}
               </>

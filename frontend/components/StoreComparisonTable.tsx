@@ -1,7 +1,7 @@
 import CtaArrow from "@/components/CtaArrow";
 import TrackedCta from "@/components/TrackedCta";
 import { Product } from "@/lib/api";
-import { SHOP_MARKS, ShopRow, buildShopBoard, formatUpdatedAt } from "@/lib/shopRows";
+import { SHOP_MARKS, ShopRow, buildShopBoard, formatUpdatedAt, staleLabel } from "@/lib/shopRows";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -31,7 +31,8 @@ export default function StoreComparisonTable({
   const { rows, lowest, savings } = buildShopBoard(product, lastUpdatedAt);
   if (rows.length === 0) return null;
 
-  const pricedCount = rows.filter((row) => row.kind === "price" && row.price !== null).length;
+  // STEP74: only shops whose price is fresh count as "compared daily".
+  const pricedCount = rows.filter((row) => row.kind === "price" && row.price !== null && !row.stale).length;
   const lowestRow = rows.find((row) => row.isLowest) ?? null;
   const hasSponsoredRow = rows.some((row) => row.sponsored);
 
@@ -56,12 +57,12 @@ export default function StoreComparisonTable({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Store Comparison</span>
-            <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-foreground/45">PR</span>
+            <span className="rounded border border-foreground/30 px-1.5 py-0.5 text-[11px] font-semibold text-foreground/70">PR</span>
           </div>
           <h2 className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">販売価格を比較</h2>
         </div>
         <p className="text-xs text-foreground/45">
-          {pricedCount >= 2 ? `${pricedCount}店舗の価格を毎日取得` : "価格は毎日更新"}・{rows.length}ショップを掲載
+          {pricedCount >= 2 ? `${pricedCount}店舗の最新価格を比較` : "価格は1日1回取得"}・{rows.length}ショップを掲載
         </p>
       </div>
 
@@ -121,11 +122,13 @@ export default function StoreComparisonTable({
                     <span className="rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">最安</span>
                   )}
                 </div>
-                <span className="text-xs text-foreground/45">
+                <span className={`text-xs ${row.stale ? "text-foreground/60" : "text-foreground/45"}`}>
                   {row.kind === "price"
-                    ? formatUpdatedAt(row.updatedAt)
-                      ? `${formatUpdatedAt(row.updatedAt)} 時点・送料/ポイントは販売ページで確認`
-                      : "送料/ポイントは販売ページで確認"
+                    ? row.stale
+                      ? `${staleLabel(row)}${formatUpdatedAt(row.updatedAt) ? `（${formatUpdatedAt(row.updatedAt)} 時点）` : ""}・最新は販売ページで確認`
+                      : formatUpdatedAt(row.updatedAt)
+                        ? `${formatUpdatedAt(row.updatedAt)} 時点・送料/ポイントは販売ページで確認`
+                        : "送料/ポイントは販売ページで確認"
                     : row.note}
                 </span>
               </div>
@@ -134,7 +137,13 @@ export default function StoreComparisonTable({
             <div className="flex items-center justify-between gap-4 sm:justify-end">
               <span
                 className={`shrink-0 font-num text-xl font-semibold sm:w-28 sm:text-right ${
-                  row.isLowest ? "text-brand dark:text-brand-light" : row.price !== null ? "text-foreground" : "text-foreground/30"
+                  row.isLowest
+                    ? "text-brand dark:text-brand-light"
+                    : row.price !== null && !row.stale
+                      ? "text-foreground"
+                      : row.price !== null
+                        ? "text-foreground/45"
+                        : "text-foreground/30"
                 }`}
               >
                 {row.kind === "price" ? yen(row.price) : "—"}
@@ -158,8 +167,8 @@ export default function StoreComparisonTable({
         ))}
       </ul>
 
-      <p className="border-t border-border px-6 py-4 text-[11px] leading-relaxed text-foreground/40 sm:px-8">
-        価格はPAR.が毎日取得した各ショップの価格です（Amazonは価格未取得のため検索結果へのリンク）。
+      <p className="border-t border-border px-6 py-4 text-xs leading-relaxed text-foreground/65 sm:px-8">
+        価格はPAR.が1日1回取得した各ショップの価格です。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク）。
         {hasSponsoredRow &&
           "※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。"}
         価格・在庫は変動するため、購入前に販売元サイトでご確認ください。

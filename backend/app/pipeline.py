@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app import ai, analysis, content_rewriter, crud, email, forecast, image_urls, models, rakuten, spec_extractor, yahoo
 from app.config import get_settings
 from app.rakuten import search_lowest_price
+from app.search_keyword import build_search_keyword
 
 RAKUTEN_REQUEST_INTERVAL_SECONDS = 1.1  # stay under the API's ~1 req/sec free-tier limit
 YAHOO_REQUEST_INTERVAL_SECONDS = 1.1  # same conservative pacing as Rakuten - no documented higher limit
@@ -209,7 +210,19 @@ def fetch_rakuten_prices(
         if i > 0:
             time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
         try:
-            keyword = f"{product.brand} {product.name}".strip()
+            keyword = build_search_keyword(product.brand, product.name)
+            if keyword is None:
+                # STEP74: no keyword Rakuten would accept (see search_keyword.py) -
+                # skip the call rather than log the same HTTP 400 every day.
+                crud.create_error_log(
+                    db,
+                    source="price_fetch",
+                    level="warning",
+                    message=f"{product.name}: 楽天の検索条件に合う検索キーワードを作れませんでした（商品名の整形が必要）",
+                    product_id=product.id,
+                )
+                skipped += 1
+                continue
             result = search_lowest_price(keyword)
             if result is None:
                 crud.create_error_log(

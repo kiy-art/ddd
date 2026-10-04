@@ -22,6 +22,7 @@ import datetime
 import json
 import os
 import pathlib
+import re
 import sys
 
 import httpx
@@ -46,10 +47,31 @@ COLUMNS = [
     "ga4_snapshot_date",
     "ga4_pageviews_1d",
     "price_alerts_total",
-    "errors_7d",
+    "errors_7d",  # info + warning + error (kept for comparison with older rows)
+    "errors_7d_error",  # STEP74: error level only - the number to watch
+    "errors_7d_warning",
+    "rakuten_updated",  # STEP74: from the latest daily job's summary row
+    "rakuten_total",
+    "yahoo_updated",
+    "yahoo_total",
     "revenue_jpy_month_to_date",  # filled by hand from ASP reports (経理)
     "note",
 ]
+
+
+_JOB_COUNTS = re.compile(r"(楽天|Yahoo)更新(\d+)件/スキップ(\d+)件")
+
+
+def daily_job_counts(job_summary: str | None) -> dict:
+    """Updated/total price checks per shop, parsed from the daily job's
+    summary line ("楽天更新327件/スキップ257件, Yahoo更新21件/スキップ563件, ...").
+    Anything not found stays blank (未取得), never 0."""
+    counts = {"rakuten_updated": "", "rakuten_total": "", "yahoo_updated": "", "yahoo_total": ""}
+    for shop, updated, skipped in _JOB_COUNTS.findall(job_summary or ""):
+        key = "rakuten" if shop == "楽天" else "yahoo"
+        counts[f"{key}_updated"] = int(updated)
+        counts[f"{key}_total"] = int(updated) + int(skipped)
+    return counts
 
 
 def ledger_row(summary: dict, today: datetime.date) -> dict:
@@ -74,6 +96,9 @@ def ledger_row(summary: dict, today: datetime.date) -> dict:
         "ga4_pageviews_1d": ga.get("pageviews", ""),
         "price_alerts_total": (summary.get("price_alerts") or {}).get("total"),
         "errors_7d": sum((summary.get("errors_last_7d") or {}).values()),
+        "errors_7d_error": (summary.get("errors_last_7d") or {}).get("error", 0),
+        "errors_7d_warning": (summary.get("errors_last_7d") or {}).get("warning", 0),
+        **daily_job_counts((summary.get("last_daily_job") or {}).get("summary")),
         "revenue_jpy_month_to_date": "",
         "note": "",
     }

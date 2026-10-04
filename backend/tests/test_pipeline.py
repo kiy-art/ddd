@@ -67,6 +67,38 @@ def test_fetch_rakuten_prices_accepts_plausible_price(db_session, monkeypatch):
     assert product.current_price == 55000
 
 
+def test_fetch_rakuten_prices_sends_rakuten_a_keyword_it_accepts(db_session, monkeypatch):
+    """STEP74: a raw listing title ("... / ELDIO TM40", a lone "K") used to go
+    to Rakuten verbatim and fail with HTTP 400 every day."""
+    from app.search_keyword import is_valid_rakuten_keyword
+
+    product = _make_product(db_session, initial_price=60000)
+    product.name = "G440K ドライバー ALTA J CB BLUE G440 K / 右用"
+    db_session.commit()
+    sent = []
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: sent.append(keyword) or _FakeResult(55000))
+
+    pipeline.fetch_rakuten_prices(db_session)
+
+    assert len(sent) == 1 and is_valid_rakuten_keyword(sent[0])
+    assert "G440K" in sent[0]
+
+
+def test_fetch_rakuten_prices_skips_the_call_when_no_valid_keyword_exists(db_session, monkeypatch):
+    product = _make_product(db_session, initial_price=60000)
+    product.brand = ""
+    product.name = "／ ー ・"
+    db_session.commit()
+    sent = []
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: sent.append(keyword) or _FakeResult(55000))
+
+    updated, skipped = pipeline.fetch_rakuten_prices(db_session)
+
+    assert sent == [] and (updated, skipped) == (0, 1)
+    logs = crud.list_error_logs(db_session)
+    assert any("検索キーワードを作れません" in log.message and log.level == "warning" for log in logs)
+
+
 def test_fetch_rakuten_prices_fills_in_blank_image_and_affiliate_url(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
     assert product.image_url is None

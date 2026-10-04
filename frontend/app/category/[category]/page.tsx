@@ -15,6 +15,7 @@ import { curateTodaysPicks } from "@/lib/curatePicks";
 import { GUIDES } from "@/lib/guides";
 import { SORT_LABELS, SORT_OPTIONS, type SortOption, isSortOption, sortProducts } from "@/lib/productSort";
 import { SITE_URL } from "@/lib/siteUrl";
+import PrNotice from "@/components/PrNotice";
 
 export const revalidate = 0;
 
@@ -155,6 +156,7 @@ export default async function CategoryPage({
                 ))}
               </div>
 
+              <PrNotice className="mt-6" />
               <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {sortedProducts.map((product, i) => (
                   <FadeIn key={product.id} delay={(i % 6) * 60}>

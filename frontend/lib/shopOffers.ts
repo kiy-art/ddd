@@ -14,6 +14,10 @@ import type { Product } from "@/lib/api";
 // StoreComparisonTable), so they are never part of "the lowest".
 
 export const OFFER_FRESH_DAYS = 3;
+// STEP74: older than this, a shop's last fetched price isn't shown at all -
+// the row stays (it's still a real listing link) but says to check the shop.
+export const OFFER_MAX_SHOWN_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type ShopOffer = {
   shop: "rakuten" | "yahoo";
@@ -29,10 +33,17 @@ export function parseUtc(iso: string): number {
   return new Date(hasZone ? iso : `${iso}Z`).getTime();
 }
 
-function isFresh(iso: string | null, now: number): boolean {
+export function isFresh(iso: string | null, now: number = Date.now()): boolean {
   if (!iso) return false;
   const t = parseUtc(iso);
-  return !Number.isNaN(t) && now - t <= OFFER_FRESH_DAYS * 24 * 60 * 60 * 1000;
+  return !Number.isNaN(t) && now - t <= OFFER_FRESH_DAYS * DAY_MS;
+}
+
+// Whole days since a fetch (0 = within the last 24h); null when unknown.
+export function ageDays(iso: string | null, now: number = Date.now()): number | null {
+  if (!iso) return null;
+  const t = parseUtc(iso);
+  return Number.isNaN(t) ? null : Math.max(0, Math.floor((now - t) / DAY_MS));
 }
 
 export function getShopOffers(

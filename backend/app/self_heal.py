@@ -71,6 +71,11 @@ _CONFIG_PATTERN = re.compile(
     r"|accesskey|applicationid|api key",
     re.IGNORECASE,
 )
+# STEP74: Rakuten answers a keyword it won't accept with HTTP 400 and
+# "error":"wrong_parameter" - the same error name a bad applicationId gets -
+# so the description is checked first, or every such row reads as a setup
+# problem ("check RAKUTEN_APP_ID") when the product name is what needs work.
+_KEYWORD_PATTERN = re.compile(r"keyword is not valid|keyword must be under", re.IGNORECASE)
 _QUOTA_PATTERN = re.compile(r"quota|\b429\b|too many requests|rate limit", re.IGNORECASE)
 
 # What to check for a setup problem, by log source.
@@ -94,6 +99,7 @@ _RESTATEMENT_PREFIXES = ("楽天の人気ランキングを1カテゴリも取�
 
 _SOURCE_LABELS = {
     "price_fetch": "価格取得（楽天）",
+    "rakuten_keyword": "楽天の検索条件に合わない商品名（商品名の整形が必要）",
     "yahoo": "価格取得（Yahoo!）",
     "popularity": "人気ランキング",
     "consumables": "消耗品コーナー",
@@ -155,7 +161,9 @@ def _label(source: str) -> str:
 
 
 def classify(log: models.ErrorLog) -> str:
-    """'setup' | 'quota' | 'transient' for one error-level row."""
+    """'keyword' | 'setup' | 'quota' | 'transient' for one error-level row."""
+    if _KEYWORD_PATTERN.search(log.message):
+        return "keyword"
     if _CONFIG_PATTERN.search(log.message):
         return "setup"
     if _QUOTA_PATTERN.search(log.message):
@@ -275,6 +283,10 @@ def heal(db: Session, since_id: int, clock: Callable[[], float] = time.monotonic
     for log in errors:
         source = _logical_source(log)
         kind = classify(log)
+        if kind == "keyword":
+            # Retrying sends the same keyword again; the product name needs work.
+            unresolved_counts["rakuten_keyword"] = unresolved_counts.get("rakuten_keyword", 0) + 1
+            continue
         if kind == "setup":
             if source not in setup_seen:
                 setup_seen.add(source)

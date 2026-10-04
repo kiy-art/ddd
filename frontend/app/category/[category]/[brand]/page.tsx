@@ -12,6 +12,7 @@ import { BRAND_PAGE_MIN_PRODUCTS, brandCategoryHref, brandCounts, brandSlug } fr
 import { pairHref } from "@/lib/comparePairs";
 import { SORT_LABELS, SORT_OPTIONS, type SortOption, isSortOption, sortProducts } from "@/lib/productSort";
 import { SITE_URL } from "@/lib/siteUrl";
+import PrNotice from "@/components/PrNotice";
 
 // STEP69: one page per maker within a category ("PING ドライバー") - a
 // real search phrase the plain category page can't rank for. Everything
@@ -188,6 +189,7 @@ export default async function BrandCategoryPage({
             ))}
           </div>
 
+          <PrNotice className="mt-6" />
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {sorted.map((product, i) => (
               <FadeIn key={product.id} delay={(i % 6) * 60}>

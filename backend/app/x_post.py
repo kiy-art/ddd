@@ -395,13 +395,21 @@ def _allowed_facts(products: list[models.Product]) -> tuple[set[int], set[float]
     return yen, percents, lowest_claim
 
 
+def _tracked_url(path: str, campaign: str, params: dict[str, str] | None = None) -> str:
+    """STEP74: a link back to the site that GA4 can attribute to X and to the
+    time slot (utm_campaign = MANUAL_SLOTS key). The pages' canonical URLs
+    carry no query string, so search engines still see one page each."""
+    query = dict(params or {})
+    query.update({"utm_source": "x", "utm_medium": "social", "utm_campaign": campaign, "utm_content": "post"})
+    return f"{get_settings().site_url}{path}?{urllib.parse.urlencode(query)}"
+
+
 def _build_tweet_text(db: Session, products: list[models.Product]) -> str:
-    settings = get_settings()
     # One post, one link: the lead product's own page, whose share card
     # (frontend app/products/[slug]/opengraph-image.tsx) shows its photo,
     # price and the same hook - the strongest possible link preview. A
     # runner-up is mentioned in the text, not given a competing link.
-    url = f"{settings.site_url}/products/{products[0].slug}"
+    url = _tracked_url(f"/products/{products[0].slug}", "morning")
     text = _generate_post_text(products, url)
 
     allowed_yen, allowed_percents, lowest_claim = _allowed_facts(products)
@@ -532,7 +540,7 @@ def _noon_draft(db: Session, exclude_ids: set[int]) -> tuple[str | None, str]:
     lead = candidates[0]
     diff = lead.previous_price - lead.current_price
     label = CATEGORY_LABELS.get(lead.category, "ゴルフギア")
-    url = f"{get_settings().site_url}/products/{lead.slug}"
+    url = _tracked_url(f"/products/{lead.slug}", "noon")
     facts = _post_facts(lead)
     for name_max in (None, 30, 20):
         blocks = [
@@ -564,7 +572,7 @@ def _evening_draft(db: Session, today: datetime.date) -> tuple[str | None, str]:
     category = group["category"]
     label = CATEGORY_LABELS.get(category, "ゴルフ用品")
     fetched = group["fetched_at"] + datetime.timedelta(hours=9)  # JST
-    url = f"{get_settings().site_url}/popular?category={category}"
+    url = _tracked_url("/popular", "evening", {"category": category})
     medals = ["🥇", "🥈", "🥉"]
     entries = group["entries"][:3]
     allowed = {e["price"] for e in entries if e["price"] is not None}

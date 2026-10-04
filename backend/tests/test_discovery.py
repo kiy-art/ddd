@@ -19,11 +19,12 @@ def test_no_search_keyword_has_an_invalid_lone_half_width_token():
     half-width chars, or 1+ full-width chars) with "keyword is not valid" -
     the "B" in "ブリヂストン TOUR B ゴルフボール" hit this on every run.
     Guards against reintroducing a keyword with that shape."""
+    # STEP74: the shared check also rejects symbol-only tokens and length.
+    from app.search_keyword import is_valid_rakuten_keyword
+
     for keywords in discovery.CATEGORY_SEARCH_KEYWORDS.values():
         for keyword in keywords:
-            for token in keyword.split(" "):
-                is_full_width = any(ord(ch) > 0x2FFF for ch in token)
-                assert is_full_width or len(token) >= 2, f"invalid keyword token {token!r} in {keyword!r}"
+            assert is_valid_rakuten_keyword(keyword), f"invalid keyword {keyword!r}"
 
 
 class _FakeItem:

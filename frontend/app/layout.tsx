@@ -120,7 +120,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                     お問い合わせ
                   </Link>
                   <Link href="/disclaimer" className="hover:text-foreground">
-                    運営者情報・免責事項
+                    免責事項・アフィリエイトについて
                   </Link>
                 </nav>
               </div>

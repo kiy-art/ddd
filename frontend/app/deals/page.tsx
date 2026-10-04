@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { Product, getProducts } from "@/lib/api";
 import { computeDeals } from "@/lib/deals";
+import PrNotice from "@/components/PrNotice";
 
 export const revalidate = 0;
 
@@ -39,6 +40,8 @@ export default async function DealsPage() {
               現在、直近の更新で値下がりした商品はありません。
             </p>
           ) : (
+            <div>
+            <PrNotice className="mb-6" />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {deals.map(({ product, dropPercent }, i) => (
                 <FadeIn key={product.id} delay={(i % 6) * 60} className="flex flex-col gap-2">
@@ -48,6 +51,7 @@ export default async function DealsPage() {
                   <ProductCard product={product} listSource="deals" />
                 </FadeIn>
               ))}
+            </div>
             </div>
           )}
         </div>

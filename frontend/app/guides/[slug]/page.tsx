@@ -8,6 +8,7 @@ import { CATEGORY_LABELS, Product, getCategoryProducts, getProducts } from "@/li
 import { computeDeals } from "@/lib/deals";
 import { GUIDES, Guide, getGuideBySlug } from "@/lib/guides";
 import { SITE_URL } from "@/lib/siteUrl";
+import PrNotice from "@/components/PrNotice";
 
 export const revalidate = 0;
 
@@ -127,6 +128,8 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
               現在、条件に合う商品がありません。しばらく時間をおいて再度ご確認ください。
             </p>
           ) : (
+            <>
+            <PrNotice className="mt-6" />
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
               {featuredProducts.map(({ product, caption }, i) => (
                 <FadeIn key={product.id} delay={(i % 6) * 60} className="flex flex-col gap-2">
@@ -137,6 +140,7 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
                 </FadeIn>
               ))}
             </div>
+            </>
           )}
         </div>
       )}
