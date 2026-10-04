@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # it's the default here. A verified custom domain (optional, still
     # free) can be swapped in later by just changing this env var.
     resend_from_email: str = "PAR. <onboarding@resend.dev>"
+    # STEP74 (approval #003): visitor email addresses may only be collected and
+    # mailed once the privacy policy is live. Until an operator sets this, the
+    # sign-up form stays hidden, the alert API refuses new sign-ups and no alert
+    # email goes out - even after Resend's domain is verified.
+    privacy_policy_published: bool = False
     # The public frontend URL, used to build a clickable product link inside
     # price-alert emails. Defaults to the real production URL rather than
     # localhost, since email links need to work outside this dev sandbox.

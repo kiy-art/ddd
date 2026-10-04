@@ -59,13 +59,15 @@ def test_price_alerts_are_only_offered_when_visitor_mail_can_be_delivered(client
     from app.config import get_settings
 
     cases = [
-        ("", "PAR. <alerts@par-gear.com>", False),  # no API key
-        ("re_test", "PAR. <onboarding@resend.dev>", False),  # shared test sender: owner-only delivery
-        ("re_test", "PAR. <alerts@par-gear.com>", True),
+        ("", "PAR. <alerts@par-gear.com>", "true", False),  # no API key
+        ("re_test", "PAR. <onboarding@resend.dev>", "true", False),  # shared test sender: owner-only delivery
+        ("re_test", "PAR. <alerts@par-gear.com>", "false", False),  # STEP74: privacy policy not yet published
+        ("re_test", "PAR. <alerts@par-gear.com>", "true", True),
     ]
-    for key, sender, expected in cases:
+    for key, sender, published, expected in cases:
         monkeypatch.setenv("RESEND_API_KEY", key)
         monkeypatch.setenv("RESEND_FROM_EMAIL", sender)
+        monkeypatch.setenv("PRIVACY_POLICY_PUBLISHED", published)
         get_settings.cache_clear()
         assert client.get("/api/stats").json()["price_alerts_enabled"] is expected
     get_settings.cache_clear()

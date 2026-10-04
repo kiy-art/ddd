@@ -408,7 +408,9 @@ def send_price_alert_notifications(db: Session) -> tuple[int, int]:
     Returns (sent_count, skipped_count).
     """
     settings = get_settings()
-    if not settings.resend_api_key:
+    # STEP74: never mail a visitor before the privacy policy (and with it the
+    # unsubscribe link) is live - approval #003.
+    if not settings.resend_api_key or not settings.privacy_policy_published:
         return 0, 0
 
     sent = 0

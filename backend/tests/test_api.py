@@ -354,7 +354,29 @@ def test_price_anomalies_scan_and_bulk_fix(client, admin_headers):
     assert resp.json() == []
 
 
-def test_price_alert_subscribe_and_admin_visibility(client, admin_headers):
+def test_price_alert_signup_is_refused_until_the_privacy_policy_is_published(client, admin_headers):
+    # STEP74 (approval #003): no new email addresses before the policy is live.
+    created = client.post(
+        "/api/admin/products",
+        headers=admin_headers,
+        json={"name": "G430 Iron", "brand": "PING", "category": "iron", "initial_price": 60000},
+    ).json()
+    resp = client.post(f"/api/products/{created['slug']}/alerts", json={"email": "buyer@example.com", "target_price": 50000})
+    assert resp.status_code == 409
+
+
+def test_price_alert_subscribe_and_admin_visibility(client, admin_headers, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setenv("PRIVACY_POLICY_PUBLISHED", "true")
+    get_settings.cache_clear()
+    try:
+        _subscribe_and_check(client, admin_headers)
+    finally:
+        get_settings.cache_clear()
+
+
+def _subscribe_and_check(client, admin_headers):
     created = client.post(
         "/api/admin/products",
         headers=admin_headers,

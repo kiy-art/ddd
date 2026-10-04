@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import consumables_merchandiser, crud, email, models, popularity, schemas
+from app.config import get_settings
 from app.database import get_db
 from app.models import CATEGORIES
 
@@ -149,6 +150,9 @@ def create_price_alert(slug: str, data: schemas.PriceAlertCreate, db: Session = 
     product = crud.get_product_by_slug(db, slug, exclude_pending=True)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    # STEP74: no new email addresses until the privacy policy is published.
+    if not get_settings().privacy_policy_published:
+        raise HTTPException(status_code=409, detail="値下がり通知の受付は準備中です")
     return crud.create_price_alert(db, product, data)
 
 

@@ -32,7 +32,12 @@ def can_email_visitors() -> bool:
     not the shared onboarding@resend.dev test address)."""
     settings = get_settings()
     sender = settings.resend_from_email.strip().lower()
-    return bool(settings.resend_api_key) and bool(sender) and _SHARED_TEST_SENDER_DOMAIN not in sender
+    return (
+        settings.privacy_policy_published  # STEP74: no visitor mail before the privacy policy is public
+        and bool(settings.resend_api_key)
+        and bool(sender)
+        and _SHARED_TEST_SENDER_DOMAIN not in sender
+    )
 
 
 class EmailSendError(Exception):

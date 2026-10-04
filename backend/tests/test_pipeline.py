@@ -413,6 +413,7 @@ def test_send_price_alert_notifications_is_noop_when_not_configured(db_session, 
 
 def test_send_price_alert_notifications_sends_when_target_reached(db_session, monkeypatch):
     monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    monkeypatch.setenv("PRIVACY_POLICY_PUBLISHED", "true")
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -438,6 +439,7 @@ def test_send_price_alert_notifications_sends_when_target_reached(db_session, mo
 
 def test_send_price_alert_notifications_skips_when_target_not_yet_reached(db_session, monkeypatch):
     monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    monkeypatch.setenv("PRIVACY_POLICY_PUBLISHED", "true")
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -486,6 +488,7 @@ def test_send_price_alert_notifications_leaves_alert_unmarked_on_send_failure(db
     """A Resend failure must not silently lose the alert - it stays
     untriggered so the next run retries it."""
     monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    monkeypatch.setenv("PRIVACY_POLICY_PUBLISHED", "true")
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -646,3 +649,23 @@ def test_fetch_yahoo_prices_checks_the_longest_unchecked_products_first(db_sessi
     assert order == ["PING Product 2", "PING Product 1", "PING Product 0"]
     db_session.refresh(products[2])
     assert products[2].yahoo_checked_at is not None  # a no-match is recorded as checked
+
+
+def test_send_price_alert_notifications_waits_for_the_privacy_policy(db_session, monkeypatch):
+    """STEP74 (approval #003): even with Resend configured, no visitor gets
+    mail until PRIVACY_POLICY_PUBLISHED is set."""
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    monkeypatch.delenv("PRIVACY_POLICY_PUBLISHED", raising=False)
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=90000)
+        crud.create_price_alert(db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000))
+        sent_calls = []
+        monkeypatch.setattr(email, "send_email", lambda **kwargs: sent_calls.append(kwargs))
+        assert pipeline.send_price_alert_notifications(db_session) == (0, 0)
+        assert sent_calls == []
+        assert email.can_email_visitors() is False
+    finally:
+        get_settings.cache_clear()
