@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, models, pipeline, popularity, product_facts, progress, schemas, self_heal, title_migration, x_post
+from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, kpi, models, pipeline, popularity, product_facts, progress, schemas, self_heal, title_migration, x_post
 from app.auth import require_admin
 from app.database import SessionLocal, get_db
 
@@ -878,6 +878,13 @@ def run_content_optimization_now(db: Session = Depends(get_db)):
         actions_applied=len(result.actions),
         actions=result.actions,
     )
+
+
+@router.get("/kpi-summary")
+def kpi_summary(db: Session = Depends(get_db)):
+    """STEP71: every KPI the weekly management meeting tracks, in one call
+    (see app/kpi.py and backend/scripts/kpi_snapshot.py)."""
+    return kpi.kpi_summary(db)
 
 
 @router.get("/improvement-opportunities", response_model=list[schemas.ImprovementOpportunityOut])

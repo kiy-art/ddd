@@ -11,11 +11,18 @@ description: PAR.のAI会社の経営会議を開くスキル。全体統括と�
 ## 手順
 
 ### 1. 事実の確認（全体統括）
+最初に、会社の知識（`docs/knowledge/`）を読み、KPIを記録する。
+- `cd backend && .venv/bin/python scripts/kpi_snapshot.py`：本番のKPIを`docs/knowledge/kpi_ledger.csv`と`kpi/YYYY-MM-DD.json`に記録する。トークンが無い・接続できない場合は「未取得」として先へ進む。
+- `kpi_ledger.csv`の直近の行と比べて、増減を「事実」に書く。
+- `experiments.md`で「未測定」の施策のうち、測定期間が過ぎたものを洗い出す。
+- `learnings.md`を、各部署への依頼文に含める。
+
 次をまとめ、`docs/meetings/YYYY-MM-DD.md`の冒頭に「事実」として書く。取得できないものは「未取得（理由）」と書き、推測で埋めない。
 - 前回の会議以降の変更：`git log --oneline`と`docs/ai_company_guidelines.md`の状況表
 - 未決の承認依頼：`docs/approvals/`で「状態: 未決」のもの
 - 前回までの施策の結果：直近の議事録の「実行したこと」
 - 本番データ：作業環境の環境変数`PAR_ADMIN_API_TOKEN`があり、`golf-deals-backend.onrender.com`に接続できる場合だけ、管理APIから読み取る（GETだけを使う）。
+  - `/api/admin/kpi-summary`（主要KPIの一括取得。上の記録スクリプトが使う）
   - `/api/admin/affiliate-clicks/summary`（クリック数・押された場所）
   - `/api/admin/improvement-opportunities`（伸びしろのあるページ）
   - `/api/admin/logs?limit=50`（エラーログ）
@@ -50,7 +57,13 @@ description: PAR.のAI会社の経営会議を開くスキル。全体統括と�
 - **レベルC**：社長への依頼事項として、手順書付きで議事録に載せる。
 - **差し戻し**：理由を議事録に残し、次回へ回す。
 
-### 6. 報告
+### 6. 知識の更新
+- 実行した施策は、`docs/knowledge/experiments.md`に「仮説・実施内容・測る指標・比べる期間」を追記する。
+- 測定期間が過ぎた施策は、数字を取得元付きで「測定」に書き、「学び」を書く。
+- 新しく確かめた事実は、出典・日付付きで`learnings.md`に追記する。
+- 推測は書かない。
+
+### 7. 報告
 - 議事録`docs/meetings/YYYY-MM-DD.md`の構成：
   - 事実
   - 提案一覧（部署・判定・決定）
