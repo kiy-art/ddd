@@ -61,3 +61,6 @@ python3 -m pytest -q   # 全体テスト。GA4サンドボックス起因の2件
 
 - 既存の安全フィルター（`_looks_like_accessory`・`_looks_like_non_retail_listing`・`AUTO_PUBLISH_NG_KEYWORDS`、いずれも`app/discovery.py`/`app/pipeline.py`）はこのスキルの対象外。これらは**生タイトル**に対して判定される設計を壊さないこと。
 - 変更内容とテスト結果をユーザーに簡潔に報告する。`docs/ai_company_guidelines.md` への記録（STEPn番号を振っての追記）は、ユーザーが望む場合のみ行う。
+
+## 楽天の検索キーワードとして通るか（STEP74）
+商品名の決まりを変えたときは、`backend/app/search_keyword.py`の`build_search_keyword`を全商品の「ブランド＋商品名」に通し、`is_valid_rakuten_keyword`が全件Trueになること、今通っているキーワードが変わらないことを確かめる（`tests/test_search_keyword.py`）。名前の変更でキーワードが変わる商品は、dry-runの報告に一覧で載せる（楽天の当たる出品が変わるため）。

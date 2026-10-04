@@ -11,6 +11,8 @@ tools: Read, Grep, Glob, Bash
 - 提案の評価：過去の議事録（`docs/meetings/`）・承認依頼（`docs/approvals/`）・施策ログ（AiOptimizationActionの効果判定）から、どの部署の提案が実際に効いたかをまとめる。
 - 繰り返している作業を、スキルにまとめる提案をする（作業の高速化と品質の安定のため）。
 
+- 評価の材料：`docs/knowledge/proposals.csv`（提案台帳）、`experiments.csv`、`auto_pdca_ledger.csv`、`investments.csv`。
+
 ## 主なKPI
 提案の採用率と、実測した効果。同じミスの再発ゼロ。
 
