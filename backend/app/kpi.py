@@ -56,6 +56,76 @@ def _latest_snapshot(db: Session, metric_column) -> dict | None:
     return {"date": latest.isoformat(), "rows": rows}
 
 
+MARKET_RECENT_DAYS = 7
+MARKET_REFERENCE_DAYS = (23, 37)  # "about 30 days ago": the newest price in this window
+MARKET_FLAT_PCT = 1.0  # within ±1% counts as unchanged
+
+
+def _median(values: list[float]) -> float | None:
+    if not values:
+        return None
+    v = sorted(values)
+    mid = len(v) // 2
+    return v[mid] if len(v) % 2 else (v[mid - 1] + v[mid]) / 2
+
+
+def market_price_trend(db: Session, now: datetime.datetime) -> dict:
+    """Market condition from our own daily price checks (STEP72).
+
+    Per category: how many published products got cheaper / dearer / stayed
+    flat versus about 30 days ago, and the median change. Only products with
+    a price both in the last week and in the reference window are compared,
+    and the response says how many that is - nothing is filled in.
+    """
+    recent_since = now - datetime.timedelta(days=MARKET_RECENT_DAYS)
+    ref_from = now - datetime.timedelta(days=MARKET_REFERENCE_DAYS[1])
+    ref_to = now - datetime.timedelta(days=MARKET_REFERENCE_DAYS[0])
+    rows = db.execute(
+        crud._published(
+            select(models.Product.id, models.Product.category, models.PriceHistory.price, models.PriceHistory.recorded_at)
+            .join(models.PriceHistory, models.PriceHistory.product_id == models.Product.id)
+        )
+        .where(
+            models.PriceHistory.recorded_at >= ref_from,
+            models.PriceHistory.price > 0,
+        )
+        .order_by(models.PriceHistory.recorded_at)
+    ).all()
+    recent: dict[int, int] = {}
+    reference: dict[int, int] = {}
+    category_of: dict[int, str] = {}
+    for product_id, category, price, at in rows:  # ascending, so the last write is the newest
+        category_of[product_id] = category
+        if at >= recent_since:
+            recent[product_id] = price
+        elif at < ref_to:
+            reference[product_id] = price
+    by_category: dict[str, dict] = {}
+    changes: dict[str, list[float]] = {}
+    for product_id in recent.keys() & reference.keys():
+        cat = category_of[product_id]
+        pct = (recent[product_id] - reference[product_id]) / reference[product_id] * 100
+        bucket = by_category.setdefault(cat, {"compared": 0, "down": 0, "up": 0, "flat": 0})
+        bucket["compared"] += 1
+        bucket["down" if pct < -MARKET_FLAT_PCT else "up" if pct > MARKET_FLAT_PCT else "flat"] += 1
+        changes.setdefault(cat, []).append(pct)
+    for cat, bucket in by_category.items():
+        median = _median(changes[cat])
+        bucket["median_change_pct"] = round(median, 1) if median is not None else None
+    return {
+        "basis": f"newest price in the last {MARKET_RECENT_DAYS} days vs the newest price "
+        f"{MARKET_REFERENCE_DAYS[0]}-{MARKET_REFERENCE_DAYS[1]} days ago (published products only)",
+        "by_category": dict(sorted(by_category.items())),
+        "new_products_30d": dict(
+            db.execute(
+                crud._published(select(models.Product.category, func.count(models.Product.id)))
+                .where(models.Product.created_at >= now - datetime.timedelta(days=30))
+                .group_by(models.Product.category)
+            ).all()
+        ),
+    }
+
+
 def kpi_summary(db: Session, now: datetime.datetime | None = None) -> dict:
     now = now or datetime.datetime.utcnow()
     d7 = now - datetime.timedelta(days=7)
@@ -148,6 +218,7 @@ def kpi_summary(db: Session, now: datetime.datetime | None = None) -> dict:
         "last_daily_job": (
             {"at": last_job[0].replace(microsecond=0).isoformat() + "Z", "summary": last_job[1]} if last_job else None
         ),
+        "market": market_price_trend(db, now),
         "optimization_actions_last_30d": [
             {"type": t, "verdict": v or "not_evaluated", "count": c} for t, v, c in actions
         ],

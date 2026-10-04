@@ -12,9 +12,10 @@ description: PAR.のAI会社の経営会議を開くスキル。全体統括と�
 
 ### 1. 事実の確認（全体統括）
 最初に、会社の知識（`docs/knowledge/`）を読み、KPIを記録する。
-- `cd backend && .venv/bin/python scripts/kpi_snapshot.py`：本番のKPIを`docs/knowledge/kpi_ledger.csv`と`kpi/YYYY-MM-DD.json`に記録する。トークンが無い・接続できない場合は「未取得」として先へ進む。
+- `cd backend && .venv/bin/python scripts/kpi_snapshot.py`：本番のKPIを記録する。記録先は`docs/knowledge/kpi_ledger.csv`・`kpi/YYYY-MM-DD.json`・`market_ledger.csv`（市場の動き）・`auto_pdca_ledger.csv`（自動改善の判定結果）。トークンが無い・接続できない場合は「未取得」として先へ進む。
 - `kpi_ledger.csv`の直近の行と比べて、増減を「事実」に書く。
-- `experiments.md`で「未測定」の施策のうち、測定期間が過ぎたものを洗い出す。
+- **PDCA**：`experiments.csv`で`check_verdict`が「未測定」の施策のうち、測定期間が過ぎたものを洗い出す。部署ごと・施策の型ごとの当たり外れも集計する。
+- **市場**：`market_ledger.csv`の直近と前回を比べ、カテゴリ別の値下がりの広がり・新商品数の変化を「事実」に書く。`market.md`の外部の情報で、古くなったものを確認する。
 - `learnings.md`を、各部署への依頼文に含める。
 
 次をまとめ、`docs/meetings/YYYY-MM-DD.md`の冒頭に「事実」として書く。取得できないものは「未取得（理由）」と書き、推測で埋めない。
@@ -33,7 +34,8 @@ description: PAR.のAI会社の経営会議を開くスキル。全体統括と�
 ### 2. 部署ごとの提案（並行して依頼）
 7部署（`dept-sales`・`dept-marketing`・`dept-se`・`dept-hr`・`dept-accounting`・`dept-webdesign`・`dept-general-affairs`）に、1回のメッセージでまとめて依頼する。依頼文には次を含める。
 - 1章でまとめた「事実」の全文
-- その部署の観点で、最大3件を運営モデル5章の様式で出すこと
+- その部署の観点で、最大3件を運営モデル5章の様式で出すこと（「過去の試行」「市場・時期」「測り方」の欄を必ず埋める）
+- **マーケティング部と営業部には、市場調査も依頼する**：Web検索で、直近4〜8週の新モデルの発売・発表、季節の需要、ショップのセール日程、ASPの報酬キャンペーン、競合の動きを調べ、出典URL付きで「`market.md`への追記案」として返す。検索が使えない場合は「未取得」と書く
 - ファイルは変更しないこと
 
 ### 3. 相互レビュー（1回）
@@ -58,14 +60,15 @@ description: PAR.のAI会社の経営会議を開くスキル。全体統括と�
 - **差し戻し**：理由を議事録に残し、次回へ回す。
 
 ### 6. 知識の更新
-- 実行した施策は、`docs/knowledge/experiments.md`に「仮説・実施内容・測る指標・比べる期間」を追記する。
-- 測定期間が過ぎた施策は、数字を取得元付きで「測定」に書き、「学び」を書く。
+- 実行した施策は、`docs/knowledge/experiments.csv`に1行追加する（新しいIDの`EXP-NNN`、P・D・測る指標・比べる期間・実施前の数値）。背景は`experiments.md`に書く。
+- 測定期間が過ぎた施策は、実施後の数値を取得元付きで書き、判定（改善／悪化／差なし／判定不能）と次の手（継続／拡大／修正／撤回）を決める。同じ期間の市場の動きと比べてから判定する。**結果が悪くても行は消さない。**
+- 部署から出た市場の情報は、出典と確認日を付けて`market.md`に追記する。
 - 新しく確かめた事実は、出典・日付付きで`learnings.md`に追記する。
 - 推測は書かない。
 
 ### 7. 報告
 - 議事録`docs/meetings/YYYY-MM-DD.md`の構成：
-  - 事実
+  - 事実（KPI・PDCAの状況・市場の動き）
   - 提案一覧（部署・判定・決定）
   - 実行したこと
   - 承認依頼

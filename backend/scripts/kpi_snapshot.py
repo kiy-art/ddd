@@ -3,6 +3,9 @@
 Fetches GET /api/admin/kpi-summary from production and
   - saves the full response to docs/knowledge/kpi/YYYY-MM-DD.json
   - appends one row of headline numbers to docs/knowledge/kpi_ledger.csv
+  - appends the market price trend per category to market_ledger.csv
+  - appends the automatic PDCA results (optimizer actions by verdict) to
+    auto_pdca_ledger.csv
 
 Run by the weekly management meeting (.claude/skills/ai-company-meeting).
 Auth comes from the cloud environment's API credential for
@@ -76,22 +79,59 @@ def ledger_row(summary: dict, today: datetime.date) -> dict:
     }
 
 
+MARKET_COLUMNS = ["date", "category", "compared", "down", "up", "flat", "median_change_pct", "new_products_30d"]
+AUTO_PDCA_COLUMNS = ["date", "action_type", "verdict", "count_last_30d"]
+
+
+def market_rows(summary: dict, today: datetime.date) -> list[dict]:
+    market = summary.get("market") or {}
+    trend = market.get("by_category") or {}
+    new = market.get("new_products_30d") or {}
+    return [
+        {
+            "date": today.isoformat(),
+            "category": cat,
+            "compared": (trend.get(cat) or {}).get("compared", 0),
+            "down": (trend.get(cat) or {}).get("down", 0),
+            "up": (trend.get(cat) or {}).get("up", 0),
+            "flat": (trend.get(cat) or {}).get("flat", 0),
+            "median_change_pct": (trend.get(cat) or {}).get("median_change_pct", ""),
+            "new_products_30d": new.get(cat, 0),
+        }
+        for cat in sorted(set(trend) | set(new))
+    ]
+
+
+def auto_pdca_rows(summary: dict, today: datetime.date) -> list[dict]:
+    return [
+        {"date": today.isoformat(), "action_type": a["type"], "verdict": a["verdict"], "count_last_30d": a["count"]}
+        for a in summary.get("optimization_actions_last_30d") or []
+    ]
+
+
+def _replace_day(path: pathlib.Path, columns: list[str], day: str, new_rows: list[dict]) -> None:
+    """Rewrite `path` with today's rows replacing any earlier run of the same day."""
+    rows = []
+    if path.exists():
+        with path.open(encoding="utf-8", newline="") as f:
+            rows = [r for r in csv.DictReader(f) if r.get("date") != day]
+    rows.extend(new_rows)
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def record(summary: dict, today: datetime.date, knowledge: pathlib.Path = KNOWLEDGE) -> dict:
     (knowledge / "kpi").mkdir(parents=True, exist_ok=True)
     (knowledge / "kpi" / f"{today.isoformat()}.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    ledger = knowledge / "kpi_ledger.csv"
     row = ledger_row(summary, today)
-    rows = []
-    if ledger.exists():
-        with ledger.open(encoding="utf-8", newline="") as f:
-            rows = [r for r in csv.DictReader(f) if r.get("date") != row["date"]]  # one row per day
-    rows.append(row)
-    with ledger.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=COLUMNS)
-        writer.writeheader()
-        writer.writerows(rows)
+    day = row["date"]
+    _replace_day(knowledge / "kpi_ledger.csv", COLUMNS, day, [row])  # one row per day
+    _replace_day(knowledge / "market_ledger.csv", MARKET_COLUMNS, day, market_rows(summary, today))
+    _replace_day(knowledge / "auto_pdca_ledger.csv", AUTO_PDCA_COLUMNS, day, auto_pdca_rows(summary, today))
     return row
 
 

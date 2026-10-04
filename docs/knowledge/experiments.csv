@@ -1,0 +1,4 @@
+id,step,start_date,department,plan_hypothesis,do_change,metric,baseline_period,baseline_value,result_period,result_value,check_verdict,act_decision,learning
+EXP-003,STEP69,2026-10-03,マーケ/Webデザイン,様子見の来訪者を値下がり通知で呼び戻す。メーカー×カテゴリ・2商品比較の検索に専用ページで表示される,通知の登録欄を判定の直下に配置／/category/[category]/[brand]・/compare/[a]-vs-[b]を追加,通知登録数・新ページの検索表示回数とクリック数,実施前4週,未取得,実施後4週,未測定,未測定,未定,—
+EXP-002,STEP68,2026-10-02,マーケ,検索意図に合う言葉をタイトルに入れると検索CTRが上がる,retitle_product（7日後に自動判定し悪化なら元に戻す）,施策ごとの検索CTRの前後比較,施策前7日,施策ログに記録,施策後7日,未測定,未測定,未定,—
+EXP-001,STEP65,2026-09-30,Webデザイン,最初のショップボタンが遠く一覧にボタンが無いことがクリックの少なさの原因,購入ボックスの上移動・画面下の固定購入バー・一覧カードのボタン・押された場所別の集計,PVあたりのショップクリック率／押された場所別クリック,実施前2週,未取得,実施後2週,未測定,未測定,未定,—

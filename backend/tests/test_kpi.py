@@ -65,3 +65,31 @@ def test_snapshot_script_writes_one_ledger_row_per_day(tmp_path, db_session):
     rows = list(csv.DictReader((tmp_path / "kpi_ledger.csv").open(encoding="utf-8")))
     assert len(rows) == 1 and rows[0]["date"] == "2026-10-05"
     assert (tmp_path / "kpi" / "2026-10-05.json").exists()
+
+    market = list(csv.DictReader((tmp_path / "market_ledger.csv").open(encoding="utf-8")))
+    assert [r["date"] for r in market] == ["2026-10-05"] * len(market)
+    assert (tmp_path / "auto_pdca_ledger.csv").exists()
+
+
+def test_market_trend_compares_only_products_priced_in_both_windows(db_session):
+    def priced(slug, old, new, category="driver"):
+        p = _product(db_session, slug, category=category)
+        db_session.query(models.PriceHistory).filter_by(product_id=p.id).delete()  # drop create_product's initial row
+        if old is not None:
+            db_session.add(models.PriceHistory(product_id=p.id, price=old, recorded_at=NOW - datetime.timedelta(days=30)))
+        if new is not None:
+            db_session.add(models.PriceHistory(product_id=p.id, price=new, recorded_at=NOW - datetime.timedelta(days=1)))
+        db_session.commit()
+
+    priced("down", 50000, 45000)  # -10%
+    priced("up", 50000, 52000)  # +4%
+    priced("flat", 50000, 50200)  # +0.4%: within ±1%
+    priced("no-reference", None, 40000)  # skipped: nothing to compare against
+    priced("ball", 5000, 4500, category="ball")
+
+    m = kpi.market_price_trend(db_session, NOW)
+
+    assert m["by_category"]["driver"]["compared"] == 3
+    assert (m["by_category"]["driver"]["down"], m["by_category"]["driver"]["up"], m["by_category"]["driver"]["flat"]) == (1, 1, 1)
+    assert m["by_category"]["driver"]["median_change_pct"] == 0.4
+    assert m["by_category"]["ball"] == {"compared": 1, "down": 1, "up": 0, "flat": 0, "median_change_pct": -10.0}
