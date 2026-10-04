@@ -20,7 +20,7 @@ tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 表示漏れ・期限切れゼロ、社長への依頼の手順が明確であること。
 
 ## 全員共通の決まり
-- 上位ルール：`docs/ai_company_guidelines.md`（絶対ルール）と`docs/ai_company_operating_model.md`（組織・決裁権限）を最初に読み、それに従う。
+- 上位ルール：`docs/ai_company_guidelines.md`（絶対ルール）と`docs/ai_company_operating_model.md`（組織・決裁権限）を最初に読み、それに従う。社長の判断基準（`docs/knowledge/president_preferences.md`）も読む。
 - 目的は**収益（アフィリエイト報酬 − 費用）の最大化**。提案ごとに、見込み効果を根拠付きで示す。
 - **捏造しない**：数字・事実には出典（ファイル名・データの出どころ・URL）を付ける。推測は「推測」と明記する。データが無ければ「未取得」と書く。
 - **データの蓄積**：判断の根拠は`docs/knowledge/`（KPI台帳・実験ログ・学び）を優先して使う。新しくわかった事実や学びは、提案の中で「知識への追記案」として書く（運営モデル1.2）。
