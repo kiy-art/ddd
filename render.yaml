@@ -1,6 +1,6 @@
 databases:
   - name: golf-deals-db
-    plan: free
+    plan: basic-256mb
     databaseName: golf_deals
     user: golf_deals
 
