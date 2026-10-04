@@ -21,14 +21,14 @@ description: PAR.のAI会社の経営会議を開くスキル。全体統括と�
 - 前回の会議以降の変更：`git log --oneline`と`docs/ai_company_guidelines.md`の状況表
 - 未決の承認依頼：`docs/approvals/`で「状態: 未決」のもの
 - 前回までの施策の結果：直近の議事録の「実行したこと」
-- 本番データ：作業環境の環境変数`PAR_ADMIN_API_TOKEN`があり、`golf-deals-backend.onrender.com`に接続できる場合だけ、管理APIから読み取る（GETだけを使う）。
+- 本番データ：`golf-deals-backend.onrender.com`に接続できる場合だけ、管理APIから読み取る（GETだけを使う）。認証は作業環境の「API認証情報」が通信時に自動で付ける（トークンはAIには見えない）。予備として環境変数`PAR_ADMIN_API_TOKEN`も使える。
   - `/api/admin/kpi-summary`（主要KPIの一括取得。上の記録スクリプトが使う）
   - `/api/admin/affiliate-clicks/summary`（クリック数・押された場所）
   - `/api/admin/improvement-opportunities`（伸びしろのあるページ）
   - `/api/admin/logs?limit=50`（エラーログ）
   - `/api/admin/daily-job/status`（日次ジョブの結果）
   - `/api/stats`（掲載商品数・通知メールが使えるか）
-- トークンの値は、ログ・ファイル・出力に絶対に出さない（`-H "Authorization: Bearer $PAR_ADMIN_API_TOKEN"`のように、環境変数のまま使う）。
+- トークンの値は、ログ・ファイル・出力に絶対に出さない。
 
 ### 2. 部署ごとの提案（並行して依頼）
 7部署（`dept-sales`・`dept-marketing`・`dept-se`・`dept-hr`・`dept-accounting`・`dept-webdesign`・`dept-general-affairs`）に、1回のメッセージでまとめて依頼する。依頼文には次を含める。

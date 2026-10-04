@@ -5,8 +5,9 @@ Fetches GET /api/admin/kpi-summary from production and
   - appends one row of headline numbers to docs/knowledge/kpi_ledger.csv
 
 Run by the weekly management meeting (.claude/skills/ai-company-meeting).
-Needs the environment variable PAR_ADMIN_API_TOKEN (never printed); the
-API base defaults to the production backend (override with PAR_API_BASE).
+Auth comes from the cloud environment's API credential for
+golf-deals-backend.onrender.com (injected by the proxy, never visible
+here); PAR_ADMIN_API_TOKEN is a fallback. API base: PAR_API_BASE.
 
     python scripts/kpi_snapshot.py            # fetch and record
     python scripts/kpi_snapshot.py --dry-run  # fetch and print the row only
@@ -98,13 +99,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    # The token normally isn't visible here at all: the cloud environment's
+    # "API認証情報" injects the Authorization header on the way out for
+    # golf-deals-backend.onrender.com. PAR_ADMIN_API_TOKEN is only a fallback.
     token = os.environ.get("PAR_ADMIN_API_TOKEN", "").strip()
-    if not token:
-        print("PAR_ADMIN_API_TOKEN is not set - KPIs not recorded (未取得).", file=sys.stderr)
-        return 2
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     base = os.environ.get("PAR_API_BASE", "https://golf-deals-backend.onrender.com").rstrip("/")
     try:
-        response = httpx.get(f"{base}/api/admin/kpi-summary", headers={"Authorization": f"Bearer {token}"}, timeout=120)
+        response = httpx.get(f"{base}/api/admin/kpi-summary", headers=headers, timeout=120)
+        if response.status_code in (401, 403):
+            print("Not authorized - set the API credential for the admin API (未取得).", file=sys.stderr)
+            return 2
         response.raise_for_status()
     except httpx.HTTPError as exc:
         print(f"Could not fetch KPIs: {type(exc).__name__}", file=sys.stderr)
