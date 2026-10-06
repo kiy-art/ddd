@@ -316,7 +316,7 @@ def create_price_alert(db: Session, product: models.Product, data: schemas.Price
         email=data.email,
         target_price=data.target_price,
         unsubscribe_token=new_unsubscribe_token(),
-        consented_at=datetime.datetime.utcnow(),
+        consented_at=datetime.datetime.utcnow() if data.consent else None,
     )
     db.add(alert)
     db.commit()

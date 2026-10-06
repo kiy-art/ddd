@@ -48,7 +48,7 @@ def test_unsubscribe_get_is_read_only_and_masks_the_address(client, db_session):
     assert resp.status_code == 200
     body = resp.json()
     assert body["product_slug"] == "g430-iron"
-    assert body["masked_email"] == "bu***@example.com"
+    assert body["masked_email"] == "bu***@example.com"  # "buyer" - 5 chars, first 2 shown
     assert "buyer@example.com" not in resp.text
     assert len(crud.list_price_alerts(db_session)) == 1  # nothing stopped by a GET
 
@@ -68,6 +68,41 @@ def test_unsubscribe_post_deletes_one_or_all_for_the_address(client, db_session)
     resp = client.post(f"/api/alerts/unsubscribe/{remaining[0].unsubscribe_token}", json={"all_for_email": True})
     assert resp.json() == {"deleted": 1}
     assert [a.email for a in crud.list_price_alerts(db_session)] == ["other@example.com"]
+
+
+def test_consent_time_is_recorded_only_with_consent(db_session):
+    product = _product(db_session)
+    alert = crud.create_price_alert(db_session, product, schemas.PriceAlertCreate(email="a@example.com", target_price=1))
+    assert alert.consented_at is None
+
+
+def test_short_local_part_is_masked_to_one_character():
+    from app.routers.products import _mask_email
+
+    assert _mask_email("abc@example.com") == "a***@example.com"
+
+
+def test_daily_job_deletes_expired_rows(client, admin_headers, db_session, monkeypatch):
+    """Audit C7: /privacy promises the daily run deletes expired data."""
+    monkeypatch.setenv("RAKUTEN_APP_ID", "test-app-id")
+    monkeypatch.setenv("RAKUTEN_ACCESS_KEY", "test-access-key")
+    from app.config import get_settings
+    from app.routers import admin as admin_router
+
+    get_settings.cache_clear()
+    monkeypatch.setattr(admin_router.pipeline, "fetch_rakuten_prices", lambda db, on_progress=None: (0, 0))
+    monkeypatch.setattr(admin_router.popularity, "sync_popularity_rankings", lambda db: (0, 0))
+    monkeypatch.setattr(admin_router.discovery, "discover_new_products", lambda db, on_progress=None: (0, 0))
+    product = _product(db_session)
+    db_session.add(models.PriceAlert(product_id=product.id, email="old@x.jp", target_price=1, created_at=datetime.datetime(2020, 1, 1)))
+    _alert(db_session, product)  # fresh - kept
+    db_session.commit()
+    try:
+        body = client.post("/api/admin/fetch-rakuten", headers=admin_headers).json()
+    finally:
+        get_settings.cache_clear()
+    assert body["retention_deleted"] == 1
+    assert [a.email for a in crud.list_price_alerts(db_session)] == ["buyer@example.com"]
 
 
 def test_unknown_token_is_404(client):

@@ -15,7 +15,7 @@ export default function ContactPage() {
       <h1 className="mt-2 font-display text-3xl font-semibold text-foreground">お問い合わせ</h1>
       <p className="mt-4 text-sm leading-relaxed text-foreground/60">
         サイトに関するご質問・ご指摘等は、以下のフォームからお送りください。内容を確認のうえ、必要に応じて対応いたします。
-        返信をお約束するものではない点、あらかじめご了承ください。
+        ご質問への返信はお約束できませんが、個人情報の開示・訂正・停止・削除のご請求と、値下がり通知の停止のご依頼には、必ずお答えします。
       </p>
       {/* STEP75 (approval #003): purpose of use above the form. */}
       <p className="mt-3 text-xs leading-relaxed text-foreground/65">

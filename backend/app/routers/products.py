@@ -160,7 +160,10 @@ def create_price_alert(slug: str, data: schemas.PriceAlertCreate, db: Session = 
 
 def _mask_email(address: str) -> str:
     local, _, domain = address.partition("@")
-    return f"{local[:2]}***@{domain}" if domain else "***"
+    if not domain:
+        return "***"
+    shown = local[:2] if len(local) > 4 else local[:1]  # short local parts would be shown almost whole
+    return f"{shown}***@{domain}"
 
 
 def _alert_for_token(db: Session, token: str) -> models.PriceAlert:

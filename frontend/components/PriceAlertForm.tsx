@@ -108,30 +108,23 @@ export default function PriceAlertForm({
 
       <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2.5">
         <div className="flex flex-col gap-2.5 sm:flex-row">
-        <input
-          type="email"
-          required
-          placeholder="メールアドレス"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground"
-        />
-        <input
-          type="number"
-          required
-          min={1}
-          placeholder="目標価格（円）"
-          value={targetPrice}
-          onChange={(e) => setTargetPrice(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground sm:w-40"
-        />
-        <button
-          type="submit"
-          disabled={status === "loading"}
-          className="tap shrink-0 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand disabled:opacity-50"
-        >
-          {status === "loading" ? "設定中..." : "通知を受け取る"}
-        </button>
+          <input
+            type="email"
+            required
+            placeholder="メールアドレス"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground"
+          />
+          <input
+            type="number"
+            required
+            min={1}
+            placeholder="目標価格（円）"
+            value={targetPrice}
+            onChange={(e) => setTargetPrice(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground sm:w-40"
+          />
         </div>
         <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-xs text-foreground/75">
           <input
@@ -149,7 +142,7 @@ export default function PriceAlertForm({
             <Link href="/privacy" target="_blank" rel="noopener" className="font-semibold text-brand underline">
               プライバシーポリシー
             </Link>
-            に同意して登録する
+            （米国のResend社へのメールアドレスの提供を含む）に同意して登録する
           </span>
         </label>
         {consentError && (
@@ -157,6 +150,13 @@ export default function PriceAlertForm({
             登録するには、プライバシーポリシーへの同意のチェックが必要です。
           </p>
         )}
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="tap w-full shrink-0 rounded-full sm:w-auto sm:self-start bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand disabled:opacity-50"
+        >
+          {status === "loading" ? "設定中..." : "通知を受け取る"}
+        </button>
       </form>
       {status === "error" && <p className="mt-2 text-xs text-red-600">設定に失敗しました。もう一度お試しください。</p>}
       <p className="mt-2 text-[11px] leading-relaxed text-foreground/65">

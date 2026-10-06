@@ -492,6 +492,18 @@ def _run_daily_job(db: Session, settings) -> dict:
     except Exception:  # noqa: BLE001 - cleanup failing must never fail the daily job itself
         db.rollback()
 
+    # STEP75 (approval #003, audit C7): /privacy promises that expired alerts
+    # and contact messages are deleted by this daily run (app/retention.py).
+    retention_deleted = 0
+    try:
+        purge = retention.run_retention_purge(db, apply=True)
+        retention_deleted = purge.price_alerts + purge.contact_messages
+        if purge.plan_lines:
+            crud.create_error_log(db, source="retention_purge", level="info", message="\n".join(purge.plan_lines))
+    except Exception as exc:  # noqa: BLE001 - never fail the daily job; logged for the next meeting
+        db.rollback()
+        crud.create_error_log(db, source="retention_purge", message=f"保存期間を過ぎた情報の削除に失敗しました: {exc}")
+
     result = {
         "prices_updated": price_updated,
         "prices_skipped": price_skipped,
@@ -507,6 +519,7 @@ def _run_daily_job(db: Session, settings) -> dict:
         "price_alerts_skipped": alerts_skipped,
         "x_posts_sent": x_posts_sent,
         "x_posts_skipped": x_posts_skipped,
+        "retention_deleted": retention_deleted,
     }
 
     # A single, always-added "job finished" summary - the most recent

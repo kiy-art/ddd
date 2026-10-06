@@ -80,6 +80,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
+                // STEP75 (audit C1): the unsubscribe page's URL carries the
+                // stop token - never send it to Google.
+                if (location.pathname.indexOf('/alerts/') === 0) { window['ga-disable-${GA_MEASUREMENT_ID}'] = true; }
                 gtag('config', '${GA_MEASUREMENT_ID}');
               `}
             </Script>

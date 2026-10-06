@@ -399,7 +399,7 @@ def test_send_price_alert_notifications_is_noop_when_not_configured(db_session, 
     get_settings.cache_clear()
     try:
         product = _make_product(db_session, initial_price=90000)
-        crud.create_price_alert(db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000))
+        crud.create_price_alert(db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000, consent=True))
 
         sent_calls = []
         monkeypatch.setattr(email, "send_email", lambda **kwargs: sent_calls.append(kwargs))
@@ -420,7 +420,7 @@ def test_send_price_alert_notifications_sends_when_target_reached(db_session, mo
     try:
         product = _make_product(db_session, initial_price=90000)  # already below the target
         alert = crud.create_price_alert(
-            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000, consent=True)
         )
 
         sent_calls = []
@@ -451,7 +451,7 @@ def test_send_price_alert_notifications_holds_alerts_registered_without_consent(
     try:
         product = _make_product(db_session, initial_price=90000)
         alert = crud.create_price_alert(
-            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000, consent=True)
         )
         alert.consented_at = None
         db_session.commit()
@@ -474,7 +474,7 @@ def test_send_price_alert_notifications_skips_when_target_not_yet_reached(db_ses
     try:
         product = _make_product(db_session, initial_price=120000)  # still above the target
         alert = crud.create_price_alert(
-            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000, consent=True)
         )
 
         sent_calls = []
@@ -498,7 +498,7 @@ def test_send_price_alert_notifications_never_resends_an_already_notified_alert(
     try:
         product = _make_product(db_session, initial_price=90000)
         alert = crud.create_price_alert(
-            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000, consent=True)
         )
         crud.mark_price_alert_notified(db_session, alert)
 
@@ -523,7 +523,7 @@ def test_send_price_alert_notifications_leaves_alert_unmarked_on_send_failure(db
     try:
         product = _make_product(db_session, initial_price=90000)
         alert = crud.create_price_alert(
-            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000, consent=True)
         )
 
         def failing_send(**kwargs):
@@ -689,7 +689,7 @@ def test_send_price_alert_notifications_waits_for_the_privacy_policy(db_session,
     get_settings.cache_clear()
     try:
         product = _make_product(db_session, initial_price=90000)
-        crud.create_price_alert(db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000))
+        crud.create_price_alert(db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000, consent=True))
         sent_calls = []
         monkeypatch.setattr(email, "send_email", lambda **kwargs: sent_calls.append(kwargs))
         assert pipeline.send_price_alert_notifications(db_session) == (0, 0)
