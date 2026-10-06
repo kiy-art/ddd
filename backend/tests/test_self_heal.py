@@ -226,12 +226,12 @@ def test_manual_run_starts_after_the_last_summary(db_session, monkeypatch):
 
 
 def test_fetch_rakuten_prices_can_be_limited_to_some_products(db_session, monkeypatch):
-    a, b = _product(db_session, "A"), _product(db_session, "B")
+    a, b = _product(db_session, "AA"), _product(db_session, "BB")
     looked_up = []
     monkeypatch.setattr(pipeline.time, "sleep", lambda s: None)
     monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: looked_up.append(keyword))
     pipeline.fetch_rakuten_prices(db_session, only_product_ids=[b.id])
-    assert looked_up == ["PING Ｂ"]  # STEP74: a lone half-width "B" is sent full-width
+    assert looked_up == ["PING BB"]
     assert a.id != b.id
 
 

@@ -35,14 +35,29 @@ def test_rejected_names_become_valid_keywords(brand, name):
 def test_model_numbers_survive_the_rebuild():
     keyword = build_search_keyword("PING", "ピン G440K ドライバー ALTA J CB BLUE G440 K 右用")
     assert "G440K" in keyword and "ALTA" in keyword
-    # A lone "J"/"K" is kept in full width rather than dropped.
-    assert "Ｊ" in keyword and "Ｋ" in keyword
+    # STEP75: a lone "J"/"K" is dropped - Rakuten rejects it even in full width.
+    assert not any(t in keyword.split() for t in ("J", "K", "Ｊ", "Ｋ"))
     assert "TM40" in build_search_keyword("TaylorMade", "テーラーメイド Qi ウィ アイアン / ELDIO TM40")
 
 
-def test_one_letter_model_suffix_is_widened_not_lost():
-    assert build_search_keyword("Bridgestone", "TOUR B X") == "Bridgestone TOUR Ｂ Ｘ"
-    assert build_search_keyword("Yonex", "EZONE GT TYPE S ドライバー") == "Yonex EZONE GT TYPE Ｓ ドライバー"
+def test_lone_non_kanji_characters_are_dropped():
+    """STEP75: every one of the 81 widened keywords (e.g. "TYPE Ｓ") was
+    rejected on 2026-10-06, and so were lone kana ("ス", "の")."""
+    assert build_search_keyword("Yonex", "EZONE GT TYPE S ドライバー") == "Yonex EZONE GT TYPE ドライバー"
+    assert not is_valid_rakuten_keyword("PING TYPE Ｓ")
+    assert not is_valid_rakuten_keyword("PING ス コントロール")
+    assert not is_valid_rakuten_keyword("PING 9本 の セット")
+    assert build_search_keyword("PING", "パター ス コントロール") == "PING パター コントロール"
+
+
+def test_too_broad_after_dropping_is_no_keyword():
+    """Audit 2026-10-06: the brand in another spelling, or the brand plus
+    one word, would match far too many listings."""
+    assert build_search_keyword("PING", "B") is None
+    assert build_search_keyword("Bridgestone", "BRIDGESTONE B") is None
+    assert build_search_keyword("Bridgestone", "ブリヂストン X") is None
+    assert build_search_keyword("PING", "ピン K") is None
+    assert build_search_keyword("Bridgestone", "TOUR B X") is None
 
 
 @pytest.mark.parametrize(
@@ -63,7 +78,7 @@ def test_symbol_only_tokens_and_length_are_rejected():
     assert not is_valid_rakuten_keyword("PING ー G440")
     assert not is_valid_rakuten_keyword("PING ／ G440")
     assert not is_valid_rakuten_keyword("PING " + "あ" * 130)
-    assert is_valid_rakuten_keyword("PING 白 G440")  # one full-width character is fine
+    assert is_valid_rakuten_keyword("PING 白 G440")  # one kanji is accepted (seen passing in production)
 
 
 def test_long_names_are_cut_at_a_token_boundary():
