@@ -183,6 +183,27 @@ class BuyScoreLiteral(BaseModel):
 class PriceAlertCreate(BaseModel):
     email: str = Field(pattern=EMAIL_PATTERN, max_length=255)
     target_price: int = Field(gt=0)
+    # STEP75 (approval #003): the "agree to the privacy policy" checkbox.
+    # Defaults to False so an old client that never sends it is refused.
+    consent: bool = False
+
+
+class PriceAlertUnsubscribeInfo(BaseModel):
+    """What the unsubscribe page shows - never the full email address."""
+
+    product_name: str
+    product_slug: str
+    target_price: int
+    masked_email: str
+    alerts_for_email: int
+
+
+class PriceAlertUnsubscribeRequest(BaseModel):
+    all_for_email: bool = False
+
+
+class PriceAlertUnsubscribeResult(BaseModel):
+    deleted: int
 
 
 class PriceAlertOut(BaseModel):

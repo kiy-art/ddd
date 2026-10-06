@@ -65,8 +65,17 @@ def test_price_alert_email_html_includes_real_values_only():
         product_url="https://golf-deals-frontend.onrender.com/products/ping-i230",
         current_price=95000,
         target_price=100000,
+        unsubscribe_link="https://par-gear.com/alerts/unsubscribe?token=abc",
+        site_url="https://par-gear.com",
     )
     assert "PING i230 アイアン" in html
+    # STEP75: sender, unsubscribe link, policy and contact in every mail;
+    # no shop links (the mail only points back to PAR.).
+    assert "送信者：PAR." in html
+    assert "https://par-gear.com/alerts/unsubscribe?token=abc" in html
+    assert "https://par-gear.com/privacy" in html
+    assert "https://par-gear.com/contact" in html
+    assert "amazon" not in html.lower()
     assert "95,000" in html
     assert "100,000" in html
     assert "https://golf-deals-frontend.onrender.com/products/ping-i230" in html

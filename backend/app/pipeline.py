@@ -419,19 +419,28 @@ def send_price_alert_notifications(db: Session) -> tuple[int, int]:
         product = crud.get_product(db, alert.product_id)
         if product is None or product.current_price is None or product.current_price > alert.target_price:
             continue  # not triggered yet - not an error, just not due
+        # STEP75: rows from before the privacy policy (no consent recorded)
+        # are held, not mailed - approval #003. Without a token there would
+        # be no unsubscribe link, so those are held too.
+        if alert.consented_at is None or not alert.unsubscribe_token:
+            continue
 
         try:
             product_url = f"{settings.site_url}/products/{product.slug}"
+            stop_link = email.unsubscribe_url(settings.site_url, alert.unsubscribe_token)
             html = email.price_alert_email_html(
                 product_name=product.name,
                 product_url=product_url,
                 current_price=product.current_price,
                 target_price=alert.target_price,
+                unsubscribe_link=stop_link,
+                site_url=settings.site_url,
             )
             email.send_email(
                 to=alert.email,
                 subject=f"【PAR.】{product.name}が目標価格以下になりました",
                 html=html,
+                headers={"List-Unsubscribe": f"<{stop_link}>"},
             )
             crud.mark_price_alert_notified(db, alert)
             sent += 1
@@ -439,7 +448,7 @@ def send_price_alert_notifications(db: Session) -> tuple[int, int]:
             crud.create_error_log(
                 db,
                 source="price_alert_email",
-                message=f"{product.name} -> {alert.email}: {exc}",
+                message=f"{product.name} -> 値下がり通知 #{alert.id}: {exc}",  # no email address in logs
                 product_id=product.id,
             )
             skipped += 1

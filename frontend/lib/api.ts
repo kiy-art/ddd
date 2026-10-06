@@ -341,10 +341,31 @@ export interface PriceAlertAdmin extends PriceAlert {
   triggered: boolean;
 }
 
-export function createPriceAlert(slug: string, email: string, targetPrice: number) {
+// STEP75 (approval #003): `consent` is the privacy-policy checkbox - the
+// backend refuses a registration without it.
+export function createPriceAlert(slug: string, email: string, targetPrice: number, consent: boolean) {
   return apiFetch<PriceAlert>(`/api/products/${slug}/alerts`, {
     method: "POST",
-    body: JSON.stringify({ email, target_price: targetPrice }),
+    body: JSON.stringify({ email, target_price: targetPrice, consent }),
+  });
+}
+
+export interface PriceAlertUnsubscribeInfo {
+  product_name: string;
+  product_slug: string;
+  target_price: number;
+  masked_email: string;
+  alerts_for_email: number;
+}
+
+export function getUnsubscribeInfo(token: string) {
+  return apiFetch<PriceAlertUnsubscribeInfo>(`/api/alerts/unsubscribe/${encodeURIComponent(token)}`);
+}
+
+export function unsubscribePriceAlert(token: string, allForEmail: boolean) {
+  return apiFetch<{ deleted: number }>(`/api/alerts/unsubscribe/${encodeURIComponent(token)}`, {
+    method: "POST",
+    body: JSON.stringify({ all_for_email: allForEmail }),
   });
 }
 

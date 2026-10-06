@@ -49,6 +49,20 @@ def test_kpi_summary_counts_real_rows_only(db_session):
     assert "someone@example.com" not in str(s)  # counts only, never addresses
 
 
+def test_partner_offer_clicks_are_kept_out_of_shop_clicks(db_session):
+    """STEP75 (#004): a fitting/lesson offer click is not a shop click."""
+    p = _product(db_session, "a")
+    for shop in ("rakuten", "alpen", "partner"):
+        db_session.add(models.AffiliateClick(product_id=p.id, shop=shop, placement="after_comparison", created_at=NOW - datetime.timedelta(days=1)))
+    db_session.commit()
+
+    s = kpi.kpi_summary(db_session, now=NOW)
+    assert s["shop_clicks"]["total"] == 2 and s["shop_clicks"]["last_7d"] == 2
+    assert s["shop_clicks"]["last_7d_by_shop"] == {"rakuten": 1, "alpen": 1}
+    assert s["partner_clicks"]["total"] == 1 and s["partner_clicks"]["last_7d"] == 1
+    assert s["partner_clicks"]["last_7d_by_placement"] == {"after_comparison": 1}
+
+
 def test_kpi_endpoint_requires_admin(client, admin_headers):
     assert client.get("/api/admin/kpi-summary").status_code in (401, 403)
     assert client.get("/api/admin/kpi-summary", headers=admin_headers).status_code == 200

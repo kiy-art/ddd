@@ -1,8 +1,12 @@
 import { API_URL } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
 
-// Kept in sync with backend/app/models.py's AFFILIATE_SHOPS.
-export type Shop = "amazon" | "rakuten" | "yahoo" | "official";
+// Kept in sync with backend/app/models.py's AFFILIATE_SHOPS. STEP75
+// (approval #004): "alpen" (Golf5/Alpen) and "partner" (a fitting/lesson
+// offer) can't be told apart from a URL - a valuecommerce.com link may be
+// Yahoo! or Alpen, and A8/もしも/afb links look like "official" - so the
+// link that renders them passes the shop explicitly (TrackedCta's `shop`).
+export type Shop = "amazon" | "rakuten" | "yahoo" | "official" | "alpen" | "partner";
 
 export function detectShop(url: string): Shop {
   try {

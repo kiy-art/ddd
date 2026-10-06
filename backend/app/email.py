@@ -44,7 +44,7 @@ class EmailSendError(Exception):
     pass
 
 
-def send_email(to: str, subject: str, html: str, timeout: float = 10.0) -> None:
+def send_email(to: str, subject: str, html: str, timeout: float = 10.0, headers: dict[str, str] | None = None) -> None:
     """Raises ResendNotConfigured / EmailSendError on failure - callers
     decide how to handle that (see pipeline.send_price_alert_notifications,
     which logs and leaves the alert unsent so it's retried next run)."""
@@ -55,17 +55,39 @@ def send_email(to: str, subject: str, html: str, timeout: float = 10.0) -> None:
     response = httpx.post(
         SEND_URL,
         headers={"Authorization": f"Bearer {settings.resend_api_key}"},
-        json={"from": settings.resend_from_email, "to": [to], "subject": subject, "html": html},
+        json={
+            "from": settings.resend_from_email,
+            "to": [to],
+            "subject": subject,
+            "html": html,
+            **({"headers": headers} if headers else {}),
+        },
         timeout=timeout,
     )
     if response.is_error:
         raise EmailSendError(f"Resend API {response.status_code}: {response.text[:500]}")
 
 
-def price_alert_email_html(product_name: str, product_url: str, current_price: int, target_price: int) -> str:
+def unsubscribe_url(site_url: str, token: str) -> str:
+    return f"{site_url.rstrip('/')}/alerts/unsubscribe?token={token}"
+
+
+def price_alert_email_html(
+    product_name: str,
+    product_url: str,
+    current_price: int,
+    target_price: int,
+    unsubscribe_link: str,
+    site_url: str,
+) -> str:
     """Plain, factual content only - the real current price and the
     subscriber's own target price, no urgency language or fabricated
-    claims (matches the site's honesty stance elsewhere)."""
+    claims (matches the site's honesty stance elsewhere).
+
+    STEP75 (approval #003): every mail names the sender and carries the
+    unsubscribe link, the privacy policy and the contact form. No shop or
+    Amazon links in the mail itself - only the product page on PAR."""
+    site = site_url.rstrip("/")
     return f"""
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #14130f;">
       <p style="font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #a5670e;">PAR. 値下がり通知</p>
@@ -81,6 +103,12 @@ def price_alert_email_html(product_name: str, product_url: str, current_price: i
       </p>
       <p style="font-size: 12px; color: #6b6a63; line-height: 1.6;">
         ※価格・在庫は変動するため、購入前に販売元サイトで最新価格をご確認ください。このメールは、以前このサイトで値下がり通知を設定された方にお送りしています。
+      </p>
+      <p style="font-size: 12px; color: #6b6a63; line-height: 1.6; border-top: 1px solid #e5e3dc; padding-top: 12px;">
+        送信者：PAR.（<a href="{site}" style="color: #6b6a63;">{site}</a>）<br>
+        この通知を停止する：<a href="{unsubscribe_link}" style="color: #6b6a63;">通知の停止・登録の削除</a><br>
+        <a href="{site}/privacy" style="color: #6b6a63;">プライバシーポリシー</a> ・
+        <a href="{site}/contact" style="color: #6b6a63;">お問い合わせ</a>
       </p>
     </div>
     """

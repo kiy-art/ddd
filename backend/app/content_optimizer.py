@@ -168,10 +168,18 @@ def _product_pageviews_since(db: Session, since: datetime.date) -> dict[int, int
     return {pid: int(pv or 0) for pid, pv in rows}
 
 
+# STEP75 (#004): partner-offer clicks are not shop clicks.
+_SHOP_CLICK = models.AffiliateClick.shop.not_in(models.PARTNER_OFFER_SHOPS)
+
+
 def _product_clicks_since(db: Session, since: datetime.datetime) -> dict[int, int]:
     rows = db.execute(
         select(models.AffiliateClick.product_id, func.count())
-        .where(models.AffiliateClick.product_id.is_not(None), models.AffiliateClick.created_at >= since)
+        .where(
+            models.AffiliateClick.product_id.is_not(None),
+            models.AffiliateClick.created_at >= since,
+            _SHOP_CLICK,
+        )
         .group_by(models.AffiliateClick.product_id)
     ).all()
     return {pid: count for pid, count in rows}
@@ -334,7 +342,7 @@ def select_trending_products(
     since = datetime.datetime.utcnow() - datetime.timedelta(days=days)
     rows = db.execute(
         select(models.AffiliateClick.product_id, func.count().label("clicks"))
-        .where(models.AffiliateClick.created_at >= since, models.AffiliateClick.product_id.is_not(None))
+        .where(models.AffiliateClick.created_at >= since, models.AffiliateClick.product_id.is_not(None), _SHOP_CLICK)
         .group_by(models.AffiliateClick.product_id)
         .order_by(func.count().desc())
         .limit(limit)
@@ -682,6 +690,7 @@ def _evaluate_homepage_action(db: Session, action: models.AiOptimizationAction) 
                 models.AffiliateClick.product_id.in_(product_ids),
                 models.AffiliateClick.created_at >= start,
                 models.AffiliateClick.created_at < end,
+                _SHOP_CLICK,
             )
         ).scalar_one()
 

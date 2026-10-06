@@ -137,6 +137,7 @@ const SHEET_FOOTER_LINKS = [
   { href: "/faq", label: "よくある質問" },
   { href: "/contact", label: "お問い合わせ" },
   { href: "/disclaimer", label: "免責事項・アフィリエイトについて" },
+  { href: "/privacy", label: "プライバシーポリシー" },
   { href: "/admin", label: "管理画面" },
 ];
 
@@ -259,6 +260,9 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
           </Link>
           <Link href="/disclaimer" className="hover:text-foreground">
             免責事項・アフィリエイトについて
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground">
+            プライバシーポリシー
           </Link>
           <Link href="/admin" className="hover:text-foreground">
             管理画面

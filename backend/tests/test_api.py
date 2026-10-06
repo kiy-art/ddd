@@ -384,7 +384,13 @@ def _subscribe_and_check(client, admin_headers):
     ).json()
     slug = created["slug"]
 
+    # STEP75: refused without the privacy-policy consent checkbox.
     resp = client.post(f"/api/products/{slug}/alerts", json={"email": "buyer@example.com", "target_price": 50000})
+    assert resp.status_code == 422
+
+    resp = client.post(
+        f"/api/products/{slug}/alerts", json={"email": "buyer@example.com", "target_price": 50000, "consent": True}
+    )
     assert resp.status_code == 201
     alert = resp.json()
     assert alert["email"] == "buyer@example.com"

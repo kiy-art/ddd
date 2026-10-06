@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, kpi, models, pipeline, popularity, product_facts, progress, schemas, self_heal, title_migration, x_post
+from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, kpi, models, pipeline, popularity, product_facts, progress, retention, schemas, self_heal, title_migration, x_post
 from app.auth import require_admin
 from app.database import SessionLocal, get_db
 
@@ -770,6 +770,23 @@ def run_category_migration(dry_run: bool = False, db: Session = Depends(get_db))
         "products_checked": result.products_checked,
         "moved": result.moved,
         "moved_by_category": result.moved_by_category,
+        "plan_lines": result.plan_lines,
+    }
+
+
+@router.post("/run-retention-purge")
+def run_retention_purge(dry_run: bool = True, db: Session = Depends(get_db)):
+    """STEP75 (approval #003): deletes alerts and contact messages past the
+    retention period on /privacy (app/retention.py). Defaults to a dry run
+    (counts only) because the deletion cannot be undone - pass
+    ?dry_run=false to apply after checking the counts."""
+    result = retention.run_retention_purge(db, apply=not dry_run)
+    if result.applied and result.plan_lines:
+        crud.create_error_log(db, source="retention_purge", level="info", message="\n".join(result.plan_lines))
+    return {
+        "applied": result.applied,
+        "price_alerts": result.price_alerts,
+        "contact_messages": result.contact_messages,
         "plan_lines": result.plan_lines,
     }
 

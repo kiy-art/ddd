@@ -153,7 +153,47 @@ def create_price_alert(slug: str, data: schemas.PriceAlertCreate, db: Session = 
     # STEP74: no new email addresses until the privacy policy is published.
     if not get_settings().privacy_policy_published:
         raise HTTPException(status_code=409, detail="値下がり通知の受付は準備中です")
+    if not data.consent:
+        raise HTTPException(status_code=422, detail="プライバシーポリシーへの同意が必要です")
     return crud.create_price_alert(db, product, data)
+
+
+def _mask_email(address: str) -> str:
+    local, _, domain = address.partition("@")
+    return f"{local[:2]}***@{domain}" if domain else "***"
+
+
+def _alert_for_token(db: Session, token: str) -> models.PriceAlert:
+    alert = crud.get_price_alert_by_token(db, token)
+    if alert is None:
+        # Same answer for "never existed" and "already stopped".
+        raise HTTPException(status_code=404, detail="この通知は見つかりません（すでに停止済みの可能性があります）")
+    return alert
+
+
+@router.get("/alerts/unsubscribe/{token}", response_model=schemas.PriceAlertUnsubscribeInfo)
+def get_unsubscribe_info(token: str, db: Session = Depends(get_db)):
+    """STEP75 (approval #003): read-only, so a mail client prefetching the
+    link can't stop the alert - stopping is the POST below."""
+    alert = _alert_for_token(db, token)
+    return schemas.PriceAlertUnsubscribeInfo(
+        product_name=alert.product.name,
+        product_slug=alert.product.slug,
+        target_price=alert.target_price,
+        masked_email=_mask_email(alert.email),
+        alerts_for_email=crud.count_price_alerts_for_email(db, alert.email),
+    )
+
+
+@router.post("/alerts/unsubscribe/{token}", response_model=schemas.PriceAlertUnsubscribeResult)
+def unsubscribe_price_alert(
+    token: str, data: schemas.PriceAlertUnsubscribeRequest, db: Session = Depends(get_db)
+):
+    """Stops the alert by deleting it (or every alert for that address)."""
+    alert = _alert_for_token(db, token)
+    return schemas.PriceAlertUnsubscribeResult(
+        deleted=crud.delete_price_alerts_for_unsubscribe(db, alert, data.all_for_email)
+    )
 
 
 @router.get("/homepage/trending", response_model=schemas.TrendingProductsOut)

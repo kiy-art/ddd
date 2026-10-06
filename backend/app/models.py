@@ -19,7 +19,14 @@ CATEGORIES = ["driver", "iron", "wedge", "putter", "ball", "glove", "rangefinder
 # Which real outbound destination a click went to - "official" covers the
 # manufacturer's own product page (no affiliate relationship, still worth
 # counting separately from a marketplace link).
-AFFILIATE_SHOPS = ["amazon", "rakuten", "yahoo", "official"]
+#
+# STEP75 (approval #004): "alpen" is Golf5/Alpen via ValueCommerce - a
+# shop, recorded explicitly because a valuecommerce.com URL alone would be
+# mistaken for Yahoo!. "partner" is a fitting/lesson offer slot (not a
+# shop): PARTNER_OFFER_SHOPS are counted apart from the shop click rate
+# (see kpi.py's shop_clicks / partner_clicks).
+PARTNER_OFFER_SHOPS = ["partner"]
+AFFILIATE_SHOPS = ["amazon", "rakuten", "yahoo", "official", "alpen", *PARTNER_OFFER_SHOPS]
 
 BUY_SCORES = ["strong_buy", "buy", "neutral", "not_buy", "insufficient_data"]
 
@@ -189,6 +196,13 @@ class PriceAlert(Base):
     target_price: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     notified_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # STEP75 (approval #003): the secret in the unsubscribe link every alert
+    # email carries - unguessable (secrets.token_urlsafe), never the row id.
+    unsubscribe_token: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    # When the subscriber ticked "agree to the privacy policy". NULL on the
+    # rows registered before the policy existed - those are never mailed
+    # (see pipeline.send_price_alert_notifications).
+    consented_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     product: Mapped["Product"] = relationship()
 

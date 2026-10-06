@@ -430,9 +430,37 @@ def test_send_price_alert_notifications_sends_when_target_reached(db_session, mo
         assert (sent, skipped) == (1, 0)
         assert len(sent_calls) == 1
         assert sent_calls[0]["to"] == "user@example.com"
+        stop_link = f"/alerts/unsubscribe?token={alert.unsubscribe_token}"
+        assert stop_link in sent_calls[0]["html"]
+        assert stop_link in sent_calls[0]["headers"]["List-Unsubscribe"]
 
         db_session.refresh(alert)
         assert alert.notified_at is not None
+    finally:
+        get_settings.cache_clear()
+
+
+def test_send_price_alert_notifications_holds_alerts_registered_without_consent(db_session, monkeypatch):
+    """STEP75: rows from before the privacy policy (consented_at NULL) are
+    never mailed - approval #003."""
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    monkeypatch.setenv("PRIVACY_POLICY_PUBLISHED", "true")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        product = _make_product(db_session, initial_price=90000)
+        alert = crud.create_price_alert(
+            db_session, product, schemas.PriceAlertCreate(email="user@example.com", target_price=100000)
+        )
+        alert.consented_at = None
+        db_session.commit()
+
+        sent_calls = []
+        monkeypatch.setattr(email, "send_email", lambda **kwargs: sent_calls.append(kwargs))
+
+        assert pipeline.send_price_alert_notifications(db_session) == (0, 0)
+        assert sent_calls == []
     finally:
         get_settings.cache_clear()
 

@@ -53,6 +53,8 @@ ADDED_COLUMNS = [
     ("products", "ai_copy_source_action_id", "INTEGER"),
     ("products", "seo_title_intent", "VARCHAR(20)"),
     ("ai_optimization_actions", "revert_reason", "VARCHAR(30)"),
+    ("price_alerts", "unsubscribe_token", "VARCHAR(64)"),
+    ("price_alerts", "consented_at", "TIMESTAMP"),
 ]
 
 
@@ -81,6 +83,11 @@ def migrate(target_engine: Engine) -> None:
         # this column was added must default to already-published (False),
         # not pending — only the auto-discovery pipeline ever sets True.
         conn.execute(text("UPDATE products SET pending_review = FALSE WHERE pending_review IS NULL"))
+
+    # STEP75: every alert needs its own unguessable unsubscribe token - one
+    # random value per row, so it can't be a single UPDATE ... SET.
+    with Session(target_engine) as db:
+        crud.backfill_unsubscribe_tokens(db)
 
 
 # One-off correction for a specific known-bad production row: "ELYTE MAX

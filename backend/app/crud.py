@@ -1,5 +1,6 @@
 import datetime
 import re
+import secrets
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -305,8 +306,18 @@ def recompute_current_price(db: Session, product: models.Product) -> None:
 # --- Price alerts ----------------------------------------------------------------
 
 
+def new_unsubscribe_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
 def create_price_alert(db: Session, product: models.Product, data: schemas.PriceAlertCreate) -> models.PriceAlert:
-    alert = models.PriceAlert(product_id=product.id, email=data.email, target_price=data.target_price)
+    alert = models.PriceAlert(
+        product_id=product.id,
+        email=data.email,
+        target_price=data.target_price,
+        unsubscribe_token=new_unsubscribe_token(),
+        consented_at=datetime.datetime.utcnow(),
+    )
     db.add(alert)
     db.commit()
     db.refresh(alert)
@@ -323,6 +334,48 @@ def list_price_alerts(db: Session, only_untriggered: bool = False) -> list[model
 def mark_price_alert_notified(db: Session, alert: models.PriceAlert) -> None:
     alert.notified_at = datetime.datetime.utcnow()
     db.commit()
+
+
+def backfill_unsubscribe_tokens(db: Session) -> int:
+    """Gives every alert that has no unsubscribe token one (rows created
+    before STEP75). Idempotent."""
+    alerts = list(
+        db.execute(select(models.PriceAlert).where(models.PriceAlert.unsubscribe_token.is_(None))).scalars().all()
+    )
+    for alert in alerts:
+        alert.unsubscribe_token = new_unsubscribe_token()
+    if alerts:
+        db.commit()
+    return len(alerts)
+
+
+def get_price_alert_by_token(db: Session, token: str) -> models.PriceAlert | None:
+    if not token:
+        return None
+    return db.execute(
+        select(models.PriceAlert).where(models.PriceAlert.unsubscribe_token == token)
+    ).scalar_one_or_none()
+
+
+def count_price_alerts_for_email(db: Session, address: str) -> int:
+    return db.execute(
+        select(func.count()).select_from(models.PriceAlert).where(models.PriceAlert.email == address)
+    ).scalar_one()
+
+
+def delete_price_alerts_for_unsubscribe(db: Session, alert: models.PriceAlert, all_for_email: bool) -> int:
+    """Deletes the alert (or every alert for the same address). The row is
+    removed, not flagged - stopping is also the deletion request."""
+    if all_for_email:
+        targets = list(
+            db.execute(select(models.PriceAlert).where(models.PriceAlert.email == alert.email)).scalars().all()
+        )
+    else:
+        targets = [alert]
+    for target in targets:
+        db.delete(target)
+    db.commit()
+    return len(targets)
 
 
 # --- Contact messages -------------------------------------------------------

@@ -122,6 +122,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   <Link href="/disclaimer" className="hover:text-foreground">
                     免責事項・アフィリエイトについて
                   </Link>
+                  <Link href="/privacy" className="hover:text-foreground">
+                    プライバシーポリシー
+                  </Link>
                 </nav>
               </div>
               <p className="max-w-2xl text-xs leading-relaxed text-foreground/40">

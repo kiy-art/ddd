@@ -24,17 +24,27 @@ def _count(db: Session, query) -> int:
     return db.execute(query).scalar_one() or 0
 
 
-def _clicks(db: Session, since: datetime.datetime, until: datetime.datetime | None = None) -> int:
-    q = select(func.count(models.AffiliateClick.id)).where(models.AffiliateClick.created_at >= since)
+def _shop_filter(partner: bool):
+    """STEP75 (#004): shop clicks and partner-offer clicks are separate KPIs."""
+    in_partner = models.AffiliateClick.shop.in_(models.PARTNER_OFFER_SHOPS)
+    return in_partner if partner else ~in_partner
+
+
+def _clicks(
+    db: Session, since: datetime.datetime | None, until: datetime.datetime | None = None, partner: bool = False
+) -> int:
+    q = select(func.count(models.AffiliateClick.id)).where(_shop_filter(partner))
+    if since is not None:
+        q = q.where(models.AffiliateClick.created_at >= since)
     if until is not None:
         q = q.where(models.AffiliateClick.created_at < until)
     return _count(db, q)
 
 
-def _grouped_clicks(db: Session, column, since: datetime.datetime) -> dict[str, int]:
+def _grouped_clicks(db: Session, column, since: datetime.datetime, partner: bool = False) -> dict[str, int]:
     rows = db.execute(
         select(column, func.count(models.AffiliateClick.id))
-        .where(models.AffiliateClick.created_at >= since)
+        .where(models.AffiliateClick.created_at >= since, _shop_filter(partner))
         .group_by(column)
         .order_by(func.count(models.AffiliateClick.id).desc())
     ).all()
@@ -197,12 +207,19 @@ def kpi_summary(db: Session, now: datetime.datetime | None = None) -> dict:
             ),
         },
         "shop_clicks": {
-            "total": _count(db, select(func.count(models.AffiliateClick.id))),
+            "total": _clicks(db, None),
             "last_7d": _clicks(db, d7),
             "prev_7d": _clicks(db, d14, d7),
             "last_30d": _clicks(db, d30),
             "last_7d_by_shop": _grouped_clicks(db, models.AffiliateClick.shop, d7),
             "last_7d_by_placement": _grouped_clicks(db, models.AffiliateClick.placement, d7),
+        },
+        # STEP75 (#004): fitting/lesson offer clicks - never in the shop rate.
+        "partner_clicks": {
+            "total": _clicks(db, None, partner=True),
+            "last_7d": _clicks(db, d7, partner=True),
+            "last_30d": _clicks(db, d30, partner=True),
+            "last_7d_by_placement": _grouped_clicks(db, models.AffiliateClick.placement, d7, partner=True),
         },
         "search_console": search_out,
         "ga4": ga4_out,

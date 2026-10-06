@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { createPriceAlert } from "@/lib/api";
@@ -32,13 +33,21 @@ export default function PriceAlertForm({
   const [email, setEmail] = useState("");
   const [targetPrice, setTargetPrice] = useState(suggestions[0] ? String(suggestions[0].price) : "");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  // STEP75 (approval #003): unticked by default; the backend also refuses
+  // a registration without it.
+  const [consent, setConsent] = useState(false);
+  const [consentError, setConsentError] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !targetPrice) return;
+    if (!consent) {
+      setConsentError(true);
+      return;
+    }
     setStatus("loading");
     try {
-      await createPriceAlert(slug, email, Number(targetPrice));
+      await createPriceAlert(slug, email, Number(targetPrice), consent);
       trackEvent("price_alert_created", { product_slug: slug, target_price: Number(targetPrice), placement: variant });
       setStatus("done");
     } catch {
@@ -97,7 +106,8 @@ export default function PriceAlertForm({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2.5 sm:flex-row">
+      <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 sm:flex-row">
         <input
           type="email"
           required
@@ -122,10 +132,44 @@ export default function PriceAlertForm({
         >
           {status === "loading" ? "設定中..." : "通知を受け取る"}
         </button>
+        </div>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-xs text-foreground/75">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => {
+              setConsent(e.target.checked);
+              if (e.target.checked) setConsentError(false);
+            }}
+            aria-invalid={consentError}
+            aria-describedby={consentError ? `consent-error-${variant}` : undefined}
+            className="h-5 w-5 shrink-0 accent-brand"
+          />
+          <span>
+            <Link href="/privacy" target="_blank" rel="noopener" className="font-semibold text-brand underline">
+              プライバシーポリシー
+            </Link>
+            に同意して登録する
+          </span>
+        </label>
+        {consentError && (
+          <p id={`consent-error-${variant}`} role="alert" className="text-xs text-red-600">
+            登録するには、プライバシーポリシーへの同意のチェックが必要です。
+          </p>
+        )}
       </form>
       {status === "error" && <p className="mt-2 text-xs text-red-600">設定に失敗しました。もう一度お試しください。</p>}
-      <p className="mt-2 text-[11px] text-foreground/40">
-        メールアドレスは値下がり通知の送信にのみ使用します。
+      <p className="mt-2 text-[11px] leading-relaxed text-foreground/65">
+        メールアドレスは値下がり通知の送信と、その停止の受付にのみ使います。メールの送信には米国のResend社のサービスを使います（
+        <a
+          href="https://www.ppc.go.jp/enforcement/infoprovision/laws/offshore_report_america/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          米国の個人情報保護の制度
+        </a>
+        ）。通知はメール内のリンクからいつでも停止できます。
       </p>
     </div>
   );
