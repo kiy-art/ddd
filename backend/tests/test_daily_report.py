@@ -116,12 +116,54 @@ def test_build_daily_report_reflects_real_click_trend(db_session):
 def test_build_daily_report_flags_real_errors(db_session):
     crud.create_error_log(db_session, source="price_fetch", message="エラー発生", level="error")
     subject, html = daily_report.build_daily_report(db_session)
-    assert "エラーが1件" in html
+    assert "エラーは1件" in html
 
 
 def test_build_daily_report_no_errors_says_stable(db_session):
     subject, html = daily_report.build_daily_report(db_session)
-    assert "エラーは見当たりません" in html
+    assert "エラーは0件" in html
+
+
+def test_errors_are_grouped_by_cause_across_products(db_session):
+    a = _make_product(db_session, name="ドライバーA")
+    b = _make_product(db_session, name="アイアンB")
+    for p in (a, b):
+        crud.create_error_log(db_session, source="price_fetch", message=f"{p.name}: ReadTimeout", product_id=p.id)
+    crud.create_error_log(db_session, source="ai_generation", message="Claude API 529 overloaded", level="error")
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "エラーは3件" in html
+    assert "「〈商品〉: ReadTimeout」2件" in html
+    assert "エラーの最多原因：価格取得（楽天）の「〈商品〉: ReadTimeout」（2件）" in html
+
+
+def test_old_errors_are_not_counted(db_session):
+    log = crud.create_error_log(db_session, source="price_fetch", message="古いエラー", level="error")
+    log.created_at = datetime.datetime.utcnow() - datetime.timedelta(days=3)
+    db_session.commit()
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "エラーは0件" in html
+
+
+def test_no_clicks_all_week_is_reported_as_a_traffic_problem(db_session):
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "直近7日間、どのショップへのクリックもありません" in html
+    assert "へのクリックが未記録です" not in html
+
+
+def test_shop_missing_for_a_week_is_named(db_session):
+    product = _make_product(db_session)
+    _click(db_session, product.id, "amazon", hours_ago=50)
+    _click(db_session, product.id, "rakuten", hours_ago=100)
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "Yahoo!は直近7日間のクリックが0件です（3ショップ合計は2件）" in html
+
+
+def test_missing_yahoo_affiliate_ids_are_flagged(db_session, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "yahoo_affiliate_id", "")
+    subject, html = daily_report.build_daily_report(db_session)
+    assert "アフィリエイト未設定" in html
 
 
 def test_build_daily_report_includes_manual_x_post_text_when_a_deal_qualifies(db_session):

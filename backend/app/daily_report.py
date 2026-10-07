@@ -12,13 +12,15 @@ earned, so click counts (this site's own first-party AffiliateClick
 table) are reported honestly as a leading indicator, not a revenue
 estimate."""
 
+import collections
 import datetime
 import html as html_lib
+import re
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import crud, email, models, x_post
+from app import crud, email, models, self_heal, x_post
 from app.analytics_ga4 import GA4NotConfigured, get_top_pages
 from app.config import get_settings
 
@@ -44,6 +46,79 @@ def _click_counts_between(
         .group_by(models.AffiliateClick.shop)
     ).all()
     return {shop: count for shop, count in rows}
+
+
+# STEP-report-v2 (2026-10-08): the three "改善施策" lines used to fire every
+# single day - errors were counted over the last 100 log rows (not the last
+# 24h) with no hint of what they were, price_fetch warnings likewise, and a
+# shop with 0 clicks in a 24h window was flagged as a link-visibility
+# problem even when the whole site only gets ~2 clicks a day. Each line now
+# names its actual cause: the top error/warning patterns of the last 24h
+# by source, and a 7-day click view that separates "too little traffic"
+# from "this one shop's button isn't being clicked".
+_URL_PATTERN = re.compile(r"https?://\S+")
+_PAREN_PATTERN = re.compile(r"[（(][^（）()]*[）)]")
+_NUMBER_PATTERN = re.compile(r"[¥￥]?\d[\d,]*")
+
+
+def _log_pattern(log: models.ErrorLog, product_names: dict[int, str]) -> str:
+    """The message with what varies per product removed - product name,
+    URLs, parenthesised details (keyword, matched listing), numbers - so
+    the same cause hitting 200 products counts as one pattern."""
+    message = log.message
+    name = product_names.get(log.product_id) if log.product_id is not None else None
+    if name:
+        message = message.replace(name, "〈商品〉")
+    message = _URL_PATTERN.sub("", message)
+    message = _PAREN_PATTERN.sub("", message)
+    message = _NUMBER_PATTERN.sub("N", message)
+    message = re.sub(r"\s+", " ", message).strip()
+    return message[:80] + ("…" if len(message) > 80 else "")
+
+
+class LogSummary:
+    def __init__(self, total: int, by_source: list[tuple[str, int, list[tuple[str, int]]]]):
+        self.total = total
+        # [(source label, count, [(pattern, count), ... top 2])], most frequent first
+        self.by_source = by_source
+
+    def top_line(self) -> str:
+        if not self.by_source:
+            return ""
+        label, count, patterns = self.by_source[0]
+        pattern, pattern_count = patterns[0]
+        return f"{label}の「{pattern}」（{pattern_count}件）"
+
+    def html_details(self) -> str:
+        parts = []
+        for label, count, patterns in self.by_source[:4]:
+            pats = " / ".join(f"「{html_lib.escape(p)}」{c}件" for p, c in patterns)
+            parts.append(f"{html_lib.escape(label)} {count}件：{pats}")
+        return "<br>".join(parts)
+
+
+def _summarize_logs(db: Session, since: datetime.datetime, level: str, source: str | None = None) -> LogSummary:
+    query = select(models.ErrorLog).where(models.ErrorLog.created_at >= since, models.ErrorLog.level == level)
+    if source is not None:
+        query = query.where(models.ErrorLog.source == source)
+    logs = list(db.execute(query).scalars().all())
+    product_ids = {log.product_id for log in logs if log.product_id is not None}
+    product_names: dict[int, str] = {}
+    if product_ids:
+        rows = db.execute(
+            select(models.Product.id, models.Product.name).where(models.Product.id.in_(product_ids))
+        ).all()
+        product_names = {pid: name for pid, name in rows}
+
+    grouped: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
+    for log in logs:
+        grouped[self_heal._label(self_heal._logical_source(log))][_log_pattern(log, product_names)] += 1
+    by_source = sorted(
+        ((label, sum(c.values()), c.most_common(2)) for label, c in grouped.items()),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    return LogSummary(len(logs), by_source)
 
 
 def _format_change(today: int, yesterday: int) -> str:
@@ -72,8 +147,32 @@ def build_daily_report(db: Session) -> tuple[str, str]:
     logs = crud.list_error_logs(db, limit=100)
     daily_job_log = next((log for log in logs if log.source == "daily_job"), None)
     self_heal_log = next((log for log in logs if log.source == "self_heal"), None)
-    error_count = sum(1 for log in logs if log.level == "error")
-    price_warning_count = sum(1 for log in logs if log.level == "warning" and log.source == "price_fetch")
+    errors = _summarize_logs(db, day_start, "error")
+    price_warnings = _summarize_logs(db, day_start, "warning", source="price_fetch")
+    error_count = errors.total
+    price_warning_count = price_warnings.total
+
+    week_start = now - datetime.timedelta(days=7)
+    week_by_shop = _click_counts_between(db, week_start, now)
+    week_total = sum(week_by_shop.get(s, 0) for s in ("amazon", "rakuten", "yahoo"))
+    published = db.execute(
+        select(func.count()).select_from(models.Product).where(models.Product.pending_review.is_(False))
+    ).scalar_one()
+    with_yahoo_price = db.execute(
+        select(func.count())
+        .select_from(models.Product)
+        .where(models.Product.pending_review.is_(False), models.Product.yahoo_price.is_not(None))
+    ).scalar_one()
+    yahoo_quota_hit = (
+        db.execute(
+            select(func.count())
+            .select_from(models.ErrorLog)
+            .where(models.ErrorLog.created_at >= day_start, models.ErrorLog.message.like("Yahoo: quota exhausted%"))
+        ).scalar_one()
+        > 0
+    )
+    settings = get_settings()
+    yahoo_affiliate_ready = bool(settings.yahoo_affiliate_id.strip() and settings.yahoo_affiliate_pid.strip())
 
     try:
         top_pages = get_top_pages(days=1, limit=3)
@@ -101,9 +200,9 @@ def build_daily_report(db: Session) -> tuple[str, str]:
 
     # CPO: pipeline health
     lines.append(
-        f"【システム状況】直近のログにエラーが{error_count}件あります。商品管理ページでの確認をおすすめします。"
+        f"【システム状況】直近24時間のエラーは{error_count}件です。内訳：<br>{errors.html_details()}"
         if error_count > 0
-        else "【システム状況】直近のログにエラーは見当たりません。パイプラインは安定稼働中です。"
+        else "【システム状況】直近24時間のエラーは0件です。パイプラインは安定稼働中です。"
     )
 
     # STEP54: what the self-heal pass retried / couldn't fix (app/self_heal.py)
@@ -113,7 +212,8 @@ def build_daily_report(db: Session) -> tuple[str, str]:
     # Compliance: price display accuracy
     if price_warning_count > 0:
         lines.append(
-            f"【価格表示】価格乖離・アクセサリ誤検出などの警告が{price_warning_count}件あります。表示価格の正確性を優先して確認しましょう。"
+            f"【価格表示】直近24時間の価格取得の警告は{price_warning_count}件です（誤った価格を出さないために反映を止めたもので、該当商品は前回の価格のままです）。"
+            f"内訳：<br>{price_warnings.html_details()}"
         )
 
     # CMO: search traffic
@@ -127,14 +227,34 @@ def build_daily_report(db: Session) -> tuple[str, str]:
 
     # CEO: rule-based next actions
     actions: list[str] = []
-    seen_shops = set(today_by_shop.keys())
-    missing_shops = [s for s in ("amazon", "rakuten", "yahoo") if s not in seen_shops]
-    if missing_shops:
-        actions.append(f"{'・'.join(SHOP_LABELS[s] for s in missing_shops)}へのクリックが未記録です。リンクの表示位置・視認性を確認しましょう。")
+    # Clicks: judged on 7 days, not 24h - at a few clicks a day, any one
+    # shop has 0 on most days without anything being wrong with its link.
+    missing_week = [s for s in ("amazon", "rakuten", "yahoo") if week_by_shop.get(s, 0) == 0]
+    if week_total == 0:
+        actions.append(
+            "直近7日間、どのショップへのクリックもありません。リンクの位置より先に、サイトへの訪問自体の少なさが原因です（検索流入・SNSでの集客を優先）。"
+        )
+    elif missing_week:
+        actions.append(
+            f"{'・'.join(SHOP_LABELS[s] for s in missing_week)}は直近7日間のクリックが0件です"
+            f"（3ショップ合計は{week_total}件）。そのショップのボタンが出ている商品数と位置を確認しましょう。"
+        )
+    if published and with_yahoo_price / published < 0.3:
+        actions.append(
+            f"Yahoo!の価格が出ている商品は公開{published}件中{with_yahoo_price}件だけです。"
+            "表示されないボタンはクリックされないため、Yahoo!のクリックが少ない主因はここです"
+            + ("（日次の取得がYahoo!の利用上限で途中停止しています）。" if yahoo_quota_hit else "。")
+        )
+    if not yahoo_affiliate_ready:
+        actions.append(
+            "Yahoo!のリンクはアフィリエイト未設定（バリューコマースのsid・pid）のため、クリックされても報酬になりません。"
+        )
     if error_count > 0:
-        actions.append("エラーログの内容を確認し、原因を特定しましょう。")
+        actions.append(f"エラーの最多原因：{errors.top_line()}。ここから対処しましょう。")
     if price_warning_count > 0:
-        actions.append("価格表示の警告（price_fetch）の内容を確認し、表示価格の正確性を優先しましょう。")
+        actions.append(
+            f"価格取得の警告の最多原因：{price_warnings.top_line()}。反映を止めた商品は前回の価格のままなので、同じ商品が毎日続く場合は商品名の整形か非公開化で解消しましょう。"
+        )
     if not ga4_configured:
         actions.append("GA4のサーバー側連携を設定すると、検索流入の詳細分析も日報に含められるようになります。")
     if not actions:
