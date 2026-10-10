@@ -1,6 +1,6 @@
 import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
@@ -85,6 +85,20 @@ class ProductOut(ProductBase):
     specs: dict[str, str] = {}
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+    @field_validator("yahoo_url")
+    @classmethod
+    def _wrap_yahoo_url(cls, value: str | None) -> str | None:
+        """2026-10-10: links stored before the ValueCommerce IDs were set are
+        plain Yahoo! item URLs, and they were only rewrapped when that
+        product's price was re-fetched (daily quota - some lag for days).
+        Wrap them when served, so every link earns a referral as soon as
+        the IDs are configured. Already-wrapped links pass through."""
+        from app import yahoo
+
+        if not value or value.startswith(yahoo.AFFILIATE_LINK_BASE):
+            return value
+        return yahoo.to_affiliate_url(value) or value
 
 
 class ProductDetailOut(ProductOut):

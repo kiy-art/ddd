@@ -191,3 +191,35 @@ def test_to_affiliate_url_wraps_the_item_url_with_the_configured_id(monkeypatch)
     assert "store.shopping.yahoo.co.jp%2Fexample%2Fg440.html" in result
 
     get_settings.cache_clear()
+
+
+def test_product_out_wraps_plain_stored_yahoo_url():
+    """Links stored before the IDs were set are wrapped when served."""
+    import datetime
+
+    from app import yahoo
+    from app.schemas import ProductOut
+
+    now = datetime.datetime(2026, 10, 10)
+    base = dict(
+        id=1, slug="x", name="x", brand="b", category="driver",
+        current_price=None, previous_price=None, lowest_price=None,
+        average_price=None, price_change_percent=None, buy_score="wait",
+        buy_signal_score=None, history_span_days=0, buy_reason=None,
+        pending_review=False, popularity_rank=None, popularity_updated_at=None,
+        yahoo_price=1000, yahoo_updated_at=now,
+        forecast_confidence=None, forecast_center_price=None,
+        forecast_low_price=None, forecast_high_price=None,
+        forecast_target_date=None, forecast_trend=None, forecast_reason=None,
+        ai_title=None, ai_summary=None, ai_caution=None,
+        created_at=now, updated_at=now,
+    )
+    plain = "https://store.shopping.yahoo.co.jp/shop/item.html"
+    out = ProductOut.model_validate({**base, "yahoo_url": plain})
+    assert out.yahoo_url == yahoo.to_affiliate_url(plain)
+    assert out.yahoo_url.startswith(yahoo.AFFILIATE_LINK_BASE)
+    # already wrapped -> unchanged (no double wrap)
+    again = ProductOut.model_validate({**base, "yahoo_url": out.yahoo_url})
+    assert again.yahoo_url == out.yahoo_url
+    none = ProductOut.model_validate({**base, "yahoo_url": None})
+    assert none.yahoo_url is None
