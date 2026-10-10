@@ -360,6 +360,20 @@ def _run_daily_job(db: Session, settings) -> dict:
             db.rollback()
             crud.create_error_log(db, source="image_backfill", level="warning", message=f"Image check failed: {exc}")
 
+        # Irons are priced as 5-6本 sets (社長指示 2026-10-10): hide iron
+        # products whose own listing is a single iron / selectable count /
+        # other set size, so they never show as an absurdly cheap "iron".
+        try:
+            hidden_irons = pipeline.hide_non_standard_iron_products(db)
+            if hidden_irons:
+                crud.create_error_log(
+                    db, source="iron_sets", level="info",
+                    message="5〜6本セットではないアイアン商品を非公開にしました: " + " / ".join(hidden_irons),
+                )
+        except Exception as exc:  # noqa: BLE001 - keep the rest of the job alive
+            db.rollback()
+            crud.create_error_log(db, source="iron_sets", level="warning", message=f"Iron set check failed: {exc}")
+
         progress.start_stage("rakuten_prices")
         price_updated, price_skipped = 0, 0
         try:

@@ -11,7 +11,7 @@ from typing import Callable, Collection
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ai, analysis, content_rewriter, crud, email, forecast, image_urls, models, rakuten, spec_extractor, yahoo
+from app import ai, analysis, content_rewriter, crud, email, forecast, image_urls, iron_sets, models, rakuten, spec_extractor, yahoo
 from app.config import get_settings
 from app.rakuten import search_lowest_price
 from app.search_keyword import build_search_keyword
@@ -79,6 +79,39 @@ def _is_plausible_price(product: models.Product, price: int) -> bool:
         return True
     ratio = price / reference
     return PRICE_SANITY_MIN_RATIO <= ratio <= PRICE_SANITY_MAX_RATIO
+
+
+# Iron price basis (see app/iron_sets.py): a stored iron price below this is
+# a single-club price (sets of the brands carried start well above it), and
+# a fresh 5-6本 set price at IRON_REBASE_MIN_RATIO x that or more is the
+# switch to set pricing rather than a mismatch.
+IRON_SINGLE_PRICE_CEILING = 40000
+IRON_REBASE_MIN_RATIO = 3.0
+
+
+def _is_single_iron_price_history(product: models.Product, set_price: int) -> bool:
+    if product.category != "iron":
+        return False
+    reference = product.average_price or product.current_price
+    if not reference or reference >= IRON_SINGLE_PRICE_CEILING:
+        return False
+    return set_price / reference >= IRON_REBASE_MIN_RATIO
+
+
+def hide_non_standard_iron_products(db: Session) -> list[str]:
+    """Hides (pending_review) every published iron product whose own name
+    says it is not a 5-6本 set - a single iron, a "1本 3本 5本 6本"
+    selectable listing (priced as its single option), another set size, a
+    full club set or an iron cover. Returns the hidden products' names."""
+    products = db.execute(
+        select(models.Product).where(models.Product.category == "iron").where(models.Product.pending_review.is_(False))
+    ).scalars().all()
+    hidden = [p for p in products if iron_sets.is_non_standard_listing(p.name)]
+    for product in hidden:
+        product.pending_review = True
+    if hidden:
+        db.commit()
+    return [p.name for p in hidden]
 
 
 def _regenerate_in_optimized_style(db: Session, product: models.Product, result: analysis.AnalysisResult) -> bool:
@@ -223,7 +256,7 @@ def fetch_rakuten_prices(
                 )
                 skipped += 1
                 continue
-            result = search_lowest_price(keyword)
+            result = search_lowest_price(keyword, category=product.category)
             if result is None:
                 crud.create_error_log(
                     db,
@@ -248,7 +281,25 @@ def fetch_rakuten_prices(
                 )
                 skipped += 1
                 continue
-            if not _is_plausible_price(product, result.price):
+            rebased = False
+            if _is_single_iron_price_history(product, result.price):
+                # The stored history is a single-iron price and this is the
+                # first 5-6本 set price - a different basis, not a price
+                # jump, so restart the history on the set basis instead of
+                # rejecting every set price as "implausible" forever.
+                crud.reset_price_history(db, product)
+                rebased = True
+                crud.create_error_log(
+                    db,
+                    source="price_fetch",
+                    level="info",
+                    message=(
+                        f"{product.name}: アイアンの価格を5〜6本セット基準に切り替え、単品価格の履歴をリセットしました"
+                        f"（新価格 ¥{result.price:,} / {result.item_name}）"
+                    ),
+                    product_id=product.id,
+                )
+            if not rebased and not _is_plausible_price(product, result.price):
                 reference = product.average_price or product.current_price
                 crud.create_error_log(
                     db,
@@ -336,7 +387,7 @@ def fetch_yahoo_prices(
             time.sleep(YAHOO_REQUEST_INTERVAL_SECONDS)
         try:
             keyword = f"{product.brand} {product.name}".strip()
-            result = yahoo.search_lowest_price(keyword)
+            result = yahoo.search_lowest_price(keyword, category=product.category)
             if (
                 result is None
                 or _looks_like_accessory(result.item_name)

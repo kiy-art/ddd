@@ -28,7 +28,7 @@ def test_fetch_rakuten_prices_rejects_implausible_drop(db_session, monkeypatch):
     price — this is the guard added after the PING G430 ¥1,100 incident."""
     product = _make_product(db_session, initial_price=60000)
 
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: _FakeResult(1100))
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: _FakeResult(1100))
 
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
     assert updated == 0
@@ -44,7 +44,7 @@ def test_fetch_rakuten_prices_rejects_implausible_drop(db_session, monkeypatch):
 def test_fetch_rakuten_prices_rejects_implausible_spike(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
 
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: _FakeResult(200000))
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: _FakeResult(200000))
 
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
     assert updated == 0
@@ -57,7 +57,7 @@ def test_fetch_rakuten_prices_rejects_implausible_spike(db_session, monkeypatch)
 def test_fetch_rakuten_prices_accepts_plausible_price(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
 
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: _FakeResult(55000))
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: _FakeResult(55000))
 
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
     assert updated == 1
@@ -76,7 +76,7 @@ def test_fetch_rakuten_prices_sends_rakuten_a_keyword_it_accepts(db_session, mon
     product.name = "G440K ドライバー ALTA J CB BLUE G440 K / 右用"
     db_session.commit()
     sent = []
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: sent.append(keyword) or _FakeResult(55000))
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: sent.append(keyword) or _FakeResult(55000))
 
     pipeline.fetch_rakuten_prices(db_session)
 
@@ -90,7 +90,7 @@ def test_fetch_rakuten_prices_skips_the_call_when_no_valid_keyword_exists(db_ses
     product.name = "／ ー ・"
     db_session.commit()
     sent = []
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: sent.append(keyword) or _FakeResult(55000))
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: sent.append(keyword) or _FakeResult(55000))
 
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
 
@@ -107,7 +107,7 @@ def test_fetch_rakuten_prices_fills_in_blank_image_and_affiliate_url(db_session,
     monkeypatch.setattr(
         pipeline,
         "search_lowest_price",
-        lambda keyword: _FakeResult(
+        lambda keyword, **_: _FakeResult(
             55000,
             item_url="https://item.rakuten.co.jp/example/g430/",
             image_url="https://thumbnail.image.rakuten.co.jp/example/g430.jpg",
@@ -132,7 +132,7 @@ def test_fetch_rakuten_prices_never_overwrites_existing_image_or_affiliate_url(d
     monkeypatch.setattr(
         pipeline,
         "search_lowest_price",
-        lambda keyword: _FakeResult(
+        lambda keyword, **_: _FakeResult(
             55000,
             item_url="https://item.rakuten.co.jp/example/g430/",
             image_url="https://thumbnail.image.rakuten.co.jp/example/g430.jpg",
@@ -157,7 +157,7 @@ def test_fetch_rakuten_prices_wraps_affiliate_url_when_affiliate_id_configured(d
         monkeypatch.setattr(
             pipeline,
             "search_lowest_price",
-            lambda keyword: _FakeResult(55000, item_url="https://item.rakuten.co.jp/example/g430/"),
+            lambda keyword, **_: _FakeResult(55000, item_url="https://item.rakuten.co.jp/example/g430/"),
         )
 
         pipeline.fetch_rakuten_prices(db_session)
@@ -180,7 +180,7 @@ def test_fetch_rakuten_prices_accepts_any_price_with_no_history_reference(db_ses
     assert product.average_price is None
     assert product.current_price is None
 
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: _FakeResult(500))
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: _FakeResult(500))
 
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
     assert updated == 1
@@ -202,7 +202,7 @@ def test_fetch_rakuten_prices_rejects_accessory_match_even_with_no_reference(db_
     monkeypatch.setattr(
         pipeline,
         "search_lowest_price",
-        lambda keyword: _FakeResult(2180, item_name="キャロウェイ ELYTE MAX FAST用 ソールウェイト"),
+        lambda keyword, **_: _FakeResult(2180, item_name="キャロウェイ ELYTE MAX FAST用 ソールウェイト"),
     )
 
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
@@ -227,7 +227,7 @@ def test_fetch_rakuten_prices_rejects_non_retail_listing_match(db_session, monke
     monkeypatch.setattr(
         pipeline,
         "search_lowest_price",
-        lambda keyword: _FakeResult(55000, item_name="PING G430 ドライバー ふるさと納税"),
+        lambda keyword, **_: _FakeResult(55000, item_name="PING G430 ドライバー ふるさと納税"),
     )
 
     updated, skipped = pipeline.fetch_rakuten_prices(db_session)
@@ -242,7 +242,7 @@ def test_fetch_yahoo_prices_accepts_plausible_price(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
 
     monkeypatch.setattr(
-        yahoo, "search_lowest_price", lambda keyword: _FakeResult(58000, item_url="https://store.shopping.yahoo.co.jp/example/g430.html")
+        yahoo, "search_lowest_price", lambda keyword, **_: _FakeResult(58000, item_url="https://store.shopping.yahoo.co.jp/example/g430.html")
     )
 
     updated, skipped = pipeline.fetch_yahoo_prices(db_session)
@@ -274,7 +274,7 @@ def test_fetch_yahoo_prices_stops_early_on_quota_exceeded(db_session, monkeypatc
 
     calls = []
 
-    def fake_search(keyword):
+    def fake_search(keyword, **_):
         calls.append(keyword)
         raise yahoo.YahooQuotaExceeded("Yahoo Shopping API 429: quota exhausted")
 
@@ -293,7 +293,7 @@ def test_fetch_yahoo_prices_stops_early_on_quota_exceeded(db_session, monkeypatc
 def test_fetch_yahoo_prices_rejects_implausible_price(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
 
-    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: _FakeResult(1100))
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword, **_: _FakeResult(1100))
 
     updated, skipped = pipeline.fetch_yahoo_prices(db_session)
     assert updated == 0
@@ -307,7 +307,7 @@ def test_fetch_yahoo_prices_rejects_accessory_match(db_session, monkeypatch):
     product = _make_product(db_session, initial_price=60000)
 
     monkeypatch.setattr(
-        yahoo, "search_lowest_price", lambda keyword: _FakeResult(58000, item_name="PING G430用 ヘッドカバー")
+        yahoo, "search_lowest_price", lambda keyword, **_: _FakeResult(58000, item_name="PING G430用 ヘッドカバー")
     )
 
     updated, skipped = pipeline.fetch_yahoo_prices(db_session)
@@ -322,7 +322,7 @@ def test_fetch_yahoo_prices_rejects_non_retail_listing_match(db_session, monkeyp
     product = _make_product(db_session, initial_price=60000)
 
     monkeypatch.setattr(
-        yahoo, "search_lowest_price", lambda keyword: _FakeResult(58000, item_name="PING G430 ドライバー 訳あり")
+        yahoo, "search_lowest_price", lambda keyword, **_: _FakeResult(58000, item_name="PING G430 ドライバー 訳あり")
     )
 
     updated, skipped = pipeline.fetch_yahoo_prices(db_session)
@@ -342,7 +342,7 @@ def test_fetch_yahoo_prices_clears_stale_price_when_no_longer_matched(db_session
     product.yahoo_url = "https://store.shopping.yahoo.co.jp/example/old.html"
     db_session.commit()
 
-    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: None)
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword, **_: None)
 
     updated, skipped = pipeline.fetch_yahoo_prices(db_session)
     assert updated == 0
@@ -362,7 +362,7 @@ def test_fetch_yahoo_prices_never_touches_rakuten_sourced_fields(db_session, mon
     original_current_price = product.current_price
     history_before = len(crud.get_price_history(db_session, product.id))
 
-    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: _FakeResult(55000))
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword, **_: _FakeResult(55000))
 
     pipeline.fetch_yahoo_prices(db_session)
 
@@ -384,7 +384,7 @@ def test_fetch_yahoo_prices_wraps_affiliate_url_when_configured(db_session, monk
         monkeypatch.setattr(
             yahoo,
             "search_lowest_price",
-            lambda keyword: _FakeResult(55000, item_url="https://store.shopping.yahoo.co.jp/example/g430.html"),
+            lambda keyword, **_: _FakeResult(55000, item_url="https://store.shopping.yahoo.co.jp/example/g430.html"),
         )
 
         pipeline.fetch_yahoo_prices(db_session)
@@ -671,7 +671,7 @@ def test_fetch_yahoo_prices_checks_the_longest_unchecked_products_first(db_sessi
 
     order = []
 
-    def fake_search(keyword):
+    def fake_search(keyword, **_):
         order.append(keyword)
         return None  # no match - still counts as checked
 

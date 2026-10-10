@@ -105,7 +105,7 @@ def test_is_definitely_broken_treats_network_errors_as_alive(monkeypatch):
 @pytest.mark.parametrize("stored", [None, "", "   ", "https://example.com/sample.jpg"])
 def test_rakuten_fetch_fills_missing_or_placeholder_photo(db_session, monkeypatch, stored):
     product = _make_product(db_session, image_url=stored)
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: _Listing(image_url="http://thumbnail.image.rakuten.co.jp/@0_mall/shop/g430.jpg"))
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: _Listing(image_url="http://thumbnail.image.rakuten.co.jp/@0_mall/shop/g430.jpg"))
     pipeline.fetch_rakuten_prices(db_session)
     db_session.refresh(product)
     assert product.image_url == "https://thumbnail.image.rakuten.co.jp/@0_mall/shop/g430.jpg"
@@ -115,7 +115,7 @@ def test_yahoo_fetch_fills_photo_only_when_still_missing(db_session, monkeypatch
     missing = _make_product(db_session, image_url=None, name="G430 Iron")
     has_photo = _make_product(db_session, image_url="https://thumbnail.image.rakuten.co.jp/keep.jpg", name="G430 Iron B")
     monkeypatch.setattr(pipeline.time, "sleep", lambda s: None)
-    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: _Listing(image_url="https://item-shopping.c.yimg.jp/i/l/g430.jpg"))
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword, **_: _Listing(image_url="https://item-shopping.c.yimg.jp/i/l/g430.jpg"))
     pipeline.fetch_yahoo_prices(db_session)
     db_session.refresh(missing)
     db_session.refresh(has_photo)
@@ -134,8 +134,8 @@ def _no_sleep(monkeypatch):
 def test_backfill_fills_from_rakuten_without_recording_a_price(db_session, monkeypatch, _no_sleep):
     product = _make_product(db_session, image_url="")
     history_before = len(crud.get_price_history(db_session, product.id))
-    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword: _Listing())
-    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: pytest.fail("Yahoo must not be asked when Rakuten matched"))
+    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword, **_: _Listing())
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword, **_: pytest.fail("Yahoo must not be asked when Rakuten matched"))
 
     result = image_backfill.backfill_product_images(db_session)
 
@@ -147,8 +147,8 @@ def test_backfill_fills_from_rakuten_without_recording_a_price(db_session, monke
 
 def test_backfill_falls_back_to_yahoo_and_never_takes_an_accessory_photo(db_session, monkeypatch, _no_sleep):
     product = _make_product(db_session, image_url=None)
-    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword: _Listing(item_name="PING G430 アイアン用 ヘッドカバー", price=3000))
-    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: _Listing(image_url="https://item-shopping.c.yimg.jp/i/l/g430.jpg"))
+    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword, **_: _Listing(item_name="PING G430 アイアン用 ヘッドカバー", price=3000))
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword, **_: _Listing(image_url="https://item-shopping.c.yimg.jp/i/l/g430.jpg"))
 
     result = image_backfill.backfill_product_images(db_session)
 
@@ -161,7 +161,7 @@ def test_backfill_replaces_a_dead_photo_and_keeps_live_ones(db_session, monkeypa
     dead = _make_product(db_session, image_url="https://thumbnail.image.rakuten.co.jp/dead.jpg", name="G430 Iron")
     alive = _make_product(db_session, image_url="https://thumbnail.image.rakuten.co.jp/alive.jpg", name="G430 Iron B")
     monkeypatch.setattr(image_urls, "is_definitely_broken", lambda url, timeout=None: url.endswith("dead.jpg"))
-    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword: _Listing(image_url="https://thumbnail.image.rakuten.co.jp/new.jpg"))
+    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword, **_: _Listing(image_url="https://thumbnail.image.rakuten.co.jp/new.jpg"))
 
     result = image_backfill.backfill_product_images(db_session)
 
@@ -174,8 +174,8 @@ def test_backfill_replaces_a_dead_photo_and_keeps_live_ones(db_session, monkeypa
 
 def test_backfill_reports_what_it_could_not_find_and_clears_the_junk_value(db_session, monkeypatch, _no_sleep):
     product = _make_product(db_session, image_url="https://example.com/sample.jpg", name="Obscure Iron")
-    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword: None)
-    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword: None)
+    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword, **_: None)
+    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword, **_: None)
 
     result = image_backfill.backfill_product_images(db_session)
 
@@ -193,7 +193,7 @@ def test_backfill_stops_asking_yahoo_once_the_quota_is_exhausted(db_session, mon
         calls.append(keyword)
         raise yahoo.YahooQuotaExceeded("quota")
 
-    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword: None)
+    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword, **_: None)
     monkeypatch.setattr(yahoo, "search_lowest_price", _yahoo)
 
     result = image_backfill.backfill_product_images(db_session)
@@ -250,7 +250,7 @@ def test_backfill_images_endpoint_requires_admin(client):
 
 def test_backfill_images_endpoint_returns_real_counts(client, admin_headers, db_session, monkeypatch, _no_sleep):
     _make_product(db_session, image_url=None)
-    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword: _Listing())
+    monkeypatch.setattr(rakuten, "search_lowest_price", lambda keyword, **_: _Listing())
     resp = client.post("/api/admin/backfill-images", headers=admin_headers)
     assert resp.status_code == 200
     body = resp.json()

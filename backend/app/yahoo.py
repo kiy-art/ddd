@@ -12,7 +12,7 @@ https://developer.yahoo.co.jp/webapi/shopping/shopping/v3/itemsearch.html
 
 import urllib.parse
 
-from app import http_retry
+from app import http_retry, iron_sets
 from app.config import get_settings
 
 SEARCH_URL = "https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch"
@@ -109,11 +109,25 @@ def _fetch_candidates(keyword: str, hits: int, timeout: float) -> list[dict]:
     return [h for h in hits_list if "price" in h and "url" in h and "name" in h]
 
 
-def search_lowest_price(keyword: str, timeout: float = 10.0) -> YahooSearchResult | None:
+def search_lowest_price(
+    keyword: str, timeout: float = 10.0, category: str | None = None
+) -> YahooSearchResult | None:
     """Same mismatch-resistant "closest to median" pick as
     rakuten.search_lowest_price, for the same reason: a single outlier
-    listing shouldn't be mistaken for the product's real price."""
-    candidates = _fetch_candidates(keyword, hits=10, timeout=timeout)
+    listing shouldn't be mistaken for the product's real price.
+    category="iron": only 5-6本 set listings count, as in rakuten.py."""
+    if category == "iron":
+        candidates = [
+            c for c in _fetch_candidates(keyword, hits=30, timeout=timeout) if iron_sets.is_standard_set(c["name"])
+        ]
+        if not candidates:
+            candidates = [
+                c
+                for c in _fetch_candidates(f"{keyword} セット", hits=30, timeout=timeout)
+                if iron_sets.is_standard_set(c["name"])
+            ]
+    else:
+        candidates = _fetch_candidates(keyword, hits=10, timeout=timeout)
     if not candidates:
         return None
 

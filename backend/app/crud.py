@@ -262,6 +262,21 @@ def add_price(
     return history_row
 
 
+def reset_price_history(db: Session, product: models.Product) -> None:
+    """Drops a product's whole price history and price stats, for when the
+    stored prices are on a different basis than the ones about to be
+    recorded (an iron moving from single-club to 5-6本 set pricing - see
+    pipeline._is_single_iron_price_history). The next add_price starts a
+    fresh series, with no "previous price" carried over from the old basis."""
+    db.execute(delete(models.PriceHistory).where(models.PriceHistory.product_id == product.id))
+    product.current_price = None
+    product.previous_price = None
+    product.average_price = None
+    product.lowest_price = None
+    product.price_change_percent = None
+    db.commit()
+
+
 def get_price_history(db: Session, product_id: int) -> list[models.PriceHistory]:
     query = (
         select(models.PriceHistory)

@@ -59,7 +59,7 @@ def test_price_fetch_stores_specs_without_replacing_existing_ones(db_session, mo
         caption = "ロフト角：9°<br>シャフト：ALTA J CB BLUE"
 
     monkeypatch.setattr(pipeline.time, "sleep", lambda s: None)
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: _Result())
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: _Result())
     pipeline.fetch_rakuten_prices(db_session)
     db_session.refresh(product)
     assert product.specs == {"loft": "10.5°", "shaft": "ALTA J CB BLUE"}

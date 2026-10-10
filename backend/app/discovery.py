@@ -36,7 +36,7 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import categorizer, crud, image_urls, models, rakuten, schemas, spec_extractor, title_cleaner
+from app import categorizer, crud, image_urls, iron_sets, models, rakuten, schemas, spec_extractor, title_cleaner
 # Brand recognition lives in app/brands.py (shared with app/popularity.py
 # and app/title_cleaner.py, none of which need to import each other just
 # for this) - BRAND_KEYWORDS is re-exported here so existing
@@ -282,6 +282,9 @@ def discover_new_products(
                     if item.price < MIN_DISCOVERY_PRICE_BY_CATEGORY.get(target, MIN_DISCOVERY_PRICE):
                         continue
                     if not _names_the_category(item.item_name, target):
+                        continue
+                    # Irons are listed only as a 5-6本 set (see app/iron_sets.py).
+                    if target == "iron" and not iron_sets.is_standard_set(item.item_name):
                         continue
                     if item.item_url in existing_urls:
                         continue

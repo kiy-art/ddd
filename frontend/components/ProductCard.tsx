@@ -160,6 +160,9 @@ export default function ProductCard({ product, listSource }: { product: Product;
               <div className="font-num text-2xl font-semibold text-foreground">
                 {yen(product.current_price)}
               </div>
+              {product.category === "iron" && (
+                <div className="text-[11px] text-foreground/45">5〜6本セット価格</div>
+              )}
             </div>
             {comparison && (
               <div

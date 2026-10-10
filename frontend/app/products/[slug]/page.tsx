@@ -376,6 +376,9 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 <span className="font-num text-4xl font-semibold text-foreground">
                   {yen(displayPrice)}
                 </span>
+                {product.category === "iron" && (
+                  <span className="text-xs text-foreground/55">5〜6本セット価格（単品の価格ではありません）</span>
+                )}
                 {comparedOffers && lowestOffer && (
                   <span className="text-xs text-foreground/55">
                     <span className="font-semibold text-brand dark:text-brand-light">{lowestOffer.label}</span>が最安
@@ -423,6 +426,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     : !lowestOffer && primaryShop?.stale
                       ? `最後に取得した価格（${primaryShop.ageDays ?? "?"}日前）`
                       : "現在価格"}
+                  {product.category === "iron" && "・5〜6本セット"}
                 </span>
                 <span className="font-num text-2xl font-semibold text-foreground">{yen(displayPrice)}</span>
               </div>

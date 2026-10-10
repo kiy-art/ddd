@@ -9,7 +9,7 @@ https://webservice.rakuten.co.jp/documentation/ichiba-item-search
 
 import urllib.parse
 
-from app import http_retry
+from app import http_retry, iron_sets
 from app.config import get_settings
 
 SEARCH_URL = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701"
@@ -110,22 +110,51 @@ def _fetch_candidates(keyword: str, hits: int, timeout: float) -> list[dict]:
     return [c for c in candidates if "itemPrice" in c and "itemUrl" in c and "itemName" in c]
 
 
-def search_lowest_price(keyword: str, timeout: float = 10.0) -> RakutenSearchResult | None:
-    """Returns the single listing closest to the median price among the top
-    matches for `keyword` (a mismatch-resistant pick for tracking one known
-    product's price), or None if nothing matched."""
-    candidates = _fetch_candidates(keyword, hits=10, timeout=timeout)
-    if not candidates:
-        return None
+# Irons need more candidates than other categories: most matches for a
+# model name are single irons or selectable "1本 3本 5本 6本" listings, and
+# only the 5-6本 sets among them are kept (see app/iron_sets.py).
+IRON_SEARCH_HITS = 30
 
+
+def _iron_set_candidates(keyword: str, fetch) -> list[dict]:
+    """5-6本 set listings for `keyword`, retrying once with "セット" added
+    when the plain search returned none (a model whose top matches are all
+    single irons). `fetch(keyword)` returns raw candidate dicts."""
+    sets = [c for c in fetch(keyword) if iron_sets.is_standard_set(c["itemName"])]
+    if not sets:
+        sets = [c for c in fetch(f"{keyword} セット") if iron_sets.is_standard_set(c["itemName"])]
+    return sets
+
+
+def _closest_to_median(candidates: list[dict]) -> dict:
     # Pick the candidate closest to the median price among the results,
     # instead of blindly trusting whichever the API ranks first. This
     # guards against a single outlier listing (an unrelated cheap
     # accessory, or an overpriced bundle) being mistaken for the product.
     prices = sorted(c["itemPrice"] for c in candidates)
     median_price = prices[len(prices) // 2]
-    item = min(candidates, key=lambda c: abs(c["itemPrice"] - median_price))
-    return _item_to_result(item)
+    return min(candidates, key=lambda c: abs(c["itemPrice"] - median_price))
+
+
+def search_lowest_price(
+    keyword: str, timeout: float = 10.0, category: str | None = None
+) -> RakutenSearchResult | None:
+    """Returns the single listing closest to the median price among the top
+    matches for `keyword` (a mismatch-resistant pick for tracking one known
+    product's price), or None if nothing matched.
+
+    category="iron": only 5-6本 set listings count (社長指示 2026-10-10 -
+    a single-iron price made a set look absurdly cheap); None when no set
+    listing matched, so the caller skips rather than records a single."""
+    if category == "iron":
+        candidates = _iron_set_candidates(
+            keyword, lambda kw: _fetch_candidates(kw, hits=IRON_SEARCH_HITS, timeout=timeout)
+        )
+    else:
+        candidates = _fetch_candidates(keyword, hits=10, timeout=timeout)
+    if not candidates:
+        return None
+    return _item_to_result(_closest_to_median(candidates))
 
 
 def search_items(keyword: str, hits: int = 10, timeout: float = 10.0) -> list[RakutenSearchResult]:

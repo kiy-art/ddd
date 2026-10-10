@@ -212,7 +212,7 @@ def test_refresh_records_price_only_for_a_matching_listing(db_session, monkeypat
         "フットジョイ ウェザーソフ グローブ": "FootJoy ウェザーソフ グローブ 左手用",
         "フットジョイ レイングリップ グローブ": "FootJoy ウェザーソフ グローブ",  # wrong item
     }
-    monkeypatch.setattr(rakuten, "search_lowest_price", lambda kw: _Listing(names[kw]) if kw in names else None)
+    monkeypatch.setattr(rakuten, "search_lowest_price", lambda kw, **_: _Listing(names[kw]) if kw in names else None)
 
     updated, skipped = cm.refresh_consumable_prices(db_session)
     assert updated == 1
@@ -234,7 +234,7 @@ def test_refresh_rejects_an_implausible_price_jump(db_session, monkeypatch):
     db_session.commit()
     monkeypatch.setattr(
         rakuten, "search_lowest_price",
-        lambda kw: _Listing("FootJoy ウェザーソフ グローブ 12枚セット", price=24000) if "ウェザーソフ" in kw else None,
+        lambda kw, **_: _Listing("FootJoy ウェザーソフ グローブ 12枚セット", price=24000) if "ウェザーソフ" in kw else None,
     )
     cm.refresh_consumable_prices(db_session)
     db_session.refresh(item)

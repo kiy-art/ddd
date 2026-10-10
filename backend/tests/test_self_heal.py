@@ -229,7 +229,7 @@ def test_fetch_rakuten_prices_can_be_limited_to_some_products(db_session, monkey
     a, b = _product(db_session, "AA"), _product(db_session, "BB")
     looked_up = []
     monkeypatch.setattr(pipeline.time, "sleep", lambda s: None)
-    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword: looked_up.append(keyword))
+    monkeypatch.setattr(pipeline, "search_lowest_price", lambda keyword, **_: looked_up.append(keyword))
     pipeline.fetch_rakuten_prices(db_session, only_product_ids=[b.id])
     assert looked_up == ["PING BB"]
     assert a.id != b.id
@@ -275,7 +275,7 @@ def test_daily_job_heals_a_transient_price_failure_in_the_same_run(client, admin
 
     calls = []
 
-    def _search(keyword):
+    def _search(keyword, **_):
         calls.append(keyword)
         if len(calls) == 1:
             raise TimeoutError("ReadTimeout")
