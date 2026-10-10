@@ -8,8 +8,14 @@
 // どちらかが空なら従来どおり通常のURL（アフィリエイトタグなし）。
 // 個別商品のリンクはバックエンド（backend/app/yahoo.pyのto_affiliate_url）が
 // 同じsid/pidで包む。どちらの値もリンクに必ず表示される公開情報。
-const VC_SID = process.env.NEXT_PUBLIC_VC_SID?.trim() ?? "";
-const VC_PID = process.env.NEXT_PUBLIC_VC_PID?.trim() ?? "";
+//
+// 2026-10-10: バリューコマースで実際に発行された番号（2026-10-06取得、受信箱
+// TK-3）を既定値にした。lib/amazon.tsと同じく、環境変数を明示的に設定すれば
+// そちらが優先される。
+const DEFAULT_VC_SID = "3782576";
+const DEFAULT_VC_PID = "892721752";
+const VC_SID = process.env.NEXT_PUBLIC_VC_SID?.trim() || DEFAULT_VC_SID;
+const VC_PID = process.env.NEXT_PUBLIC_VC_PID?.trim() || DEFAULT_VC_PID;
 
 export const YAHOO_SEARCH_IS_AFFILIATE = VC_SID !== "" && VC_PID !== "";
 

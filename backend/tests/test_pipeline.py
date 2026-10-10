@@ -251,7 +251,12 @@ def test_fetch_yahoo_prices_accepts_plausible_price(db_session, monkeypatch):
 
     db_session.refresh(product)
     assert product.yahoo_price == 58000
-    assert product.yahoo_url == "https://store.shopping.yahoo.co.jp/example/g430.html"
+    # The real ValueCommerce IDs are the defaults (2026-10-10), so the stored
+    # link is the affiliate MyLink, not the plain item URL.
+    assert product.yahoo_url == (
+        "https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=3782576&pid=892721752"
+        "&vc_url=https%3A%2F%2Fstore.shopping.yahoo.co.jp%2Fexample%2Fg430.html"
+    )
     assert product.yahoo_updated_at is not None
 
 

@@ -21,8 +21,11 @@ class Settings(BaseSettings):
     # any MyLink code ValueCommerce generates: ...referral?sid=XXX&pid=YYY).
     # Both are public (they appear in every link). A link with an empty pid
     # isn't credited, so nothing is wrapped until both are set.
-    yahoo_affiliate_id: str = ""
-    yahoo_affiliate_pid: str = ""
+    # 2026-10-10: defaults are the real IDs issued on 2026-10-06 (inbox TK-3),
+    # like the Amazon tag default in frontend/lib/amazon.ts. An env var
+    # still overrides them.
+    yahoo_affiliate_id: str = "3782576"
+    yahoo_affiliate_pid: str = "892721752"
     resend_api_key: str = ""
     # Resend's own shared sending address - works with zero setup (no
     # domain verification, no cost) on the free plan, which is exactly why
