@@ -23,8 +23,8 @@ export default function DisclaimerPage() {
         <section className="flex flex-col gap-2">
           <h2 className="font-display text-lg font-medium text-foreground">アフィリエイトプログラムについて</h2>
           {/* STEP74: brought in line with the links the site actually carries
-              (Amazon has been tagged since STEP54; Yahoo! links are plain until
-              ValueCommerce's sid/pid are set). The Amazon sentence is the
+              (Amazon has been tagged since STEP54; since 2026-10-10 Yahoo! links
+              are wrapped in the ValueCommerce MyLink when served). The Amazon sentence is the
               commonly used required wording - its original in the Associates
               Operating Agreement is still to be checked by the operator (C2). */}
           <p>
@@ -35,10 +35,8 @@ export default function DisclaimerPage() {
           <ul className="list-disc space-y-1 pl-5">
             <li>楽天アフィリエイト（楽天市場へのリンク）</li>
             <li>Amazonアソシエイト・プログラム：Amazonのアソシエイトとして、PAR.は適格販売により収入を得ています。</li>
+            <li>バリューコマース（Yahoo!ショッピングへのリンク）</li>
           </ul>
-          <p>
-            Yahoo!ショッピングへのリンクは、現在は紹介料の対象外です（通常のリンクです）。
-          </p>
         </section>
 
         <section className="flex flex-col gap-2">

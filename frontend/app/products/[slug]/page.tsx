@@ -33,7 +33,7 @@ import { nearestRivals, pairHref } from "@/lib/comparePairs";
 import { buildProductJsonLd } from "@/lib/productJsonLd";
 import { productSeoDescription, productSeoTitle } from "@/lib/productSeo";
 import { getLowestOffer, getShopOffers } from "@/lib/shopOffers";
-import { SHOP_MARKS, buildShopBoard, staleLabel } from "@/lib/shopRows";
+import { SHOP_MARKS, type ShopRow, buildShopBoard, formatUpdatedAt, staleLabel } from "@/lib/shopRows";
 import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
@@ -65,6 +65,23 @@ const CAUTION_DISCOUNT_PERCENT = -40;
 function yen(value: number | null): string {
   if (value === null) return "-";
   return `¥${value.toLocaleString("ja-JP")}`;
+}
+
+// 2026-10-11 (CRO): the buy box's other-shop buttons say where they go
+// ("…で見る" / "…で探す") and, on a second line, how current the price is -
+// so each shop reads as a button, not a label, and prices can be compared
+// at a glance. Only real data: a fetched price with its time, an old one
+// with its age, or no number at all.
+function shopButtonLabel(row: ShopRow): string {
+  return row.kind === "search" ? `${row.label}で探す` : `${row.label}で見る`;
+}
+
+function shopButtonNote(row: ShopRow): string {
+  if (row.kind === "search") return "検索結果で価格を確認";
+  if (row.price === null) return "価格は販売ページで確認";
+  if (row.stale) return staleLabel(row) ?? "";
+  const at = formatUpdatedAt(row.updatedAt);
+  return at ? `${at} 時点の価格` : "1日1回取得した価格";
 }
 
 // Deterministic, keyword-targeted <title>/meta description/OGP/JSON-LD text
@@ -461,14 +478,14 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 </p>
               )}
               {secondaryShops.length > 0 && (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
                   {secondaryShops.map((row) => (
                     <TrackedCta
                       key={`${row.key}-${row.url}`}
                       href={row.url}
                       target="_blank"
                       rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
-                      className="btn-ghost tap flex items-center gap-2.5 rounded-full py-2.5 pl-2.5 pr-4 text-sm font-semibold text-foreground/80 hover:text-foreground"
+                      className="btn-ghost tap flex min-h-[48px] items-center gap-2.5 rounded-2xl py-2 pl-2.5 pr-3 text-sm text-foreground/80 hover:text-foreground"
                       event="cta_click"
                       params={{
                         product_id: product.id,
@@ -488,14 +505,21 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                       >
                         {SHOP_MARKS[row.key].glyph}
                       </span>
-                      <span className="flex-1 truncate text-left">{row.label}</span>
-                      <span className="font-num text-xs text-foreground/55">
-                        {row.kind === "price" && row.price !== null
-                          ? row.stale
-                            ? `${yen(row.price)}（${row.ageDays ?? "?"}日前）`
-                            : yen(row.price)
-                          : "価格を見る"}
+                      <span className="flex min-w-0 flex-1 flex-col text-left">
+                        <span className="truncate font-semibold">{shopButtonLabel(row)}</span>
+                        <span className="truncate text-[11px] text-foreground/65">{shopButtonNote(row)}</span>
                       </span>
+                      {row.kind === "price" && row.price !== null && (
+                        <span className="flex shrink-0 flex-col items-end">
+                          <span className={`font-num text-base font-semibold ${row.stale ? "text-foreground/65" : "text-foreground"}`}>
+                            {yen(row.price)}
+                          </span>
+                          {!row.stale && comparedOffers && lowestOffer && row.price > lowestOffer.price && (
+                            <span className="font-num text-[11px] text-foreground/65">+{yen(row.price - lowestOffer.price)}</span>
+                          )}
+                        </span>
+                      )}
+                      <CtaArrow className="h-3.5 w-3.5" />
                     </TrackedCta>
                   ))}
                 </div>
