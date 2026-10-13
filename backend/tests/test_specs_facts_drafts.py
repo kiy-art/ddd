@@ -97,6 +97,48 @@ def test_facts_match_the_longest_model_in_the_name_and_never_overwrite(db_sessio
     assert product_facts.run_product_facts(db_session, apply=True, rows=rows).updated == 0  # idempotent
 
 
+def test_verified_facts_correct_a_wrongly_matched_10k_page(db_session):
+    # Production state on 2026-10-13: the 10K page got the G430 MAX facts.
+    ten_k = _product(
+        db_session, name="ピン G430 MAX 10K ドライバー ALTA J CB BLACK", model_number="G430 MAX",
+        msrp=93500, release_date=datetime.date(2022, 9, 16), performance_type="forgiveness",
+    )
+    plain_max = _product(
+        db_session, name="G430 MAX ドライバー", model_number="G430 MAX",
+        msrp=93500, release_date=datetime.date(2022, 9, 16),
+    )
+    verified = datetime.date(2026, 10, 13)
+    rows = [
+        _row("G430 MAX", msrp=93500, release_date=datetime.date(2022, 11, 11), category="driver", verified_on=verified),
+        _row("G430 MAX 10K", msrp=104500, release_date=datetime.date(2024, 2, 8), category="driver", verified_on=verified),
+    ]
+
+    preview = product_facts.run_product_facts(db_session, apply=False, rows=rows)
+    assert preview.updated == 2
+    db_session.refresh(ten_k)
+    assert ten_k.msrp == 93500  # dry run wrote nothing
+
+    product_facts.run_product_facts(db_session, apply=True, rows=rows)
+    db_session.refresh(ten_k)
+    db_session.refresh(plain_max)
+    assert (ten_k.model_number, ten_k.msrp, ten_k.release_date) == ("G430 MAX 10K", 104500, datetime.date(2024, 2, 8))
+    assert ten_k.performance_type == "forgiveness"  # unverified fields are still never overwritten
+    assert (plain_max.model_number, plain_max.msrp, plain_max.release_date) == ("G430 MAX", 93500, datetime.date(2022, 11, 11))
+    assert product_facts.run_product_facts(db_session, apply=True, rows=rows).updated == 0  # idempotent
+
+
+def test_a_category_row_never_lands_on_another_category(db_session):
+    wood = _product(db_session, name="PING G440 SFT フェアウェイウッド", category="other")
+    driver = _product(db_session, name="PING G440 SFT ドライバー")
+    rows = [_row("G440 SFT", msrp=107800, category="driver", verified_on=datetime.date(2026, 10, 13))]
+
+    product_facts.run_product_facts(db_session, apply=True, rows=rows)
+    db_session.refresh(wood)
+    db_session.refresh(driver)
+    assert wood.msrp is None
+    assert driver.msrp == 107800
+
+
 def test_the_bundled_facts_csv_loads():
     rows = product_facts.load_facts()
     assert len(rows) > 30

@@ -15,6 +15,16 @@ rows match by name, the LONGEST model wins, so a "G430 MAX" product never
 takes the "G430" row's facts. A value already set is never overwritten
 (an admin may have corrected it); a missing model_number is filled in,
 which also lets popularity ranking matching find the product.
+
+Corrections (2026-10-13): a row with `verified_on` (the date its msrp and
+release date were checked against the maker's official page) is trusted
+over what is stored, so it CORRECTS a wrong msrp / release date / model
+number instead of only filling blanks. This is how a "G430 MAX 10K" page
+that was wrongly given the "G430 MAX" facts (2022 release, 93,500 yen) is
+fixed: when the product's name names a longer model of the same family
+("G430 MAX 10K" contains "G430 MAX"), that longer model's row wins over
+the stored model number. A row with `category` only matches products of
+that category, so a driver price never lands on a G440 SFT fairway wood.
 """
 
 import csv
@@ -43,6 +53,8 @@ class FactRow:
     skill_level: str | None
     performance_type: str | None
     is_current_generation: bool | None
+    category: str | None = None
+    verified_on: datetime.date | None = None
 
 
 @dataclasses.dataclass
@@ -74,20 +86,33 @@ def load_facts(path: Path = FACTS_CSV) -> list[FactRow]:
                     skill_level=val("skill_level") or None,
                     performance_type=val("performance_type") or None,
                     is_current_generation=(generation in ("true", "1", "yes")) if generation else None,
+                    category=val("category") or None,
+                    verified_on=datetime.date.fromisoformat(val("verified_on")) if val("verified_on") else None,
                 )
             )
     return [r for r in rows if r.brand and r.model_number]
 
 
 def match_row(product: models.Product, rows: list[FactRow]) -> FactRow | None:
-    same_brand = [r for r in rows if r.brand == product.brand]
-    if product.model_number:
-        exact = [r for r in same_brand if _norm(r.model_number) == _norm(product.model_number)]
-        if exact:
-            return exact[0]
+    same_brand = [r for r in rows if r.brand == product.brand and (r.category is None or r.category == product.category)]
     name = _norm(product.name)
     by_name = [r for r in same_brand if _norm(r.model_number) and _norm(r.model_number) in name]
-    return max(by_name, key=lambda r: len(_norm(r.model_number)), default=None)
+    longest = max(by_name, key=lambda r: len(_norm(r.model_number)), default=None)
+    if product.model_number:
+        stored = _norm(product.model_number)
+        exact = [r for r in same_brand if _norm(r.model_number) == stored]
+        if exact:
+            # A verified longer model of the same family named in the product
+            # name ("G430 MAX 10K" vs a stored "G430 MAX") beats the stored one.
+            if (
+                longest is not None
+                and longest.verified_on is not None
+                and _norm(longest.model_number) != stored
+                and _norm(longest.model_number).startswith(stored)
+            ):
+                return longest
+            return exact[0]
+    return longest
 
 
 def run_product_facts(db: Session, apply: bool, rows: list[FactRow] | None = None) -> ProductFactsResult:
@@ -101,12 +126,25 @@ def run_product_facts(db: Session, apply: bool, rows: list[FactRow] | None = Non
         if row is None:
             continue
         changes: list[tuple[str, object, str]] = []
+        verified = row.verified_on is not None
         if not product.model_number:
             changes.append(("model_number", row.model_number, f"型番 {row.model_number}"))
+        elif verified and _norm(product.model_number) != _norm(row.model_number):
+            changes.append(("model_number", row.model_number, f"型番 {product.model_number} → {row.model_number}（公式確認済）"))
         if row.msrp is not None and product.msrp is None:
             changes.append(("msrp", row.msrp, f"定価 ¥{row.msrp:,}"))
+        elif verified and row.msrp is not None and product.msrp != row.msrp:
+            changes.append(("msrp", row.msrp, f"定価 ¥{product.msrp:,} → ¥{row.msrp:,}（公式確認済）"))
         if row.release_date is not None and product.release_date is None:
             changes.append(("release_date", row.release_date, f"発売日 {row.release_date.isoformat()}"))
+        elif verified and row.release_date is not None and product.release_date != row.release_date:
+            changes.append(
+                (
+                    "release_date",
+                    row.release_date,
+                    f"発売日 {product.release_date.isoformat()} → {row.release_date.isoformat()}（公式確認済）",
+                )
+            )
         if row.skill_level and product.skill_level is None:
             changes.append(("skill_level", row.skill_level, SKILL_LABELS.get(row.skill_level, row.skill_level)))
         if row.performance_type and product.performance_type is None:
