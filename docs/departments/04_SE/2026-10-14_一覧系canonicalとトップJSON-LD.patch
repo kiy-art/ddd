@@ -1,0 +1,120 @@
+diff --git a/frontend/app/brands/page.tsx b/frontend/app/brands/page.tsx
+index b2ae9dd..853d954 100644
+--- a/frontend/app/brands/page.tsx
++++ b/frontend/app/brands/page.tsx
+@@ -9,6 +9,7 @@ export const revalidate = 0;
+ 
+ export const metadata: Metadata = {
+   title: "ブランド一覧",
++  alternates: { canonical: "/brands" },
+   description: "取り扱いゴルフブランドの一覧です。メーカーごとに商品の価格推移と買い時判定を確認できます。",
+ };
+ 
+diff --git a/frontend/app/deals/page.tsx b/frontend/app/deals/page.tsx
+index 2c27bc0..92eca90 100644
+--- a/frontend/app/deals/page.tsx
++++ b/frontend/app/deals/page.tsx
+@@ -11,6 +11,7 @@ export const revalidate = 0;
+ 
+ export const metadata: Metadata = {
+   title: "価格が下がった商品",
++  alternates: { canonical: "/deals" },
+   description: "直近の価格更新で値下がりした商品の一覧です。",
+ };
+ 
+diff --git a/frontend/app/disclaimer/page.tsx b/frontend/app/disclaimer/page.tsx
+index a4554b4..0ba6bd4 100644
+--- a/frontend/app/disclaimer/page.tsx
++++ b/frontend/app/disclaimer/page.tsx
+@@ -3,6 +3,7 @@ import Link from "next/link";
+ 
+ export const metadata: Metadata = {
+   title: "免責事項・アフィリエイトについて",
++  alternates: { canonical: "/disclaimer" },
+   description: "当サイトの運営方針、アフィリエイト表記、価格情報および買い時判定に関する免責事項です。",
+ };
+ 
+diff --git a/frontend/app/faq/page.tsx b/frontend/app/faq/page.tsx
+index ac44109..7ec3af8 100644
+--- a/frontend/app/faq/page.tsx
++++ b/frontend/app/faq/page.tsx
+@@ -34,6 +34,7 @@ const FAQS = [
+ 
+ export const metadata: Metadata = {
+   title: "よくある質問",
++  alternates: { canonical: "/faq" },
+   description: "PAR.の買い時スコアの仕組み、価格データの取得元、アフィリエイトについてなど、よくある質問にお答えします。",
+ };
+ 
+diff --git a/frontend/app/guides/page.tsx b/frontend/app/guides/page.tsx
+index 2eb43f5..070ac89 100644
+--- a/frontend/app/guides/page.tsx
++++ b/frontend/app/guides/page.tsx
+@@ -7,6 +7,7 @@ export const revalidate = 0;
+ 
+ export const metadata: Metadata = {
+   title: "購入ガイド",
++  alternates: { canonical: "/guides" },
+   description: "ゴルフクラブの買い替えタイミングや型落ち・中古の選び方など、購入前に知っておきたい情報をまとめました。",
+ };
+ 
+diff --git a/frontend/app/page.tsx b/frontend/app/page.tsx
+index dbece8b..d055fb7 100644
+--- a/frontend/app/page.tsx
++++ b/frontend/app/page.tsx
+@@ -1,3 +1,4 @@
++import type { Metadata } from "next";
+ import Link from "next/link";
+ 
+ import AiBuySignal from "@/components/AiBuySignal";
+@@ -14,6 +15,7 @@ import { getFallbackValueScore } from "@/lib/fallbackScore";
+ import { GUIDES } from "@/lib/guides";
+ import { freshPopularityRank } from "@/lib/popularity";
+ import PrNotice from "@/components/PrNotice";
++import { SITE_URL } from "@/lib/siteUrl";
+ 
+ function yen(value: number | null): string {
+   if (value === null) return "-";
+@@ -22,6 +24,22 @@ function yen(value: number | null): string {
+ 
+ export const revalidate = 0;
+ 
++// The ?buy_score= tab views are the same page with a filter; point them all
++// at "/" (metadataBase in layout.tsx makes this absolute).
++export const metadata: Metadata = {
++  alternates: { canonical: "/" },
++};
++
++// WebSite + Organization only: no logo/sameAs/SearchAction (no indexable
++// search page, no verified profiles), so nothing here is a guess.
++const SITE_JSON_LD = {
++  "@context": "https://schema.org",
++  "@graph": [
++    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: "PAR.", inLanguage: "ja" },
++    { "@type": "Organization", "@id": `${SITE_URL}/#organization`, url: SITE_URL, name: "PAR." },
++  ],
++};
++
+ const FILTER_TABS = ["all", "strong_buy", "buy", "neutral", "not_buy"] as const;
+ type FilterTab = (typeof FILTER_TABS)[number];
+ 
+@@ -134,6 +152,7 @@ export default async function Home({
+ 
+   return (
+     <div className="flex flex-col">
++      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }} />
+       <Hero productCount={siteStats?.published_products ?? null} avgDiscount={avgDiscount} collageImages={heroImages} />
+ 
+       {featuredGuides.length > 0 && (
+diff --git a/frontend/app/ranking/page.tsx b/frontend/app/ranking/page.tsx
+index 96048ba..42fa006 100644
+--- a/frontend/app/ranking/page.tsx
++++ b/frontend/app/ranking/page.tsx
+@@ -12,6 +12,7 @@ export const revalidate = 0;
+ 
+ export const metadata: Metadata = {
+   title: "買い時ランキング",
++  alternates: { canonical: "/ranking" },
+   description: "カテゴリ別の買い時スコアランキングです。",
+ };
+ 
