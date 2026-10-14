@@ -120,11 +120,37 @@ class ApiError extends Error {
   }
 }
 
+// Public catalog reads (products, categories, brands, guides...) are cached
+// in Next's data cache for this long. Every page renders on request
+// (`revalidate = 0`), and before this each render re-fetched its lists -
+// including the 300-item category lists - from the backend over the public
+// internet, so one crawler walking the site cost Render outbound bandwidth
+// twice (backend -> frontend, then frontend -> crawler). 2026-10-13: a
+// ~10-hour crawl used ~1.8GB of the Hobby plan's 5GB monthly allowance.
+// Prices are refreshed by daily jobs, so 5 minutes of staleness is invisible.
+const PUBLIC_DATA_REVALIDATE_SECONDS = 300;
+
+// Never cached: admin calls, anything carrying credentials, per-visitor
+// alert links, and every non-GET request.
+const UNCACHED_PREFIXES = ["/api/admin", "/api/alerts"];
+
+function isCacheablePublicRead(path: string, init?: RequestInit): boolean {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method !== "GET") return false;
+  if (init?.cache !== undefined) return false;
+  if (UNCACHED_PREFIXES.some((prefix) => path.startsWith(prefix))) return false;
+  const headers = new Headers(init?.headers);
+  return !headers.has("Authorization");
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const caching: RequestInit = isCacheablePublicRead(path, init)
+    ? { next: { revalidate: PUBLIC_DATA_REVALIDATE_SECONDS } }
+    : { cache: init?.cache ?? "no-store" };
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-    cache: "no-store",
+    ...caching,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -132,6 +158,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as T;
   return res.json();
+}
+
+// List pages hand every product to the client-side ProductCard, so each
+// field ends up serialized into the page HTML once per card. These long
+// AI-written texts are only shown on the product detail page (which loads
+// them through getProduct), so list results drop them to keep pages light.
+function forList(products: Product[]): Product[] {
+  return products.map((p) => ({ ...p, ai_title: null, ai_summary: null, ai_caution: null, buy_reason: null }));
 }
 
 // --- Public API ---------------------------------------------------------
@@ -142,7 +176,7 @@ export function getProducts(params?: { category?: string; buy_score?: string; li
   if (params?.buy_score) qs.set("buy_score", params.buy_score);
   if (params?.limit) qs.set("limit", String(params.limit));
   const query = qs.toString();
-  return apiFetch<Product[]>(`/api/products${query ? `?${query}` : ""}`);
+  return apiFetch<Product[]>(`/api/products${query ? `?${query}` : ""}`).then(forList);
 }
 
 export function getProduct(slug: string, init?: RequestInit) {
@@ -154,7 +188,7 @@ export function getProduct(slug: string, init?: RequestInit) {
 export const CATEGORY_PAGE_LIMIT = 300;
 
 export function getCategoryProducts(category: string, init?: RequestInit, limit: number = CATEGORY_PAGE_LIMIT) {
-  return apiFetch<Product[]>(`/api/categories/${category}?limit=${limit}`, init);
+  return apiFetch<Product[]>(`/api/categories/${category}?limit=${limit}`, init).then(forList);
 }
 
 // The real number of products the site lists (/api/products is paginated,
@@ -300,7 +334,7 @@ export function getBrands() {
 }
 
 export function getBrandProducts(brand: string) {
-  return apiFetch<Product[]>(`/api/brands/${encodeURIComponent(brand)}?limit=${CATEGORY_PAGE_LIMIT}`);
+  return apiFetch<Product[]>(`/api/brands/${encodeURIComponent(brand)}?limit=${CATEGORY_PAGE_LIMIT}`).then(forList);
 }
 
 export interface BrandPriceMover {
