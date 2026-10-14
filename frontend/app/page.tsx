@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import AiBuySignal from "@/components/AiBuySignal";
@@ -14,6 +15,7 @@ import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { GUIDES } from "@/lib/guides";
 import { freshPopularityRank } from "@/lib/popularity";
 import PrNotice from "@/components/PrNotice";
+import { SITE_URL } from "@/lib/siteUrl";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -21,6 +23,22 @@ function yen(value: number | null): string {
 }
 
 export const revalidate = 0;
+
+// The ?buy_score= tab views are the same page with a filter; point them all
+// at "/" (metadataBase in layout.tsx makes this absolute).
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
+// WebSite + Organization only: no logo/sameAs/SearchAction (no indexable
+// search page, no verified profiles), so nothing here is a guess.
+const SITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: "PAR.", inLanguage: "ja" },
+    { "@type": "Organization", "@id": `${SITE_URL}/#organization`, url: SITE_URL, name: "PAR." },
+  ],
+};
 
 const FILTER_TABS = ["all", "strong_buy", "buy", "neutral", "not_buy"] as const;
 type FilterTab = (typeof FILTER_TABS)[number];
@@ -134,6 +152,7 @@ export default async function Home({
 
   return (
     <div className="flex flex-col">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }} />
       <Hero productCount={siteStats?.published_products ?? null} avgDiscount={avgDiscount} collageImages={heroImages} />
 
       {featuredGuides.length > 0 && (
