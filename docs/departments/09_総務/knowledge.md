@@ -8,6 +8,7 @@
 - 2026-10-11 [001] PR表記の部品(PrNotice・購入ボックス)は12pxで、ガイド本文14pxより小さい。社内基準「本文同等以上」に未達(根拠: frontend/components/PrNotice.tsx、app/guides/[slug]/page.tsx 153行)
 - 2026-10-11 [001] Amazonアソシエイト運営規約5条：定型文を「サイト上で目立つように」表示、Amazonの支援・後援の暗示は禁止。価格表示・商標の細則はプログラム・ポリシーと商標ガイドライン側(根拠: https://affiliate.amazon.co.jp/help/operating/agreement 確認日2026-10-12)
 - 2026-10-11 [001] 消費者庁ステマ規制ページは施行日・対象のみ。明瞭／不明瞭な表示の具体例は運用基準PDF側にある(根拠: https://www.caa.go.jp/policies/policy/representation/fair_labeling/stealth_marketing/ 確認日2026-10-12)
+- 2026-10-15 [001] 本番の商品ページで「最安」の根拠欄(記録上の最安¥54,890)とグラフ(9/25に¥24,253)が食い違う。Yahoo!の紹介料記載と購入ボタン付近のPR表記は直っている。表記審査9件の一覧はguidelines・knowledgeに無く、照合できていない(根拠: WebFetch par-gear.com/products/ping-g430-max・/disclaimer、09_総務/01_部内検討/2026-10-15_表示規約チェック.md)
 
 ## 代表者会議から持ち帰ったこと
 

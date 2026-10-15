@@ -1,0 +1,102 @@
+diff --git a/frontend/app/brands/page.tsx b/frontend/app/brands/page.tsx
+index b2ae9dd..6b9f674 100644
+--- a/frontend/app/brands/page.tsx
++++ b/frontend/app/brands/page.tsx
+@@ -10,6 +10,7 @@ export const revalidate = 0;
+ export const metadata: Metadata = {
+   title: "ブランド一覧",
+   description: "取り扱いゴルフブランドの一覧です。メーカーごとに商品の価格推移と買い時判定を確認できます。",
++  alternates: { canonical: "/brands" },
+ };
+ 
+ export default async function BrandsPage() {
+diff --git a/frontend/app/deals/page.tsx b/frontend/app/deals/page.tsx
+index 2c27bc0..ca838dc 100644
+--- a/frontend/app/deals/page.tsx
++++ b/frontend/app/deals/page.tsx
+@@ -12,6 +12,7 @@ export const revalidate = 0;
+ export const metadata: Metadata = {
+   title: "価格が下がった商品",
+   description: "直近の価格更新で値下がりした商品の一覧です。",
++  alternates: { canonical: "/deals" },
+ };
+ 
+ export default async function DealsPage() {
+diff --git a/frontend/app/faq/page.tsx b/frontend/app/faq/page.tsx
+index ac44109..3580b71 100644
+--- a/frontend/app/faq/page.tsx
++++ b/frontend/app/faq/page.tsx
+@@ -35,6 +35,7 @@ const FAQS = [
+ export const metadata: Metadata = {
+   title: "よくある質問",
+   description: "PAR.の買い時スコアの仕組み、価格データの取得元、アフィリエイトについてなど、よくある質問にお答えします。",
++  alternates: { canonical: "/faq" },
+ };
+ 
+ export default function FaqPage() {
+diff --git a/frontend/app/guides/page.tsx b/frontend/app/guides/page.tsx
+index 2eb43f5..db1e5bb 100644
+--- a/frontend/app/guides/page.tsx
++++ b/frontend/app/guides/page.tsx
+@@ -8,6 +8,7 @@ export const revalidate = 0;
+ export const metadata: Metadata = {
+   title: "購入ガイド",
+   description: "ゴルフクラブの買い替えタイミングや型落ち・中古の選び方など、購入前に知っておきたい情報をまとめました。",
++  alternates: { canonical: "/guides" },
+ };
+ 
+ export default async function GuidesIndexPage() {
+diff --git a/frontend/app/page.tsx b/frontend/app/page.tsx
+index dbece8b..0f96ea1 100644
+--- a/frontend/app/page.tsx
++++ b/frontend/app/page.tsx
+@@ -1,3 +1,4 @@
++import type { Metadata } from "next";
+ import Link from "next/link";
+ 
+ import AiBuySignal from "@/components/AiBuySignal";
+@@ -22,6 +23,10 @@ function yen(value: number | null): string {
+ 
+ export const revalidate = 0;
+ 
++// ?buy_score= filter tabs are views of the same page; one canonical for all.
++// Only alternates is set, so title/description still come from app/layout.tsx.
++export const metadata: Metadata = { alternates: { canonical: "/" } };
++
+ const FILTER_TABS = ["all", "strong_buy", "buy", "neutral", "not_buy"] as const;
+ type FilterTab = (typeof FILTER_TABS)[number];
+ 
+diff --git a/frontend/app/ranking/page.tsx b/frontend/app/ranking/page.tsx
+index 96048ba..ee86bed 100644
+--- a/frontend/app/ranking/page.tsx
++++ b/frontend/app/ranking/page.tsx
+@@ -10,10 +10,25 @@ import { getProductBadge } from "@/lib/badges";
+ 
+ export const revalidate = 0;
+ 
+-export const metadata: Metadata = {
+-  title: "買い時ランキング",
+-  description: "カテゴリ別の買い時スコアランキングです。",
+-};
++export async function generateMetadata({
++  searchParams,
++}: {
++  searchParams: Promise<{ category?: string }>;
++}): Promise<Metadata> {
++  // The page renders one category per ?category=. Each valid, non-default
++  // category is its own page; /ranking and /ranking?category=<default> are
++  // the same page, and unknown values fall back to the default.
++  const { category } = await searchParams;
++  const canonical =
++    isCategory(category) && category !== CATEGORIES[0]
++      ? `/ranking?category=${encodeURIComponent(category)}`
++      : "/ranking";
++  return {
++    title: "買い時ランキング",
++    description: "カテゴリ別の買い時スコアランキングです。",
++    alternates: { canonical },
++  };
++}
+ 
+ function isCategory(value: string | undefined): value is (typeof CATEGORIES)[number] {
+   return !!value && (CATEGORIES as readonly string[]).includes(value);

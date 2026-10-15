@@ -8,6 +8,7 @@
 - 2026-10-11 [001] ガイドのPR表記(PrNotice)は featured の商品カードが出るときだけ表示される。featured無し・0件のガイドは本文にPRの一文を入れる(根拠: frontend/app/guides/[slug]/page.tsx)
 - 2026-10-11 [001] 型落ち記事は /guides/why-consider-last-years-model として既にある(2026-09-22)。足りないのは記事ではなくトップ等からの導線。新記事を作る前に guides.ts を確認する(根拠: frontend/lib/guides.ts)
 - 2026-10-11 [001] X投稿は日本語でも重み付き文字数(全角2・URL 23)で280以内に収める。utmは utm_campaign=prime2026_* で型ごとに測る(根拠: backend/app/x_post.py 403行目、推測を含む)
+- 2026-10-15 [001] 巡回メモの「ガイド一覧に型落ち記事なし」は誤り。記事はあるがトップに導線0件・具体モデルの例なし。ELYTE商品ページは3件に割れ、タイトルに「最安値比較」。型落ちは新規記事でなく既存記事の改修＋導線で攻める(根拠: frontend/lib/guides.ts、本番HTML 2026-10-15)
 
 ## 代表者会議から持ち帰ったこと
 
