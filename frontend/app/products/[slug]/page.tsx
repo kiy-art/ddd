@@ -474,7 +474,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 <p className="-mt-1 text-center text-[11px] text-foreground/65">
                   {primaryShop.stale
                     ? `${staleLabel(primaryShop)}です。最新の価格・在庫・送料は${primaryShop.label}のページで確認できます`
-                    : `${comparedOffers && primaryShop.isLowest ? `当サイトで取得した${shopOffers.map((o) => o.label).join("・")}の価格での比較` : "当サイト取得の価格"}${formatUpdatedAt(primaryShop.updatedAt) ? `（${formatUpdatedAt(primaryShop.updatedAt)}時点）` : ""}。在庫・送料・ポイントは${primaryShop.label}のページで確認できます`}
+                    : `${comparedOffers && primaryShop.isLowest ? `当サイトで取得した${shopOffers.map((o) => o.label).join("・")}の価格での比較` : "当サイト取得の価格"}${formatUpdatedAt(primaryShop.updatedAt) ? `（${primaryShop.label}の価格は${formatUpdatedAt(primaryShop.updatedAt)}時点）` : ""}。他店の取得時点は各店の表示を確認してください。在庫・送料・ポイントは${primaryShop.label}のページで確認できます`}
                 </p>
               )}
               {secondaryShops.length > 0 && (

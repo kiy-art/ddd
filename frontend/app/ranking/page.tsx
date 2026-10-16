@@ -13,7 +13,6 @@ export const revalidate = 0;
 export const metadata: Metadata = {
   title: "買い時ランキング",
   description: "カテゴリ別の買い時スコアランキングです。",
-  alternates: { canonical: "/ranking" },
 };
 
 function isCategory(value: string | undefined): value is (typeof CATEGORIES)[number] {
