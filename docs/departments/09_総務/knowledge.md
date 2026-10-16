@@ -8,6 +8,8 @@
 - 2026-10-11 [001] PR表記の部品(PrNotice・購入ボックス)は12pxで、ガイド本文14pxより小さい。社内基準「本文同等以上」に未達(根拠: frontend/components/PrNotice.tsx、app/guides/[slug]/page.tsx 153行)
 - 2026-10-11 [001] Amazonアソシエイト運営規約5条：定型文を「サイト上で目立つように」表示、Amazonの支援・後援の暗示は禁止。価格表示・商標の細則はプログラム・ポリシーと商標ガイドライン側(根拠: https://affiliate.amazon.co.jp/help/operating/agreement 確認日2026-10-12)
 - 2026-10-11 [001] 消費者庁ステマ規制ページは施行日・対象のみ。明瞭／不明瞭な表示の具体例は運用基準PDF側にある(根拠: https://www.caa.go.jp/policies/policy/representation/fair_labeling/stealth_marketing/ 確認日2026-10-12)
+- 2026-10-16 [001] 10/11の指摘のうち本番で直ったのは4件(感謝祭の見出し・説明文、Yahoo!/VCの法務ページ、主ボタンの「（最安）」)。残りはPR表記12px・トップ「平均の値動き」・フッターのAmazon定型文・「定価より」の根拠(根拠: curl par-gear.com、09_総務/01_部内検討/2026-10-16_表示規約_本番照合.md)
+- 2026-10-16 [001] 「表記審査9件」の原本(06_audits/2026-10-10_hyoki-shinsa.md)がリポジトリに無く、公式の9件を数えられない。数える元のファイルを1つ決める(根拠: Glob 0件)
 
 ## 代表者会議から持ち帰ったこと
 
