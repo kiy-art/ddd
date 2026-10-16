@@ -12,6 +12,7 @@ export const revalidate = 0;
 export const metadata: Metadata = {
   title: "価格が下がった商品",
   description: "直近の価格更新で値下がりした商品の一覧です。",
+  alternates: { canonical: "/deals" },
 };
 
 export default async function DealsPage() {

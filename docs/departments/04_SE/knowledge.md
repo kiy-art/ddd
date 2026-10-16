@@ -6,6 +6,7 @@
 - 2026-10-11 [001] "use client"の部品もサーバーで先にHTMLになるため、useStateの初期値（例：CountUpの0）がそのままHTMLに出る。数値は初期値を実数にし、演出は後から動かす(根拠: curl https://par-gear.com/ で掲載商品0・スコア0が64か所、next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md 109行)
 - 2026-10-11 [001] 商品名に「10/4 20:00 10/09 01:59」の日時混入を確認（タイトリスト PROFESSIONAL TG73 グローブ、name・ai_title・alt）。取り込み時の名前整形が次の不具合候補(根拠: curl https://par-gear.com/ 2026-10-12 00:17 JST)
 - 2026-10-11 [001] トップに canonical と JSON-LD が無い（商品ページにはある）(根拠: curl https://par-gear.com/ のHTML)
+- 2026-10-16 [001] 一覧系8ページ(brands/compare/deals/faq/guides/ranking/contact/disclaimer)にcanonicalが無かったため追加。新規ページ作成時はmetadataにalternates.canonicalを入れる(根拠: frontend/app/各page.tsx、01_部内検討/2026-10-16_一覧系8ページcanonical追加.md)
 
 ## 代表者会議から持ち帰ったこと
 

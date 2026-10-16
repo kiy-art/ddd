@@ -6,6 +6,7 @@ import ContactForm from "./ContactForm";
 export const metadata: Metadata = {
   title: "お問い合わせ",
   description: "PAR.へのお問い合わせはこちらのフォームからお願いします。",
+  alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {
