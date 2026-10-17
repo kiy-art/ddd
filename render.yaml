@@ -82,7 +82,12 @@ services:
   - type: web
     name: golf-deals-frontend
     env: node
-    plan: free
+    # starter (paid, ~$7/mo) since 2026-10-17: two free services share the
+    # workspace's 750 free instance-hours/month and ran out mid-month,
+    # suspending the whole site. With only the backend on free it fits
+    # (max 744h/month). Do not set this back to free, and do not add other
+    # free web services to this workspace without re-checking the budget.
+    plan: starter
     rootDir: frontend
     buildCommand: "npm install && npm run build"
     startCommand: "npm run start"
