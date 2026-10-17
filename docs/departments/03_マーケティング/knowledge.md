@@ -8,6 +8,9 @@
 - 2026-10-11 [001] ガイドのPR表記(PrNotice)は featured の商品カードが出るときだけ表示される。featured無し・0件のガイドは本文にPRの一文を入れる(根拠: frontend/app/guides/[slug]/page.tsx)
 - 2026-10-11 [001] 型落ち記事は /guides/why-consider-last-years-model として既にある(2026-09-22)。足りないのは記事ではなくトップ等からの導線。新記事を作る前に guides.ts を確認する(根拠: frontend/lib/guides.ts)
 - 2026-10-11 [001] X投稿は日本語でも重み付き文字数(全角2・URL 23)で280以内に収める。utmは utm_campaign=prime2026_* で型ごとに測る(根拠: backend/app/x_post.py 403行目、推測を含む)
+- 2026-10-17 [001] スリクソンZXi RKTドライバー4モデルは2026-09-12発売・税込89,100円(全モデル同額)。旧ZXiは型落ち(根拠: https://sports.yahoo.co.jp/column/detail/2026080500003-spnavido 、2026-10-17確認)
+- 2026-10-17 [001] 楽天2026年10月のお買い物マラソンは9/23時点の記事で公式未発表。「10/24開始」は2025年の日程で、2026年は公式確認前(根拠: https://ichioshi.smt.docomo.ne.jp/articles/common/514525 、2026-10-17確認)
+- 2026-10-17 [001] 「ZXi 型落ち 価格」向けの固有ガイドは既存の一般論ガイド(why-consider-last-years-model)と相互リンクして共食いを避ける。完成稿は01_部内検討/2026-10-17_ZXi型落ちガイド.md(根拠: frontend/lib/guides.ts)
 
 ## 代表者会議から持ち帰ったこと
 
