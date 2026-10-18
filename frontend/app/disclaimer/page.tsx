@@ -5,7 +5,6 @@ export const metadata: Metadata = {
   title: "免責事項・アフィリエイトについて",
   alternates: { canonical: "/disclaimer" },
   description: "当サイトの運営方針、アフィリエイト表記、価格情報および買い時判定に関する免責事項です。",
-  alternates: { canonical: "/disclaimer" },
 };
 
 export default function DisclaimerPage() {

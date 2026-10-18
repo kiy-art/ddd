@@ -12,7 +12,6 @@ export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "買い時ランキング",
-  alternates: { canonical: "/ranking" },
   description: "カテゴリ別の買い時スコアランキングです。",
 };
 

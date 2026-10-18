@@ -36,7 +36,6 @@ export const metadata: Metadata = {
   title: "よくある質問",
   alternates: { canonical: "/faq" },
   description: "PAR.の買い時スコアの仕組み、価格データの取得元、アフィリエイトについてなど、よくある質問にお答えします。",
-  alternates: { canonical: "/faq" },
 };
 
 export default function FaqPage() {
