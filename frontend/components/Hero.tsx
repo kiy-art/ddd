@@ -42,10 +42,9 @@ export default function Hero({
           <h1 className="font-display text-[28px] font-bold leading-[1.2] tracking-tight text-foreground sm:text-6xl sm:leading-[1.12]">
             {/* phrase-level spans: a narrow screen breaks between phrases */}
             <span className="inline-block">型落ちクラブ、</span>
-            <span className="bg-gradient-to-r from-[#047857] via-[#059669] to-[#10b981] bg-clip-text text-transparent">
-              <span className="inline-block">買うのは今か、</span>
-              <span className="inline-block">待つか。</span>
-            </span>
+            {/* iOS Safari: background-clip:text on a parent does not paint inline-block children, so each piece gets its own gradient. */}
+            <span className="inline-block bg-gradient-to-r from-[#047857] via-[#059669] to-[#10b981] bg-clip-text text-transparent [-webkit-background-clip:text]">買うのは今か、</span>
+            <span className="inline-block bg-gradient-to-r from-[#047857] via-[#059669] to-[#10b981] bg-clip-text text-transparent [-webkit-background-clip:text]">待つか。</span>
           </h1>
           <p className="text-sm leading-relaxed text-foreground/65 sm:text-lg">
             価格の記録から、今日の買い時の目安をお伝えします。
