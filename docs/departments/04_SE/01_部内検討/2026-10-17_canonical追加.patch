@@ -1,0 +1,129 @@
+diff --git a/frontend/app/brand/[brand]/page.tsx b/frontend/app/brand/[brand]/page.tsx
+index 8f42a25..a18e616 100644
+--- a/frontend/app/brand/[brand]/page.tsx
++++ b/frontend/app/brand/[brand]/page.tsx
+@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
+   return {
+     title: `${name}の買い時商品一覧`,
+     description: `${name}の商品の価格推移と買い時判定を一覧で確認できます。`,
++    alternates: { canonical: `/brand/${encodeURIComponent(name)}` },
+   };
+ }
+ 
+diff --git a/frontend/app/brands/page.tsx b/frontend/app/brands/page.tsx
+index b2ae9dd..6b9f674 100644
+--- a/frontend/app/brands/page.tsx
++++ b/frontend/app/brands/page.tsx
+@@ -10,6 +10,7 @@ export const revalidate = 0;
+ export const metadata: Metadata = {
+   title: "ブランド一覧",
+   description: "取り扱いゴルフブランドの一覧です。メーカーごとに商品の価格推移と買い時判定を確認できます。",
++  alternates: { canonical: "/brands" },
+ };
+ 
+ export default async function BrandsPage() {
+diff --git a/frontend/app/compare/page.tsx b/frontend/app/compare/page.tsx
+index 4bcad22..fd9aa88 100644
+--- a/frontend/app/compare/page.tsx
++++ b/frontend/app/compare/page.tsx
+@@ -13,6 +13,7 @@ export const revalidate = 0;
+ export const metadata: Metadata = {
+   title: "商品比較",
+   description: "選択したゴルフ用品を価格・買い時スコア・価格予測で比較できます。",
++  alternates: { canonical: "/compare" },
+ };
+ 
+ async function loadProducts(slugs: string[]): Promise<ProductDetail[]> {
+diff --git a/frontend/app/contact/page.tsx b/frontend/app/contact/page.tsx
+index 68ad5e9..a426324 100644
+--- a/frontend/app/contact/page.tsx
++++ b/frontend/app/contact/page.tsx
+@@ -6,6 +6,7 @@ import ContactForm from "./ContactForm";
+ export const metadata: Metadata = {
+   title: "お問い合わせ",
+   description: "PAR.へのお問い合わせはこちらのフォームからお願いします。",
++  alternates: { canonical: "/contact" },
+ };
+ 
+ export default function ContactPage() {
+diff --git a/frontend/app/deals/page.tsx b/frontend/app/deals/page.tsx
+index 2c27bc0..ca838dc 100644
+--- a/frontend/app/deals/page.tsx
++++ b/frontend/app/deals/page.tsx
+@@ -12,6 +12,7 @@ export const revalidate = 0;
+ export const metadata: Metadata = {
+   title: "価格が下がった商品",
+   description: "直近の価格更新で値下がりした商品の一覧です。",
++  alternates: { canonical: "/deals" },
+ };
+ 
+ export default async function DealsPage() {
+diff --git a/frontend/app/disclaimer/page.tsx b/frontend/app/disclaimer/page.tsx
+index a4554b4..b010251 100644
+--- a/frontend/app/disclaimer/page.tsx
++++ b/frontend/app/disclaimer/page.tsx
+@@ -4,6 +4,7 @@ import Link from "next/link";
+ export const metadata: Metadata = {
+   title: "免責事項・アフィリエイトについて",
+   description: "当サイトの運営方針、アフィリエイト表記、価格情報および買い時判定に関する免責事項です。",
++  alternates: { canonical: "/disclaimer" },
+ };
+ 
+ export default function DisclaimerPage() {
+diff --git a/frontend/app/faq/page.tsx b/frontend/app/faq/page.tsx
+index ac44109..3580b71 100644
+--- a/frontend/app/faq/page.tsx
++++ b/frontend/app/faq/page.tsx
+@@ -35,6 +35,7 @@ const FAQS = [
+ export const metadata: Metadata = {
+   title: "よくある質問",
+   description: "PAR.の買い時スコアの仕組み、価格データの取得元、アフィリエイトについてなど、よくある質問にお答えします。",
++  alternates: { canonical: "/faq" },
+ };
+ 
+ export default function FaqPage() {
+diff --git a/frontend/app/guides/page.tsx b/frontend/app/guides/page.tsx
+index 2eb43f5..db1e5bb 100644
+--- a/frontend/app/guides/page.tsx
++++ b/frontend/app/guides/page.tsx
+@@ -8,6 +8,7 @@ export const revalidate = 0;
+ export const metadata: Metadata = {
+   title: "購入ガイド",
+   description: "ゴルフクラブの買い替えタイミングや型落ち・中古の選び方など、購入前に知っておきたい情報をまとめました。",
++  alternates: { canonical: "/guides" },
+ };
+ 
+ export default async function GuidesIndexPage() {
+diff --git a/frontend/app/page.tsx b/frontend/app/page.tsx
+index dbece8b..dc7295e 100644
+--- a/frontend/app/page.tsx
++++ b/frontend/app/page.tsx
+@@ -1,3 +1,4 @@
++import type { Metadata } from "next";
+ import Link from "next/link";
+ 
+ import AiBuySignal from "@/components/AiBuySignal";
+@@ -33,6 +34,11 @@ function isFilterTab(value: string | undefined): value is FilterTab {
+   return !!value && (FILTER_TABS as readonly string[]).includes(value);
+ }
+ 
++// Self-canonical so tracking-parameter URLs (utm_*, ?category=) fold into "/".
++export const metadata: Metadata = {
++  alternates: { canonical: "/" },
++};
++
+ export default async function Home({
+   searchParams,
+ }: {
+diff --git a/frontend/app/ranking/page.tsx b/frontend/app/ranking/page.tsx
+index 96048ba..702c9dc 100644
+--- a/frontend/app/ranking/page.tsx
++++ b/frontend/app/ranking/page.tsx
+@@ -13,6 +13,7 @@ export const revalidate = 0;
+ export const metadata: Metadata = {
+   title: "買い時ランキング",
+   description: "カテゴリ別の買い時スコアランキングです。",
++  alternates: { canonical: "/ranking" },
+ };
+ 
+ function isCategory(value: string | undefined): value is (typeof CATEGORIES)[number] {

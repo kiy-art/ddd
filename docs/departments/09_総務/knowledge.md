@@ -15,6 +15,11 @@
 - 2026-10-15 [001] 本番の商品ページで「最安」の根拠欄(記録上の最安¥54,890)とグラフ(9/25に¥24,253)が食い違う。Yahoo!の紹介料記載と購入ボタン付近のPR表記は直っている。表記審査9件の一覧はguidelines・knowledgeに無く、照合できていない(根拠: WebFetch par-gear.com/products/ping-g430-max・/disclaimer、09_総務/01_部内検討/2026-10-15_表示規約チェック.md)
 - 2026-10-16 [001] 10/11の指摘のうち本番で直ったのは4件(感謝祭の見出し・説明文、Yahoo!/VCの法務ページ、主ボタンの「（最安）」)。残りはPR表記12px・トップ「平均の値動き」・フッターのAmazon定型文・「定価より」の根拠(根拠: curl par-gear.com、09_総務/01_部内検討/2026-10-16_表示規約_本番照合.md)
 - 2026-10-16 [001] 「表記審査9件」の原本(06_audits/2026-10-10_hyoki-shinsa.md)がリポジトリに無く、公式の9件を数えられない。数える元のファイルを1つ決める(根拠: Glob 0件)
+- 2026-10-17 [001] 10/11の🔴「Yahoo!は紹介料の対象外」は本番で修正済み（免責・FAQ・プライバシーがVC込みの3社表記）。ただし contracts.csv は「VC提携待ち・承認状態未確認」のまま、リンクだけ先に出ている(根拠: curl par-gear.com/disclaimer・/faq・/privacy 2026-10-17、docs/knowledge/contracts.csv)
+- 2026-10-17 [001] Amazon定型文は免責ページだけにあり、トップ・商品ページ・フッターには無い。PR表記と運営者情報ページ(/about)も無い(404)(根拠: curl par-gear.com 2026-10-17)
+- 2026-10-17 [001] 「表記審査9件」の原本はリポジトリに無く、件別の修正状況は判定不能。目標の測り方を決める必要あり(根拠: find/grep、2026-10-17)
+- 2026-10-17 [001] 「AI」表記は、実態が「ルールベースの採点＋AI説明文」なので一文の注釈を添える。型落ちタグは手調査の is_current_generation のみ(根拠: frontend/lib/badges.ts 98行、免責・FAQ)
+- 2026-10-17 [001] 二重価格は「最近相当期間価格」が基本。caa.go.jpは今夜接続不可で原文未開封(根拠: 検索結果の要約、https://www.caa.go.jp/policies/policy/representation/fair_labeling/representation_regulation/double_price)
 
 ## 代表者会議から持ち帰ったこと
 

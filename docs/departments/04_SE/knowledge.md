@@ -12,9 +12,15 @@
 - 2026-10-14 [001] 型チェックは `npx next typegen` を先に実行しないと layout.tsx の LayoutProps が未定義エラーになる(根拠: 一時コピーでの tsc 結果)
 - 2026-10-14 [001] 直近7日ログ error 7 / warning 253。目標「エラー週1,000件以下」は余裕が約140倍で緩い(根拠: 管理API 2026-10-14 15:01 UTC)
 - 2026-10-16 [001] 一覧系8ページ(brands/compare/deals/faq/guides/ranking/contact/disclaimer)にcanonicalが無かったため追加。新規ページ作成時はmetadataにalternates.canonicalを入れる(根拠: frontend/app/各page.tsx、01_部内検討/2026-10-16_一覧系8ページcanonical追加.md)
+- 2026-10-17 [001] 一覧系ページ(/, deals, ranking, brands, guides, faq, compare, contact, disclaimer, brand/[brand])はcanonical未設定だった。商品・カテゴリ・ガイド詳細・比較ペアなどは設定済み。layout.tsxに置くと未設定ページが「/」を指すため各ページに置く(根拠: frontend/app の grep、01_部内検討/2026-10-17_canonical追加.md)
+- 2026-10-17 [001] `tsc --noEmit` は `next typegen` を先に実行しないと layout.tsx の LayoutProps で既存エラーが出る。検証時は区別する(根拠: 作業コピーで npm ci 後に実行)
+- 2026-10-17 [001] /ranking?category= はカテゴリごとに内容が違う。canonicalを/rankingに固定するとカテゴリ別が統合されるため、要判断(根拠: frontend/app/ranking/page.tsx 139-143行)
 
 ## 代表者会議から持ち帰ったこと
 
 ## スキル改善メモ
 （専門スキル `.claude/skills/pro-se/SKILL.md` で足りなかった点。月1回、人事部が改訂案にまとめる）
 - 2026-10-11 [001] 1章3「正しく読めるか」に、数値の演出（カウントアップ等）の初期値がHTMLに出る落とし穴が無い → 「curlで取ったHTMLで数値・スコアが0や空でないか」を点検項目に足す(根拠: 01_部内検討/2026-10-11_トップ数値の初期表示修正.md)
+- 2026-10-17 [001] 点検項目に「canonical未設定ページの一覧(grepで全page.tsxを照合)」と「tsc前のnext typegen」が無い → 1章2に足す(根拠: 2026-10-17_canonical追加.md)
+
+使ったスキル:pro-se

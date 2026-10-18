@@ -1,0 +1,263 @@
+diff --git a/frontend/app/page.tsx b/frontend/app/page.tsx
+index dbece8b..7adb6a1 100644
+--- a/frontend/app/page.tsx
++++ b/frontend/app/page.tsx
+@@ -14,6 +14,7 @@ import { getFallbackValueScore } from "@/lib/fallbackScore";
+ import { GUIDES } from "@/lib/guides";
+ import { freshPopularityRank } from "@/lib/popularity";
+ import PrNotice from "@/components/PrNotice";
++import TodayBuyShowcase from "@/components/TodayBuyShowcase";
+ 
+ function yen(value: number | null): string {
+   if (value === null) return "-";
+@@ -134,7 +135,18 @@ export default async function Home({
+ 
+   return (
+     <div className="flex flex-col">
+-      <Hero productCount={siteStats?.published_products ?? null} avgDiscount={avgDiscount} collageImages={heroImages} />
++      <Hero productCount={siteStats?.published_products ?? null} avgDiscount={avgDiscount} collageImages={heroImages}>
++        {!error && bestBuy.length > 0 && (
++          <div className="flex flex-col gap-3">
++            <div className="flex items-baseline justify-between gap-3">
++              <h2 className="font-display text-lg font-semibold text-foreground sm:text-2xl">今日の買い時</h2>
++              <span className="text-xs text-foreground/65">価格の記録から選んだ{bestBuy.length}商品</span>
++            </div>
++            <PrNotice />
++            <TodayBuyShowcase products={bestBuy} />
++          </div>
++        )}
++      </Hero>
+ 
+       {featuredGuides.length > 0 && (
+         <section className="border-t border-border bg-background px-6 py-12 sm:py-16">
+@@ -182,33 +194,6 @@ export default async function Home({
+         </div>
+       )}
+ 
+-      {!error && bestBuy.length > 0 && (
+-        <section id="best-buy" className="scroll-mt-20 bg-card px-6 py-24 sm:py-32">
+-          <div className="mx-auto max-w-7xl">
+-            <FadeIn className="flex flex-col gap-3">
+-              <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
+-                Today&apos;s Best Buy
+-              </span>
+-              <h2 className="max-w-lg font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+-                AIが選んだ、今日の買い時。
+-              </h2>
+-              <p className="max-w-lg text-sm text-foreground/55">
+-                厳選した{bestBuy.length}商品だけを表示しています。
+-              </p>
+-            </FadeIn>
+-
+-            <PrNotice className="mt-6" />
+-            <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+-              {bestBuy.map((product, i) => (
+-                <FadeIn key={product.id} delay={i * 90}>
+-                  <ProductCard product={product} listSource="homepage_best_buy" />
+-                </FadeIn>
+-              ))}
+-            </div>
+-          </div>
+-        </section>
+-      )}
+-
+       {!error && popularAndDropping.length > 0 && (
+         <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
+           <div className="mx-auto max-w-7xl">
+diff --git a/frontend/components/Hero.tsx b/frontend/components/Hero.tsx
+index cdfa8df..1e2229c 100644
+--- a/frontend/components/Hero.tsx
++++ b/frontend/components/Hero.tsx
+@@ -13,10 +13,13 @@ export default function Hero({
+   productCount,
+   avgDiscount,
+   collageImages,
++  children,
+ }: {
+   productCount: number | null;
+   avgDiscount: number | null;
+   collageImages: (string | null | undefined)[];
++  // Top-of-page product block (今日の買い時) shown right under the headline.
++  children?: React.ReactNode;
+ }) {
+   return (
+     <section className="terminal-panel relative overflow-hidden">
+@@ -30,26 +33,24 @@ export default function Hero({
+         className="pointer-events-none absolute -bottom-16 -right-10 h-64 w-64 text-brand/[0.08] sm:h-80 sm:w-80"
+       />
+ 
+-      <div className="relative mx-auto flex max-w-7xl flex-col gap-12 px-6 py-20 sm:py-28 lg:py-36">
+-        <div className="flex max-w-2xl flex-col gap-6">
++      <div className="relative mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:gap-10 sm:px-6 sm:py-20 lg:py-28">
++        <div className="flex max-w-2xl flex-col gap-3 sm:gap-6">
+           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-brand/20 bg-white/80 px-3 py-1 font-num text-[11px] font-medium uppercase tracking-[0.25em] text-brand shadow-sm">
+             <span className="live-dot" aria-hidden="true" />
+             Golf Price Analytics
+           </span>
+-          <h1 className="font-display text-4xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-6xl">
+-            今日、買うべき
+-            <br />
+-            {/* phrase-level spans: a narrow screen breaks between phrases,
+-                never leaving "見。" alone on the last line */}
++          <h1 className="font-display text-[28px] font-bold leading-[1.2] tracking-tight text-foreground sm:text-6xl sm:leading-[1.12]">
++            {/* phrase-level spans: a narrow screen breaks between phrases */}
++            <span className="inline-block">型落ちクラブ、</span>
+             <span className="bg-gradient-to-r from-[#047857] via-[#059669] to-[#10b981] bg-clip-text text-transparent">
+-              <span className="inline-block">ゴルフ用品を</span>
+-              <span className="inline-block">AIが発見。</span>
++              <span className="inline-block">買うのは今か、</span>
++              <span className="inline-block">待つか。</span>
+             </span>
+           </h1>
+-          <p className="max-w-md text-base leading-relaxed text-foreground/65 sm:text-lg">
+-            過去の価格データを毎日分析し、「今が買い時か」をスコアでお伝えします。
++          <p className="text-sm leading-relaxed text-foreground/65 sm:text-lg">
++            価格の記録から、今日の買い時の目安をお伝えします。
+           </p>
+-          <div className="flex flex-wrap gap-3 pt-2">
++          <div className="hidden flex-wrap gap-3 pt-2 sm:flex">
+             <Link href="#best-buy" className="btn-shop rounded-full px-7 py-3.5 text-sm font-semibold">
+               今日の買い時を見る
+               <CtaArrow />
+@@ -63,6 +64,8 @@ export default function Hero({
+           </div>
+         </div>
+ 
++        {children}
++
+         {/* Ticker strip: the site's real, current numbers. */}
+         <dl className="grid max-w-3xl grid-cols-3 divide-x divide-border overflow-hidden rounded-2xl border border-border bg-white/90 shadow-[0_10px_30px_-18px_rgba(4,120,87,0.35)] backdrop-blur-sm">
+           <div className="px-4 py-4 sm:px-6">
+diff --git a/frontend/components/TodayBuyShowcase.tsx b/frontend/components/TodayBuyShowcase.tsx
+new file mode 100644
+index 0000000..6da4947
+--- /dev/null
++++ b/frontend/components/TodayBuyShowcase.tsx
+@@ -0,0 +1,127 @@
++"use client";
++
++import Link from "next/link";
++
++import CtaArrow from "@/components/CtaArrow";
++import SafeProductImage from "@/components/SafeProductImage";
++import TrackedCta from "@/components/TrackedCta";
++import { CATEGORY_LABELS, Product } from "@/lib/api";
++import { trackEvent } from "@/lib/analytics";
++import { comparePrice } from "@/lib/priceCopy";
++import { shopOf } from "@/lib/shopRows";
++
++// Same threshold as ProductCard: a "30日平均" claim needs real history.
++const THIN_DATA_DAYS = 7;
++
++function yen(value: number | null): string {
++  if (value === null) return "-";
++  return `¥${value.toLocaleString("ja-JP")}`;
++}
++
++// Top-of-page "今日の買い時": 1 large + 4 small cards, 2 columns on a phone.
++// The comparison basis (定価比 preferred, else 30日平均比) and the price
++// itself are exactly the ones ProductCard uses - nothing is invented here.
++// Shop clicks are recorded with placement "home_top_pick" so they can be
++// told apart from the "product_card" buttons further down the page.
++export default function TodayBuyShowcase({ products }: { products: Product[] }) {
++  if (products.length === 0) return null;
++  const [lead, ...rest] = products;
++
++  return (
++    <div id="best-buy" className="grid scroll-mt-20 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:grid-rows-2">
++      <PickCard product={lead} large />
++      {rest.slice(0, 4).map((p) => (
++        <PickCard key={p.id} product={p} />
++      ))}
++    </div>
++  );
++}
++
++function PickCard({ product, large = false }: { product: Product; large?: boolean }) {
++  const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
++  const comparison =
++    product.msrp !== null && product.current_price !== null
++      ? comparePrice(product.current_price, product.msrp, "定価")
++      : hasReliableTrend && product.average_price !== null && product.current_price !== null
++        ? comparePrice(product.current_price, product.average_price, "30日平均")
++        : null;
++  const shop = product.affiliate_url ? shopOf(product.affiliate_url) : null;
++
++  return (
++    <article
++      className={`card-lux flex flex-col overflow-hidden rounded-2xl bg-card ${
++        large ? "col-span-2 lg:row-span-2" : ""
++      }`}
++    >
++      <Link
++        href={`/products/${product.slug}`}
++        onClick={() =>
++          trackEvent("product_card_click", {
++            product_id: product.id,
++            product_slug: product.slug,
++            list_source: "homepage_top_pick",
++          })
++        }
++        className="flex flex-1 flex-col"
++      >
++        <div className={`relative w-full bg-background ${large ? "aspect-[16/9] lg:aspect-[4/3]" : "aspect-[4/3]"}`}>
++          <SafeProductImage
++            src={product.image_url}
++            alt={product.name}
++            category={product.category}
++            className="object-contain p-4"
++          />
++          {comparison && comparison.direction === "down" && (
++            <span className="absolute left-2 top-2 z-10 rounded-full bg-sale px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
++              {comparison.label}
++            </span>
++          )}
++        </div>
++        <div className={`flex flex-1 flex-col gap-1 ${large ? "p-4 sm:p-5" : "p-3"}`}>
++          <span className="text-[11px] font-medium text-foreground/65">
++            {CATEGORY_LABELS[product.category] ?? product.category} · {product.brand}
++          </span>
++          <h3
++            className={`line-clamp-2 font-display font-bold leading-snug text-foreground ${
++              large ? "text-base sm:text-lg" : "text-[13px] sm:text-sm"
++            }`}
++          >
++            {product.name}
++          </h3>
++          <p className={`mt-auto font-num font-semibold text-foreground ${large ? "text-2xl" : "text-lg"}`}>
++            {yen(product.current_price)}
++          </p>
++          {comparison && comparison.direction !== "down" && (
++            <p className="text-[11px] text-foreground/65">{comparison.label}</p>
++          )}
++        </div>
++      </Link>
++      {shop && product.affiliate_url && (
++        <div className={large ? "px-4 pb-4 sm:px-5 sm:pb-5" : "px-3 pb-3"}>
++          <TrackedCta
++            href={product.affiliate_url}
++            target="_blank"
++            rel="noopener noreferrer sponsored"
++            className="btn-shop tap inline-flex min-h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2.5 text-[13px] font-semibold"
++            event="cta_click"
++            params={{
++              product_id: product.id,
++              product_slug: product.slug,
++              product_name: product.name,
++              cta_type: "affiliate",
++              shop: shop.key,
++              buy_score: product.buy_score,
++              list_source: "homepage_top_pick",
++            }}
++            productId={product.id}
++            category={product.category}
++            placement="home_top_pick"
++          >
++            {shop.label}で見る
++            <CtaArrow className="h-3.5 w-3.5" />
++          </TrackedCta>
++        </div>
++      )}
++    </article>
++  );
++}
