@@ -13,6 +13,7 @@ export const revalidate = 0;
 export const metadata: Metadata = {
   title: "商品比較",
   description: "選択したゴルフ用品を価格・買い時スコア・価格予測で比較できます。",
+  alternates: { canonical: "/compare" },
 };
 
 async function loadProducts(slugs: string[]): Promise<ProductDetail[]> {

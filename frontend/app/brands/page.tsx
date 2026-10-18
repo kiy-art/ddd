@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   title: "ブランド一覧",
   alternates: { canonical: "/brands" },
   description: "取り扱いゴルフブランドの一覧です。メーカーごとに商品の価格推移と買い時判定を確認できます。",
+  alternates: { canonical: "/brands" },
 };
 
 export default async function BrandsPage() {

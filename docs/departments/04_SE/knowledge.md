@@ -11,6 +11,7 @@
 - 2026-10-14 [001] リポジトリに /about ページが無い(依頼は一覧系8ページだが実在は7)。canonical/JSON-LD は metadata の alternates と page内scriptで足せる(根拠: frontend/app 一覧、2026-10-14 パッチ検証)
 - 2026-10-14 [001] 型チェックは `npx next typegen` を先に実行しないと layout.tsx の LayoutProps が未定義エラーになる(根拠: 一時コピーでの tsc 結果)
 - 2026-10-14 [001] 直近7日ログ error 7 / warning 253。目標「エラー週1,000件以下」は余裕が約140倍で緩い(根拠: 管理API 2026-10-14 15:01 UTC)
+- 2026-10-16 [001] 一覧系8ページ(brands/compare/deals/faq/guides/ranking/contact/disclaimer)にcanonicalが無かったため追加。新規ページ作成時はmetadataにalternates.canonicalを入れる(根拠: frontend/app/各page.tsx、01_部内検討/2026-10-16_一覧系8ページcanonical追加.md)
 
 ## 代表者会議から持ち帰ったこと
 
