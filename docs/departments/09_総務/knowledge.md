@@ -20,6 +20,9 @@
 - 2026-10-17 [001] 「表記審査9件」の原本はリポジトリに無く、件別の修正状況は判定不能。目標の測り方を決める必要あり(根拠: find/grep、2026-10-17)
 - 2026-10-17 [001] 「AI」表記は、実態が「ルールベースの採点＋AI説明文」なので一文の注釈を添える。型落ちタグは手調査の is_current_generation のみ(根拠: frontend/lib/badges.ts 98行、免責・FAQ)
 - 2026-10-17 [001] 二重価格は「最近相当期間価格」が基本。caa.go.jpは今夜接続不可で原文未開封(根拠: 検索結果の要約、https://www.caa.go.jp/policies/policy/representation/fair_labeling/representation_regulation/double_price)
+- 2026-10-18 [001] ProductCardは/popular・/favoritesでもPrNoticeなしで使われる。カードに店ボタンを足す前に、使う全ページのPR表記を確認する(根拠: frontend/app/popular/page.tsx 267行、FavoritesClient.tsx 27行、09_総務/01_部内検討/2026-10-18_表示規約確認.md)
+- 2026-10-18 [001] ガイド先頭の「アフィリエイトリンクを含みます」は、featuredが無いガイドでは実際のリンクが無く不正確になる。リンクの有無とPR文を揃える(根拠: frontend/app/guides/[slug]/page.tsx 123〜132行)
+- 2026-10-18 [001] Amazonアソシエイト改定(2026/4/20)は報道ベースで、有料広告経由は不適格販売・第三者コンテンツは独自解説が必須。規約原文は未開封(根拠: https://netshop.impress.co.jp/n/2026/04/16/15928 確認日2026-10-18)
 
 ## 代表者会議から持ち帰ったこと
 
