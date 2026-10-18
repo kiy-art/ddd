@@ -1,0 +1,75 @@
+diff --git a/frontend/app/popular/page.tsx b/frontend/app/popular/page.tsx
+index 0835749..8f9a9cb 100644
+--- a/frontend/app/popular/page.tsx
++++ b/frontend/app/popular/page.tsx
+@@ -72,7 +72,7 @@ function RankBadge({ rank }: { rank: number }) {
+         ? "bg-[#a8b3b0] text-[#101614]"
+         : rank === 3
+           ? "bg-[#b0774a] text-white"
+-          : "bg-foreground/[0.07] text-foreground/60";
++          : "bg-foreground/[0.07] text-foreground/70";
+   return (
+     <span
+       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-num text-sm font-bold ${podium}`}
+@@ -83,7 +83,7 @@ function RankBadge({ rank }: { rank: number }) {
+   );
+ }
+ 
+-function RankingRow({ entry, category }: { entry: RakutenRankingEntry; category: string }) {
++function RankingRow({ entry, category, fetchedAt }: { entry: RakutenRankingEntry; category: string; fetchedAt: string }) {
+   return (
+     <li className="card-lux flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center sm:gap-5 sm:p-4">
+       <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+@@ -93,7 +93,7 @@ function RankingRow({ entry, category }: { entry: RakutenRankingEntry; category:
+         </div>
+         <div className="min-w-0 flex-1">
+           <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{entry.name}</p>
+-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-foreground/45">
++          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-foreground/65">
+             {entry.shop_name && <span>{entry.shop_name}</span>}
+             {entry.review_average !== null && entry.review_count !== null && entry.review_count > 0 && (
+               <span>
+@@ -110,27 +110,28 @@ function RankingRow({ entry, category }: { entry: RakutenRankingEntry; category:
+         </div>
+       </div>
+       <div className="flex items-center gap-3 sm:justify-end">
+-        <span className="shrink-0 font-num text-lg font-semibold text-foreground sm:w-28 sm:text-right">
+-          {yen(entry.price)}
+-        </span>
++        <div className="shrink-0 sm:w-28 sm:text-right">
++          <span className="block font-num text-lg font-semibold text-foreground">{yen(entry.price)}</span>
++          <span className="block text-[11px] leading-tight text-foreground/65">楽天市場・{fetchedLabel(fetchedAt)}時点</span>
++        </div>
+         <div className="flex flex-1 flex-col gap-1.5 sm:w-44 sm:flex-none">
+           <TrackedCta
+             href={entry.url}
+             target="_blank"
+             rel="noopener noreferrer sponsored"
+-            className="btn-shop tap whitespace-nowrap rounded-full px-4 py-2.5 text-center text-sm font-semibold"
++            className="btn-shop tap min-h-11 whitespace-nowrap rounded-full px-4 py-2.5 text-center text-sm font-semibold"
+             event="cta_click"
+             params={{ cta_type: "affiliate", shop: "rakuten", ranking_category: category, rank: entry.rank, product_name: entry.name }}
+             category={category}
+             placement="popular_rakuten_ranking"
+           >
+-            楽天で見る
++            楽天市場で見る
+             <CtaArrow className="h-3.5 w-3.5" />
+           </TrackedCta>
+           {entry.product_slug && (
+             <Link
+               href={`/products/${entry.product_slug}`}
+-              className="text-center text-[11px] font-semibold text-foreground/50 hover:text-brand dark:hover:text-brand-light"
++              className="py-1.5 text-center text-xs font-semibold text-foreground/65 hover:text-brand dark:hover:text-brand-light"
+             >
+               価格推移・他店比較を見る →
+             </Link>
+@@ -220,7 +221,7 @@ export default async function PopularPage({
+ 
+             <ol className="mt-6 flex flex-col gap-2">
+               {rows.map((entry) => (
+-                <RankingRow key={entry.rank} entry={entry} category={active.category} />
++                <RankingRow key={entry.rank} entry={entry} category={active.category} fetchedAt={active.fetched_at} />
+               ))}
+             </ol>
+ 

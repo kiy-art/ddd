@@ -1,0 +1,37 @@
+diff --git a/frontend/app/products/[slug]/page.tsx b/frontend/app/products/[slug]/page.tsx
+index 6c530bb..8c87582 100644
+--- a/frontend/app/products/[slug]/page.tsx
++++ b/frontend/app/products/[slug]/page.tsx
+@@ -407,9 +407,9 @@ export default async function ProductPage({ params }: { params: Promise<Params>
+                   </span>
+                 )}
+                 {msrpPct !== null && (
+-                  <span className={`text-sm font-semibold ${msrpPct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50"}`}>
+-                    {msrpPct > 0 ? "+" : ""}
+-                    {msrpPct}% 定価より
++                  <span className={`text-sm font-semibold ${msrpPct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/65"}`}>
++                    メーカー希望小売価格比 {msrpPct > 0 ? "+" : ""}
++                    {msrpPct}%
+                   </span>
+                 )}
+                 {hasReliableTrend && product.price_change_percent !== null ? (
+@@ -563,8 +563,8 @@ export default async function ProductPage({ params }: { params: Promise<Params>
+                   ? VERDICT_HEADLINE[product.buy_score] ?? VERDICT_HEADLINE.neutral
+                   : fallbackScore
+                     ? fallbackScore.msrpPct < 0
+-                      ? `定価より${fallbackScore.msrpPct}%（参考値）`
+-                      : "定価とほぼ同水準です（参考値）"
++                      ? `メーカー希望小売価格より${Math.abs(fallbackScore.msrpPct)}%安い（参考値）`
++                      : "メーカー希望小売価格とほぼ同水準です（参考値）"
+                     : cycleInsight
+                       ? cycleInsight.stageLabel
+                       : VERDICT_HEADLINE.insufficient_data}
+@@ -573,7 +573,7 @@ export default async function ProductPage({ params }: { params: Promise<Params>
+                 {hasReliableTrend
+                   ? product.buy_reason
+                   : fallbackScore
+-                    ? `メーカー希望小売価格（定価）と比べて${fallbackScore.msrpPct > 0 ? "+" : ""}${fallbackScore.msrpPct}%の価格です。価格推移データが蓄積されるまでの参考情報としてご覧ください。`
++                    ? `メーカー希望小売価格と比べて${fallbackScore.msrpPct > 0 ? "+" : ""}${fallbackScore.msrpPct}%の価格です。価格推移データが蓄積されるまでの参考情報としてご覧ください。`
+                     : cycleInsight
+                       ? cycleInsight.message
+                       : product.history_span_days > 0

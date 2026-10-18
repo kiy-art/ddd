@@ -7,6 +7,7 @@ export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "購入ガイド",
+  alternates: { canonical: "/guides" },
   description: "ゴルフクラブの買い替えタイミングや型落ち・中古の選び方など、購入前に知っておきたい情報をまとめました。",
 };
 
