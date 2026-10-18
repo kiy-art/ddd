@@ -44,6 +44,14 @@ description: PAR.のAI会社の会議を開くスキル。毎晩の「部内検�
 
 ## 手順
 
+### 0-A. 作業・pushするブランチ（毎晩、いちばん最初に。必ず守る）
+2026-10-14〜10-17、夜の成果物が自動で作られた別ブランチ（`claude/upbeat-hypatia-…`）にだけpushされ、4日分が本番に出ていなかった（社長室が10/18に統合）。その再発防止。
+1. **本番に公開されるのは `claude/golf-deals-mvp-w7yy2l` だけ**（Renderがこのブランチから自動デプロイする）。
+2. 作業の最初に `git fetch origin claude/golf-deals-mvp-w7yy2l && git checkout -B claude/golf-deals-mvp-w7yy2l FETCH_HEAD` で、このブランチの最新から始める。
+3. pushは必ず `git push origin HEAD:claude/golf-deals-mvp-w7yy2l`。セッションが自動で用意する別名のブランチにはpushしない。直前に `git fetch origin claude/golf-deals-mvp-w7yy2l && git rebase FETCH_HEAD` を行い、日中に社長室が入れたコミットを消さない。
+4. コードを変えた夜は、push前に `frontend` で `npx tsc --noEmit` を通す（既知の `LayoutProps` の1件だけは除く）。
+5. 報告のpush結果には、**pushしたブランチ名とコミットID**を書く。ブランチ名が上と違えば失敗として扱う。
+
 ### 0-0. サイトの死活とRenderの確認（毎晩、いちばん最初に）
 2026-10-17、Renderの無料枠切れでサイトが約6時間止まり、社長が先に気付いた。その再発防止。
 1. **表示の確認**：`curl -sS -o /dev/null -w '%{http_code}' --max-time 90 https://par-gear.com` が200で、本文に「Service Suspended」が無いこと。`https://golf-deals-backend.onrender.com/api/health` も200であること（無料のバックエンドは起動に最大1分かかるので、1回失敗したら30秒後にもう1回）。
