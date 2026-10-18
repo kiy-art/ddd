@@ -138,7 +138,6 @@ const SHEET_FOOTER_LINKS = [
   { href: "/contact", label: "お問い合わせ" },
   { href: "/disclaimer", label: "免責事項・アフィリエイトについて" },
   { href: "/privacy", label: "プライバシーポリシー" },
-  { href: "/admin", label: "管理画面" },
 ];
 
 // Mobile menu as an app-style bottom sheet (thumb-reachable, slides up with
@@ -263,9 +262,6 @@ export default function SiteNav({ children }: { children: React.ReactNode }) {
           </Link>
           <Link href="/privacy" className="hover:text-foreground">
             プライバシーポリシー
-          </Link>
-          <Link href="/admin" className="hover:text-foreground">
-            管理画面
           </Link>
         </div>
       </aside>

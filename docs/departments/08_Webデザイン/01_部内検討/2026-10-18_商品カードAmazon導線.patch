@@ -1,0 +1,54 @@
+diff --git a/frontend/components/ProductCard.tsx b/frontend/components/ProductCard.tsx
+--- a/frontend/components/ProductCard.tsx
++++ b/frontend/components/ProductCard.tsx
+@@ -13,6 +13,7 @@
+ import { trackEvent } from "@/lib/analytics";
+ import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
+ import { comparePrice } from "@/lib/priceCopy";
++import { getAmazonSearchUrl } from "@/lib/amazon";
+ import { shopOf } from "@/lib/shopRows";
+ 
+ // See app/products/[slug]/page.tsx for why this threshold exists: a
+@@ -67,6 +68,9 @@
+   // STEP65 (CRO): the shop the card's price came from, one tap away - a
+   // list visitor no longer has to open the product page first to reach it.
+   const shop = product.affiliate_url ? shopOf(product.affiliate_url) : null;
++  // The primary button is usually Rakuten. Offer Amazon as a second, quieter
++  // button (a tagged search link - no Amazon price is shown or implied).
++  const showAmazon = shop !== null && shop.key !== "amazon";
+ 
+   return (
+     <article className="card-lux group flex flex-col overflow-hidden rounded-2xl">
+@@ -234,6 +238,32 @@
+         )}
+         <CompareButton slug={product.slug} />
+       </div>
++      {showAmazon && (
++        <div className="px-6 pb-6 -mt-3">
++          <TrackedCta
++            href={getAmazonSearchUrl(product.name)}
++            target="_blank"
++            rel="noopener noreferrer sponsored"
++            className="btn-ghost tap inline-flex min-h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold text-foreground/75"
++            event="cta_click"
++            params={{
++              product_id: product.id,
++              product_slug: product.slug,
++              product_name: product.name,
++              cta_type: "affiliate_search",
++              shop: "amazon",
++              buy_score: product.buy_score,
++              list_source: listSource ?? "unknown",
++            }}
++            productId={product.id}
++            category={product.category}
++            placement="product_card_amazon"
++          >
++            Amazonで探す
++            <CtaArrow className="h-3.5 w-3.5" />
++          </TrackedCta>
++        </div>
++      )}
+     </article>
+   );
+ }
