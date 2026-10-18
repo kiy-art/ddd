@@ -13,10 +13,13 @@ export default function Hero({
   productCount,
   avgDiscount,
   collageImages,
+  children,
 }: {
   productCount: number | null;
   avgDiscount: number | null;
   collageImages: (string | null | undefined)[];
+  // Top-of-page product block (今日の買い時) shown right under the headline.
+  children?: React.ReactNode;
 }) {
   return (
     <section className="terminal-panel relative overflow-hidden">
@@ -30,26 +33,24 @@ export default function Hero({
         className="pointer-events-none absolute -bottom-16 -right-10 h-64 w-64 text-brand/[0.08] sm:h-80 sm:w-80"
       />
 
-      <div className="relative mx-auto flex max-w-7xl flex-col gap-12 px-6 py-20 sm:py-28 lg:py-36">
-        <div className="flex max-w-2xl flex-col gap-6">
+      <div className="relative mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:gap-10 sm:px-6 sm:py-20 lg:py-28">
+        <div className="flex max-w-2xl flex-col gap-3 sm:gap-6">
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-brand/20 bg-white/80 px-3 py-1 font-num text-[11px] font-medium uppercase tracking-[0.25em] text-brand shadow-sm">
             <span className="live-dot" aria-hidden="true" />
             Golf Price Analytics
           </span>
-          <h1 className="font-display text-4xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-6xl">
-            今日、買うべき
-            <br />
-            {/* phrase-level spans: a narrow screen breaks between phrases,
-                never leaving "見。" alone on the last line */}
+          <h1 className="font-display text-[28px] font-bold leading-[1.2] tracking-tight text-foreground sm:text-6xl sm:leading-[1.12]">
+            {/* phrase-level spans: a narrow screen breaks between phrases */}
+            <span className="inline-block">型落ちクラブ、</span>
             <span className="bg-gradient-to-r from-[#047857] via-[#059669] to-[#10b981] bg-clip-text text-transparent">
-              <span className="inline-block">ゴルフ用品を</span>
-              <span className="inline-block">AIが発見。</span>
+              <span className="inline-block">買うのは今か、</span>
+              <span className="inline-block">待つか。</span>
             </span>
           </h1>
-          <p className="max-w-md text-base leading-relaxed text-foreground/65 sm:text-lg">
-            過去の価格データを毎日分析し、「今が買い時か」をスコアでお伝えします。
+          <p className="text-sm leading-relaxed text-foreground/65 sm:text-lg">
+            価格の記録から、今日の買い時の目安をお伝えします。
           </p>
-          <div className="flex flex-wrap gap-3 pt-2">
+          <div className="hidden flex-wrap gap-3 pt-2 sm:flex">
             <Link href="#best-buy" className="btn-shop rounded-full px-7 py-3.5 text-sm font-semibold">
               今日の買い時を見る
               <CtaArrow />
@@ -62,6 +63,8 @@ export default function Hero({
             </Link>
           </div>
         </div>
+
+        {children}
 
         {/* Ticker strip: the site's real, current numbers. */}
         <dl className="grid max-w-3xl grid-cols-3 divide-x divide-border overflow-hidden rounded-2xl border border-border bg-white/90 shadow-[0_10px_30px_-18px_rgba(4,120,87,0.35)] backdrop-blur-sm">

@@ -16,6 +16,7 @@ import { GUIDES } from "@/lib/guides";
 import { freshPopularityRank } from "@/lib/popularity";
 import PrNotice from "@/components/PrNotice";
 import { SITE_URL } from "@/lib/siteUrl";
+import TodayBuyShowcase from "@/components/TodayBuyShowcase";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -153,7 +154,19 @@ export default async function Home({
   return (
     <div className="flex flex-col">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }} />
-      <Hero productCount={siteStats?.published_products ?? null} avgDiscount={avgDiscount} collageImages={heroImages} />
+      <Hero productCount={siteStats?.published_products ?? null} avgDiscount={avgDiscount} collageImages={heroImages}>
+        {!error && bestBuy.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="font-display text-lg font-semibold text-foreground sm:text-2xl">今日の買い時</h2>
+              <span className="text-xs text-foreground/65">価格の記録から選んだ{bestBuy.length}商品</span>
+            </div>
+            <p className="text-xs text-foreground/65">記録した価格にもとづく目安です。将来の価格を保証するものではありません。</p>
+            <PrNotice />
+            <TodayBuyShowcase products={bestBuy} />
+          </div>
+        )}
+      </Hero>
 
       {featuredGuides.length > 0 && (
         <section className="border-t border-border bg-background px-6 py-12 sm:py-16">
@@ -199,33 +212,6 @@ export default async function Home({
         <div className="mx-auto max-w-7xl px-6 py-16">
           <p className="text-sm text-red-600">{error}</p>
         </div>
-      )}
-
-      {!error && bestBuy.length > 0 && (
-        <section id="best-buy" className="scroll-mt-20 bg-card px-6 py-24 sm:py-32">
-          <div className="mx-auto max-w-7xl">
-            <FadeIn className="flex flex-col gap-3">
-              <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
-                Today&apos;s Best Buy
-              </span>
-              <h2 className="max-w-lg font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-                AIが選んだ、今日の買い時。
-              </h2>
-              <p className="max-w-lg text-sm text-foreground/55">
-                厳選した{bestBuy.length}商品だけを表示しています。
-              </p>
-            </FadeIn>
-
-            <PrNotice className="mt-6" />
-            <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {bestBuy.map((product, i) => (
-                <FadeIn key={product.id} delay={i * 90}>
-                  <ProductCard product={product} listSource="homepage_best_buy" />
-                </FadeIn>
-              ))}
-            </div>
-          </div>
-        </section>
       )}
 
       {!error && popularAndDropping.length > 0 && (
