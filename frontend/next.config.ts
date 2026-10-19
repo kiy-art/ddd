@@ -9,6 +9,19 @@ const nextConfig: NextConfig = {
   // redirects is flagged as an error rather than indexed.
   trailingSlash: false,
 
+  // /admin is Disallow-ed in robots.txt, but a disallowed URL can still be
+  // listed (URL only) if another site links to it. The admin layout is a
+  // client component and cannot export metadata, so noindex is sent as an
+  // HTTP header instead. ":path*" also matches /admin itself.
+  async headers() {
+    return [
+      {
+        source: "/admin/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
+  },
+
   images: {
     // Every host the product-photo pipeline actually writes into
     // image_url: Rakuten Ichiba (backend/app/rakuten.py - mediumImageUrls,

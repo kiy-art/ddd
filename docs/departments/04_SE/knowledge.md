@@ -15,6 +15,7 @@
 - 2026-10-17 [001] 一覧系ページ(/, deals, ranking, brands, guides, faq, compare, contact, disclaimer, brand/[brand])はcanonical未設定だった。商品・カテゴリ・ガイド詳細・比較ペアなどは設定済み。layout.tsxに置くと未設定ページが「/」を指すため各ページに置く(根拠: frontend/app の grep、01_部内検討/2026-10-17_canonical追加.md)
 - 2026-10-17 [001] `tsc --noEmit` は `next typegen` を先に実行しないと layout.tsx の LayoutProps で既存エラーが出る。検証時は区別する(根拠: 作業コピーで npm ci 後に実行)
 - 2026-10-17 [001] /ranking?category= はカテゴリごとに内容が違う。canonicalを/rankingに固定するとカテゴリ別が統合されるため、要判断(根拠: frontend/app/ranking/page.tsx 139-143行)
+- 2026-10-19 [001] クライアントlayout配下(/admin)のnoindexは next.config.ts の headers() で X-Robots-Tag を付けるのが最小。robots Disallow と併用するとGoogleがヘッダを読めない点に注意(根拠: 01_部内検討/2026-10-19_admin_noindexヘッダ.md、dev server curl)
 
 ## 代表者会議から持ち帰ったこと
 

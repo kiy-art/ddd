@@ -1,0 +1,64 @@
+--- a/frontend/components/StoreComparisonTable.tsx
++++ b/frontend/components/StoreComparisonTable.tsx
+@@ -61,7 +61,7 @@
+           </div>
+           <h2 className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">販売価格を比較</h2>
+         </div>
+-        <p className="text-xs text-foreground/45">
++        <p className="text-xs text-foreground/65">
+           {pricedCount >= 2 ? `${pricedCount}店舗の最新価格を比較` : "価格は1日1回取得"}・{rows.length}ショップを掲載
+         </p>
+       </div>
+@@ -76,15 +76,18 @@
+               <div>
+                 <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand">
+                   <span className="live-dot" aria-hidden="true" />
+-                  今いちばん安いショップ
++                  比較した中で価格が低いショップ
+                 </span>
+                 <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
+                   <span className="font-display text-lg font-semibold text-foreground">{lowestRow.label}</span>
+                   <span className="font-num text-3xl font-semibold text-brand sm:text-4xl">{yen(lowest.price)}</span>
+                 </div>
++                {formatUpdatedAt(lowestRow.updatedAt) && (
++                  <span className="block text-xs text-foreground/65">{formatUpdatedAt(lowestRow.updatedAt)} 時点の価格</span>
++                )}
+                 {savings !== null && savings > 0 && (
+                   <span className="text-xs text-foreground/60">
+-                    他店より <span className="font-num font-semibold text-foreground">{yen(savings)}</span> 安い
++                    比較した他店との差は最大 <span className="font-num font-semibold text-foreground">{yen(savings)}</span>
+                   </span>
+                 )}
+               </div>
+@@ -119,10 +122,10 @@
+                 <div className="flex flex-wrap items-center gap-2">
+                   <span className="font-semibold text-foreground">{row.label}</span>
+                   {row.isLowest && (
+-                    <span className="rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">最安</span>
++                    <span className="rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">価格が低い</span>
+                   )}
+                 </div>
+-                <span className={`text-xs ${row.stale ? "text-foreground/60" : "text-foreground/45"}`}>
++                <span className="text-xs text-foreground/65">
+                   {row.kind === "price"
+                     ? row.stale
+                       ? `${staleLabel(row)}${formatUpdatedAt(row.updatedAt) ? `（${formatUpdatedAt(row.updatedAt)} 時点）` : ""}・最新は販売ページで確認`
+@@ -141,12 +144,15 @@
+                     ? "text-brand dark:text-brand-light"
+                     : row.price !== null && !row.stale
+                       ? "text-foreground"
+-                      : row.price !== null
+-                        ? "text-foreground/45"
+-                        : "text-foreground/30"
++                      : "text-foreground/65"
+                 }`}
+               >
+                 {row.kind === "price" ? yen(row.price) : "—"}
++                {lowest && !row.isLowest && !row.stale && row.kind === "price" && row.price !== null && row.price > lowest.price && (
++                  <span className="block text-xs font-normal text-foreground/65">
++                    差額 +{yen(row.price - lowest.price)}
++                  </span>
++                )}
+               </span>
+               <TrackedCta
+                 href={row.url}
