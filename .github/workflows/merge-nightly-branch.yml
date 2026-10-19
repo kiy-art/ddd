@@ -1,0 +1,60 @@
+# 夜の定期タスクが自動で作る別名ブランチ(claude/upbeat-hypatia-*)にpushしても、
+# 本番ブランチ(claude/golf-deals-mvp-w7yy2l)へ自動で取り込み、公開されるようにする。
+# 2026-10-14〜19 に成果物が別ブランチだけに残り、未公開になった件の再発防止(社長室 2026-10-20)。
+# - 競合しない場合だけ取り込む。競合したら失敗にして止める(本番は変えない)。
+# - コードを変えたときは型チェック(tsc)を通ったものだけ取り込む。
+name: merge-nightly-branch
+
+on:
+  push:
+    branches:
+      - "claude/upbeat-hypatia-*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: merge-into-live
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    env:
+      LIVE: claude/golf-deals-mvp-w7yy2l
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/golf-deals-mvp-w7yy2l
+          fetch-depth: 0
+
+      - name: Merge the pushed branch into the live branch
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          SRC="${GITHUB_REF_NAME}"
+          git fetch origin "$SRC"
+          if git merge-base --is-ancestor "origin/$SRC" HEAD; then
+            echo "既に本番ブランチに入っています。"; exit 0
+          fi
+          git merge --no-ff --no-edit "origin/$SRC" -m "夜の成果物を本番ブランチへ自動取り込み($SRC)"
+          echo "CHANGED_FRONTEND=$(git diff --name-only HEAD~1 HEAD -- frontend | wc -l)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        if: env.CHANGED_FRONTEND != '' && env.CHANGED_FRONTEND != '0'
+        with:
+          node-version: 22
+
+      - name: Type-check the frontend
+        if: env.CHANGED_FRONTEND != '' && env.CHANGED_FRONTEND != '0'
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          # LayoutProps は next build が生成する型のため、tsc 単体では常に出る既知の1件。それ以外があれば止める。
+          OUT="$(npx tsc --noEmit -p . 2>&1 || true)"
+          BAD="$(printf '%s\n' "$OUT" | grep "error TS" | grep -v "LayoutProps" || true)"
+          if [ -n "$BAD" ]; then printf '%s\n' "$BAD"; exit 1; fi
+
+      - name: Push to the live branch
+        run: git push origin HEAD:${LIVE}
