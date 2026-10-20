@@ -74,7 +74,7 @@ export default function Hero({
             </dd>
           </div>
           <div className="px-4 py-4 sm:px-6">
-            <dt className="text-[10px] font-medium uppercase tracking-[0.2em] text-foreground/45 sm:text-[11px]">平均の値動き</dt>
+            <dt className="text-[10px] font-medium uppercase tracking-[0.2em] text-foreground/45 sm:text-[11px]">掲載商品の価格変化（30日平均比）</dt>
             <dd
               className={`mt-1 font-num text-2xl font-semibold sm:text-3xl ${
                 avgDiscount !== null && avgDiscount < 0 ? "text-brand" : "text-foreground"

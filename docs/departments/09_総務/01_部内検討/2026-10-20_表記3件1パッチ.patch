@@ -1,0 +1,74 @@
+diff -ruN a/frontend/app/layout.tsx b/frontend/app/layout.tsx
+--- a/frontend/app/layout.tsx	2026-10-20 15:05:39.207280239 +0000
++++ b/frontend/app/layout.tsx	2026-10-20 15:05:39.251084169 +0000
+@@ -130,8 +130,8 @@
+                   </Link>
+                 </nav>
+               </div>
+-              <p className="max-w-2xl text-xs leading-relaxed text-foreground/40">
+-                本サイトはアフィリエイトプログラムを利用して収益を得ています。価格・在庫は変動する可能性が
++              <p className="max-w-2xl text-sm leading-relaxed text-foreground/70">
++                Amazonのアソシエイトとして、PAR.は適格販売により収入を得ています。本サイトはアフィリエイトプログラムを利用して収益を得ています。価格・在庫は変動する可能性が
+                 あるため、購入前に販売元サイトで最新情報をご確認ください。
+               </p>
+               <p className="text-xs text-foreground/30">© {new Date().getFullYear()} {SITE_NAME}</p>
+diff -ruN a/frontend/app/popular/page.tsx b/frontend/app/popular/page.tsx
+--- a/frontend/app/popular/page.tsx	2026-10-20 15:05:39.233583008 +0000
++++ b/frontend/app/popular/page.tsx	2026-10-20 15:05:39.259895464 +0000
+@@ -236,7 +236,7 @@
+               </div>
+             )}
+ 
+-            <p className="mt-6 text-xs leading-relaxed text-foreground/65">
++            <p className="mt-6 text-sm leading-relaxed text-foreground/80">
+               順位・価格・レビューは楽天市場の売れ筋ランキングAPIから取得した時点の情報です（毎日更新）。価格・在庫は変動するため、購入前に販売ページでご確認ください。
+               ※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。
+             </p>
+diff -ruN a/frontend/app/products/[slug]/page.tsx b/frontend/app/products/[slug]/page.tsx
+--- a/frontend/app/products/[slug]/page.tsx	2026-10-20 15:05:39.224632171 +0000
++++ b/frontend/app/products/[slug]/page.tsx	2026-10-20 15:05:39.257079438 +0000
+@@ -547,7 +547,7 @@
+                   </TrackedCta>
+                 )}
+               </div>
+-              <p className="text-xs leading-relaxed text-foreground/65">
++              <p className="text-sm leading-relaxed text-foreground/80">
+                 ※広告・PRを含みます。リンクにはアフィリエイトリンクが含まれ、リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
+               </p>
+             </div>
+diff -ruN a/frontend/components/Hero.tsx b/frontend/components/Hero.tsx
+--- a/frontend/components/Hero.tsx	2026-10-20 15:05:39.198707233 +0000
++++ b/frontend/components/Hero.tsx	2026-10-20 15:05:39.239844992 +0000
+@@ -74,7 +74,7 @@
+             </dd>
+           </div>
+           <div className="px-4 py-4 sm:px-6">
+-            <dt className="text-[10px] font-medium uppercase tracking-[0.2em] text-foreground/45 sm:text-[11px]">平均の値動き</dt>
++            <dt className="text-[10px] font-medium uppercase tracking-[0.2em] text-foreground/45 sm:text-[11px]">掲載商品の価格変化（30日平均比）</dt>
+             <dd
+               className={`mt-1 font-num text-2xl font-semibold sm:text-3xl ${
+                 avgDiscount !== null && avgDiscount < 0 ? "text-brand" : "text-foreground"
+diff -ruN a/frontend/components/PrNotice.tsx b/frontend/components/PrNotice.tsx
+--- a/frontend/components/PrNotice.tsx	2026-10-20 15:05:39.190450180 +0000
++++ b/frontend/components/PrNotice.tsx	2026-10-20 15:05:39.237923975 +0000
+@@ -7,7 +7,7 @@
+  */
+ export default function PrNotice({ className = "" }: { className?: string }) {
+   return (
+-    <p className={`flex items-start gap-2 text-xs leading-relaxed text-foreground/65 ${className}`}>
++    <p className={`flex items-start gap-2 text-sm leading-relaxed text-foreground/80 ${className}`}>
+       <span className="mt-px shrink-0 rounded border border-foreground/30 px-1.5 text-[11px] font-semibold leading-5 text-foreground/70">
+         PR
+       </span>
+diff -ruN a/frontend/components/StoreComparisonTable.tsx b/frontend/components/StoreComparisonTable.tsx
+--- a/frontend/components/StoreComparisonTable.tsx	2026-10-20 15:05:39.215600517 +0000
++++ b/frontend/components/StoreComparisonTable.tsx	2026-10-20 15:05:39.255069258 +0000
+@@ -173,7 +173,7 @@
+         ))}
+       </ul>
+ 
+-      <p className="border-t border-border px-6 py-4 text-xs leading-relaxed text-foreground/65 sm:px-8">
++      <p className="border-t border-border px-6 py-4 text-sm leading-relaxed text-foreground/80 sm:px-8">
+         価格はPAR.が1日1回取得した各ショップの価格です。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク）。
+         {hasSponsoredRow &&
+           "※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。"}

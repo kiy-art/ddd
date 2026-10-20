@@ -547,7 +547,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   </TrackedCta>
                 )}
               </div>
-              <p className="text-xs leading-relaxed text-foreground/65">
+              <p className="text-sm leading-relaxed text-foreground/80">
                 ※広告・PRを含みます。リンクにはアフィリエイトリンクが含まれ、リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
               </p>
             </div>
