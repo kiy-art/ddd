@@ -16,6 +16,7 @@
 - 2026-10-17 [001] `tsc --noEmit` は `next typegen` を先に実行しないと layout.tsx の LayoutProps で既存エラーが出る。検証時は区別する(根拠: 作業コピーで npm ci 後に実行)
 - 2026-10-17 [001] /ranking?category= はカテゴリごとに内容が違う。canonicalを/rankingに固定するとカテゴリ別が統合されるため、要判断(根拠: frontend/app/ranking/page.tsx 139-143行)
 - 2026-10-19 [001] クライアントlayout配下(/admin)のnoindexは next.config.ts の headers() で X-Robots-Tag を付けるのが最小。robots Disallow と併用するとGoogleがヘッダを読めない点に注意(根拠: 01_部内検討/2026-10-19_admin_noindexヘッダ.md、dev server curl)
+- 2026-10-20 [001] /rankingのみcanonical無し(他の一覧系は反映済)。generateMetadataでカテゴリ別自己参照にするdiffを作成。比較ページのslugにも日時混入が残る(根拠: curl par-gear.com、01_部内検討/2026-10-20_ranking_canonical.md)
 
 ## 代表者会議から持ち帰ったこと
 

@@ -1,0 +1,64 @@
+diff --git a/frontend/app/products/[slug]/page.tsx b/frontend/app/products/[slug]/page.tsx
+index 4df09e4..1936880 100644
+--- a/frontend/app/products/[slug]/page.tsx
++++ b/frontend/app/products/[slug]/page.tsx
+@@ -203,6 +203,8 @@ export default async function ProductPage({ params }: { params: Promise<Params>
+         : stickyShop.key === "rakuten"
+           ? product.current_price
+           : null;
++  // 「最安」は当サイトが取得した価格の比較で、取得時点を添える（景表法・時点表示）。
++  const lowestAt = comparedOffers && primaryShop?.isLowest ? formatUpdatedAt(primaryShop.updatedAt) : null;
+   const rakutenSeriesSuffix = lowestOffer?.shop === "yahoo" ? "（楽天）" : "";
+   const msrpPct =
+     product.msrp !== null && displayPrice !== null
+@@ -398,7 +400,7 @@ export default async function ProductPage({ params }: { params: Promise<Params>
+                 )}
+                 {comparedOffers && lowestOffer && (
+                   <span className="text-xs text-foreground/55">
+-                    <span className="font-semibold text-brand dark:text-brand-light">{lowestOffer.label}</span>が最安
++                    <span className="font-semibold text-brand dark:text-brand-light">{lowestOffer.label}</span>が最安{lowestAt ? `（${lowestAt}時点）` : ""}
+                     {otherOffers.map((offer) => (
+                       <span key={offer.shop} className="ml-2 text-foreground/40">
+                         {offer.label} <span className="font-num">{yen(offer.price)}</span>
+@@ -787,6 +789,7 @@ export default async function ProductPage({ params }: { params: Promise<Params>
+           shopLabel={stickyShop.label}
+           price={stickyPrice !== null ? yen(stickyPrice) : null}
+           isLowest={stickyShop.isLowest}
++          pricePoint={stickyShop.isLowest ? lowestAt : null}
+           sponsored={stickyShop.sponsored}
+           productName={product.name}
+           trackParams={{
+diff --git a/frontend/components/StickyBuyBar.tsx b/frontend/components/StickyBuyBar.tsx
+index 562349e..c468e75 100644
+--- a/frontend/components/StickyBuyBar.tsx
++++ b/frontend/components/StickyBuyBar.tsx
+@@ -22,6 +22,7 @@ export default function StickyBuyBar({
+   shopLabel,
+   price,
+   isLowest,
++  pricePoint = null,
+   sponsored,
+   productName,
+   trackParams,
+@@ -32,6 +33,8 @@ export default function StickyBuyBar({
+   shopLabel: string;
+   price: string | null;
+   isLowest: boolean;
++  /** 価格の取得時点（例「10/20 03:15」）。無ければ最安とは言い切らない。 */
++  pricePoint?: string | null;
+   sponsored: boolean;
+   productName: string;
+   trackParams: Record<string, string | number | boolean>;
+@@ -76,7 +79,11 @@ export default function StickyBuyBar({
+           <p className="hidden truncate text-xs text-foreground/55 sm:block">{productName}</p>
+           {price && <p className="font-num text-lg font-semibold leading-tight text-foreground">{price}</p>}
+           <p className="truncate text-[11px] font-semibold text-brand">
+-            {isLowest ? `${shopLabel}が最安` : `${shopLabel}の価格・在庫`}
++            {isLowest && pricePoint
++              ? `比較中の最安（${pricePoint}時点）`
++              : isLowest
++                ? "当サイト取得の価格で最安"
++                : `${shopLabel}の価格・在庫`}
+           </p>
+         </div>
+         <TrackedCta

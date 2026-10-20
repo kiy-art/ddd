@@ -173,7 +173,7 @@ export default function StoreComparisonTable({
         ))}
       </ul>
 
-      <p className="border-t border-border px-6 py-4 text-xs leading-relaxed text-foreground/65 sm:px-8">
+      <p className="border-t border-border px-6 py-4 text-sm leading-relaxed text-foreground/80 sm:px-8">
         価格はPAR.が1日1回取得した各ショップの価格です。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク）。
         {hasSponsoredRow &&
           "※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。"}

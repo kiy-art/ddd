@@ -130,8 +130,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   </Link>
                 </nav>
               </div>
-              <p className="max-w-2xl text-xs leading-relaxed text-foreground/40">
-                本サイトはアフィリエイトプログラムを利用して収益を得ています。価格・在庫は変動する可能性が
+              <p className="max-w-2xl text-sm leading-relaxed text-foreground/70">
+                Amazonのアソシエイトとして、PAR.は適格販売により収入を得ています。本サイトはアフィリエイトプログラムを利用して収益を得ています。価格・在庫は変動する可能性が
                 あるため、購入前に販売元サイトで最新情報をご確認ください。
               </p>
               <p className="text-xs text-foreground/30">© {new Date().getFullYear()} {SITE_NAME}</p>

@@ -236,7 +236,7 @@ export default async function PopularPage({
               </div>
             )}
 
-            <p className="mt-6 text-xs leading-relaxed text-foreground/65">
+            <p className="mt-6 text-sm leading-relaxed text-foreground/80">
               順位・価格・レビューは楽天市場の売れ筋ランキングAPIから取得した時点の情報です（毎日更新）。価格・在庫は変動するため、購入前に販売ページでご確認ください。
               ※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。
             </p>

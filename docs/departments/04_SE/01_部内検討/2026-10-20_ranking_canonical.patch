@@ -1,0 +1,31 @@
+--- a/frontend/app/ranking/page.tsx
++++ b/frontend/app/ranking/page.tsx
+@@ -10,10 +10,24 @@
+ export const revalidate = 0;
+ 
+-export const metadata: Metadata = {
+-  title: "買い時ランキング",
+-  description: "カテゴリ別の買い時スコアランキングです。",
+-};
+-
+ function isCategory(value: string | undefined): value is (typeof CATEGORIES)[number] {
+   return !!value && (CATEGORIES as readonly string[]).includes(value);
+ }
+ 
++export async function generateMetadata({
++  searchParams,
++}: {
++  searchParams: Promise<{ category?: string }>;
++}): Promise<Metadata> {
++  const { category } = await searchParams;
++  // 先頭カテゴリ(=パラメータ無しと同じ内容)は /ranking に、それ以外はカテゴリ別URLに自己参照
++  const canonical =
++    isCategory(category) && category !== CATEGORIES[0] ? `/ranking?category=${category}` : "/ranking";
++  return {
++    title: "買い時ランキング",
++    description: "カテゴリ別の買い時スコアランキングです。",
++    alternates: { canonical },
++  };
++}
++
+ function yen(value: number | null): string {
