@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import FadeIn from "@/components/FadeIn";
+import PrNotice from "@/components/PrNotice";
 import ProductCard from "@/components/ProductCard";
 import { Product, getProduct } from "@/lib/api";
 import { getFavorites } from "@/lib/favorites";
@@ -47,6 +48,7 @@ export default function FavoritesClient() {
       <p className="mt-2 text-sm text-foreground/50">
         この端末のブラウザにのみ保存されます。他の端末やブラウザとは共有されません。
       </p>
+      <PrNotice className="mt-4" />
 
       {favorites === null && <p className="mt-8 text-sm text-foreground/50">読み込み中...</p>}
       {favorites !== null && favorites.length === 0 && (
