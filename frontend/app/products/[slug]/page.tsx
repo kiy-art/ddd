@@ -203,6 +203,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         : stickyShop.key === "rakuten"
           ? product.current_price
           : null;
+  // 「最安」は当サイトが取得した価格どうしの比較。店名と取得時点（例「10/20 03:15」）を必ず添える（景表法）。
+  const lowestAt = comparedOffers && lowestOffer ? formatUpdatedAt(shopBoard.rows.find((row) => row.isLowest)?.updatedAt ?? null) : null;
   const rakutenSeriesSuffix = lowestOffer?.shop === "yahoo" ? "（楽天）" : "";
   const msrpPct =
     product.msrp !== null && displayPrice !== null
@@ -398,7 +400,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 )}
                 {comparedOffers && lowestOffer && (
                   <span className="text-xs text-foreground/55">
-                    <span className="font-semibold text-brand dark:text-brand-light">{lowestOffer.label}</span>が最安
+                    <span className="font-semibold text-brand dark:text-brand-light">{lowestOffer.label}</span>が最安{lowestAt ? `（${lowestAt}時点）` : "（当サイト取得の価格）"}
                     {otherOffers.map((offer) => (
                       <span key={offer.shop} className="ml-2 text-foreground/40">
                         {offer.label} <span className="font-num">{yen(offer.price)}</span>
@@ -439,7 +441,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-xs text-foreground/45">
                   {comparedOffers && lowestOffer
-                    ? `現在の最安値（${lowestOffer.label}）`
+                    ? `現在の最安値（${lowestOffer.label}${lowestAt ? `・${lowestAt}時点` : "・当サイト取得の価格"}）`
                     : !lowestOffer && primaryShop?.stale
                       ? `最後に取得した価格（${primaryShop.ageDays ?? "?"}日前）`
                       : "現在価格"}
@@ -787,6 +789,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
           shopLabel={stickyShop.label}
           price={stickyPrice !== null ? yen(stickyPrice) : null}
           isLowest={stickyShop.isLowest}
+          pricePoint={stickyShop.isLowest ? lowestAt : null}
           sponsored={stickyShop.sponsored}
           productName={product.name}
           trackParams={{

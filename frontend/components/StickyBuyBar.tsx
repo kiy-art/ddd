@@ -22,6 +22,7 @@ export default function StickyBuyBar({
   shopLabel,
   price,
   isLowest,
+  pricePoint = null,
   sponsored,
   productName,
   trackParams,
@@ -32,6 +33,8 @@ export default function StickyBuyBar({
   shopLabel: string;
   price: string | null;
   isLowest: boolean;
+  /** 価格の取得時点（例「10/20 03:15」）。無ければ時点なしで言い切らず「当サイト取得の価格で最安」。 */
+  pricePoint?: string | null;
   sponsored: boolean;
   productName: string;
   trackParams: Record<string, string | number | boolean>;
@@ -76,7 +79,11 @@ export default function StickyBuyBar({
           <p className="hidden truncate text-xs text-foreground/55 sm:block">{productName}</p>
           {price && <p className="font-num text-lg font-semibold leading-tight text-foreground">{price}</p>}
           <p className="truncate text-[11px] font-semibold text-brand">
-            {isLowest ? `${shopLabel}が最安` : `${shopLabel}の価格・在庫`}
+            {isLowest
+              ? pricePoint
+                ? `${shortLabel}が最安（${pricePoint.split(" ")[0]}時点）`
+                : `${shortLabel}が最安（当サイト取得の価格）`
+              : `${shopLabel}の価格・在庫`}
           </p>
         </div>
         <TrackedCta
