@@ -253,9 +253,14 @@ export function CollectionCard({
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
-          <span style={{ display: "flex", fontSize: photos.length ? 56 : 68, fontWeight: 700, color: OG_COLORS.paper, lineHeight: 1.25 }}>
-            {title}
-          </span>
+          {/* One block per "\n" line: satori ignores newlines inside a text node. */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {title.split("\n").map((line, i) => (
+              <span key={i} style={{ display: "flex", fontSize: photos.length ? 56 : 68, fontWeight: 700, color: OG_COLORS.paper, lineHeight: 1.25 }}>
+                {line}
+              </span>
+            ))}
+          </div>
           {subtitle && (
             <span style={{ display: "flex", fontSize: 28, color: OG_COLORS.accentLight, lineHeight: 1.4 }}>{subtitle}</span>
           )}

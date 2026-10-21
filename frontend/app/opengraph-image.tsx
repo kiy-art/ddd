@@ -1,47 +1,37 @@
 import { ImageResponse } from "next/og";
 
-export const size = { width: 1200, height: 630 };
+import { getProducts } from "@/lib/api";
+import { CollectionCard, OG_SIZE, THIN_DATA_DAYS, fetchImageDataUri, withTimeout } from "@/lib/og";
+
+export const alt = "PAR. 型落ちクラブ、買うのは今か、待つか。";
+export const size = OG_SIZE;
 export const contentType = "image/png";
 
+// Default share card (home and any page without its own image).
+// 2026-10-20: was text only with the old "AIが発見" copy; now the site concept
+// (2026-10-17) plus photos of today's strongest real buy signals.
 export default async function Image() {
+  const products = (await withTimeout(getProducts({ limit: 200 }))) ?? [];
+  const ranked = products
+    .filter((p) => p.image_url && p.history_span_days >= THIN_DATA_DAYS && p.buy_signal_score !== null)
+    .sort((a, b) => (b.buy_signal_score ?? 0) - (a.buy_signal_score ?? 0));
+  const photos = (
+    await Promise.all(ranked.slice(0, 4).map((p) => fetchImageDataUri(p.image_url)))
+  ).filter((src): src is string => src !== null);
+
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: "#ECFDF5",
-          padding: "80px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <svg width="44" height="44" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="13.5" stroke="#14201B" strokeWidth="2" opacity="0.35" />
-            <path
-              d="M16 2.5 A13.5 13.5 0 0 1 27.8 22"
-              stroke="#14201B"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx="27.8" cy="22" r="2.4" fill="#047857" />
-          </svg>
-          <span style={{ fontSize: 40, fontWeight: 600, color: "#14201B" }}>PAR.</span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <span style={{ fontSize: 56, fontWeight: 600, color: "#14201B", lineHeight: 1.2 }}>
-            今日、買うべき
-            <br />
-            ゴルフ用品をAIが発見。
-          </span>
-          <span style={{ fontSize: 26, color: "#047857" }}>
-            価格の変化を毎日分析。今が買い時かをスコアでお伝えします。
-          </span>
-        </div>
-      </div>
+      <CollectionCard
+        eyebrow="GOLF PRICE ANALYTICS"
+        title={"型落ちクラブ、\n買うのは今か、\n待つか。"}
+        subtitle="価格の記録から、今日の買い時の目安をお伝えします"
+        photos={photos}
+        footerRight="価格推移・ショップ別価格・買い時判定"
+      />
     ),
     { ...size }
   );
 }
+
+// Re-render at most hourly: the photos follow the daily price update.
+export const revalidate = 3600;

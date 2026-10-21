@@ -27,13 +27,29 @@ const THIN_DATA_DAYS = 7;
 // How many ranking positions to show before "もっと見る" (the backend keeps 30).
 const INITIAL_ROWS = 10;
 
-export const metadata: Metadata = {
-  title: "人気ランキング｜楽天市場の売れ筋ゴルフ用品",
-  description:
-    "楽天市場のカテゴリ別売れ筋ランキング（ドライバー・アイアン・ウェッジ・パター・ボール）を毎日更新。価格とレビュー、PAR.の買い時判定もあわせて確認できます。",
-  // STEP74: X posts link here with utm/category query strings - one canonical page.
-  alternates: { canonical: "/popular" },
-};
+const POPULAR_TITLE = "人気ランキング｜楽天市場の売れ筋ゴルフ用品";
+const POPULAR_DESCRIPTION =
+  "楽天市場のカテゴリ別売れ筋ランキング（ドライバー・アイアン・ウェッジ・パター・ボール）を毎日更新。価格とレビュー、PAR.の買い時判定もあわせて確認できます。";
+
+// X posts link here as /popular?category=driver. The share image shows that
+// category's real top 3 (app/og/popular/route.tsx) instead of the plain default card.
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}): Promise<Metadata> {
+  const { category } = await searchParams;
+  const cat = category && /^[a-z]+$/.test(category) ? category : "driver";
+  const image = { url: `/og/popular?category=${cat}`, width: 1200, height: 630, alt: "楽天の売れ筋ランキング TOP3" };
+  return {
+    title: POPULAR_TITLE,
+    description: POPULAR_DESCRIPTION,
+    // STEP74: X posts link here with utm/category query strings - one canonical page.
+    alternates: { canonical: "/popular" },
+    openGraph: { type: "website", locale: "ja_JP", title: POPULAR_TITLE, description: POPULAR_DESCRIPTION, images: [image] },
+    twitter: { card: "summary_large_image", title: POPULAR_TITLE, description: POPULAR_DESCRIPTION, images: [image] },
+  };
+}
 
 function yen(value: number | null): string {
   return value === null ? "-" : `¥${value.toLocaleString("ja-JP")}`;

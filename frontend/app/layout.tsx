@@ -38,9 +38,9 @@ const jpFont = Zen_Kaku_Gothic_New({
 });
 
 const SITE_NAME = "PAR.";
-const TITLE = "PAR. | AIゴルフ価格インテリジェンス";
+const TITLE = "PAR. | 型落ちゴルフクラブの買い時がわかる価格比較";
 const DESCRIPTION =
-  "今日、買うべきゴルフ用品をAIが発見。過去30日の価格データを毎日分析し、「今が買い時か」をスコアでお伝えします。";
+  "型落ちクラブ、買うのは今か、待つか。ゴルフ用品の価格を毎日記録し、今日の買い時の目安をお伝えします。";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
