@@ -17,8 +17,13 @@
 - 2026-10-17 [001] /ranking?category= はカテゴリごとに内容が違う。canonicalを/rankingに固定するとカテゴリ別が統合されるため、要判断(根拠: frontend/app/ranking/page.tsx 139-143行)
 - 2026-10-19 [001] クライアントlayout配下(/admin)のnoindexは next.config.ts の headers() で X-Robots-Tag を付けるのが最小。robots Disallow と併用するとGoogleがヘッダを読めない点に注意(根拠: 01_部内検討/2026-10-19_admin_noindexヘッダ.md、dev server curl)
 - 2026-10-20 [001] /rankingのみcanonical無し(他の一覧系は反映済)。generateMetadataでカテゴリ別自己参照にするdiffを作成。比較ページのslugにも日時混入が残る(根拠: curl par-gear.com、01_部内検討/2026-10-20_ranking_canonical.md)
+- 2026-10-21 [001] 直近7日error 6件は全て同一原因(Yahoo APIのAppID総回数上限429、日次ジョブで1日1件)。件数は目標(週20)内だが、Yahoo更新が1日14件前後で全商品に回るのに約48日(推測)(根拠: 管理API /api/admin/logs 2026-10-21、01_部内検討/2026-10-21_商品タイトル最安値表現.md)
+- 2026-10-21 [001] 商品ページ429件のtitleに「買い時・最安値比較」、descriptionに「最安値と割引率」。比較は楽天・Yahoo!の2店のみで景表法上の懸念。差分を作成(根拠: curl par-gear.com/products/*、frontend/lib/productSeo.ts)
+- 2026-10-21 [001] 公開商品429件のリンク内訳: 楽天アフィURLあり421/なし8、Yahoo!(VC)あり303/なし126、公式サイト等45(うち4件example.com)。営業の「373件」は再現できず定義の確認が必要(根拠: /api/products 2026-10-21)
+- 2026-10-21 [001] curlはこの環境で使え、sitemap1,152URLの標本18件はすべて200・canonicalあり。compareのslug/titleに日時混入96件(根拠: curl par-gear.com/sitemap.xml)
 
 ## 代表者会議から持ち帰ったこと
+- 2026-10-21 [001] 10/17会議: canonical差分はbuild確認と/ranking?categoryの扱い決定が条件、営業の373件の内訳(クリック数順)をSEに依頼、比較ページのSCクリック取得(根拠: 議事録 2026-10/2026-10-17.md 43・90-92行)
 
 ## スキル改善メモ
 （専門スキル `.claude/skills/pro-se/SKILL.md` で足りなかった点。月1回、人事部が改訂案にまとめる）
@@ -26,5 +31,7 @@
 - 2026-10-17 [001] 点検項目に「canonical未設定ページの一覧(grepで全page.tsxを照合)」と「tsc前のnext typegen」が無い → 1章2に足す(根拠: 2026-10-17_canonical追加.md)
 
 - 2026-10-18 [001] 管理系ページがnoindexか・公開ナビに管理リンクが無いかの点検が無い → 1章1に「robots disallowだけでなくnoindexと公開リンクの有無」を足す(根拠: 2026-10-18_管理画面リンク除去.md)
+
+- 2026-10-21 [001] title/descriptionの言い切り(最安値等)の点検、sitemap標本抽出の手順が無い → 1章に足す(根拠: 2026-10-21_商品タイトル最安値表現.md)
 
 使ったスキル:pro-se
