@@ -1,0 +1,20 @@
+diff --git a/frontend/lib/productSeo.ts b/frontend/lib/productSeo.ts
+--- a/frontend/lib/productSeo.ts
++++ b/frontend/lib/productSeo.ts
+@@ -10,7 +10,7 @@
+ // product.seo_title_intent); every phrase names something the page
+ // really has. Unknown/missing keys fall back to the default phrase.
+ export const SEO_TITLE_PHRASES: Record<string, string> = {
+-  price: "買い時・最安値比較",
++  price: "買い時・価格比較",
+   timing: "買い時・値下がり予測",
+   spec: "スペック・価格比較",
+ };
+@@ -44,6 +44,6 @@
+ export function productSeoDescription(product: Pick<Product, "brand" | "name">): string {
+   return (
+     "過去の価格推移データからAIが今買うべきか判定。" +
+-    `${productDisplayName(product)} の楽天市場・Yahoo!ショッピングの最安値と割引率を毎日比較。`
++    `${productDisplayName(product)} の楽天市場・Yahoo!ショッピングの掲載価格と値下がり率を毎日記録。`
+   );
+ }
