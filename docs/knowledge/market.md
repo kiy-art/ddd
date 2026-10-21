@@ -36,3 +36,6 @@
 | 2026-10-05 | ASPの目安（すべて要再確認）：楽天2〜4%・1件上限1,000円、Amazonは上限なし（料率は未確認）、ゴルフ5・アルペン4.18%（VC）、ゴルフスクール1件5,000〜30,000円、買取1,300〜1,500円、GDOは提携の募集を終了 | https://www.a8.net/campus/campus-blog/946-golf.html 、https://media-analytics.jp/affisearch/promotions/sports-depot-golf5-alpen-no-koshiki-online-store 、https://www.golfdigest.co.jp/prepre/affiliate/default03.asp | #004の前提。数字は推測として扱う |
 | 2026-10-05 | Amazon PA-API 5.0は廃止され、Creators APIへ移行したとの記事（要確認） | https://dev.to/th3nate/amazon-pa-api-v5-is-shutting-down-april-30-2026-here-is-what-changes-at-the-auth-layer-22ek | 将来Amazonの価格を取るなら、Creators APIを前提にする |
 | 2026-10-05 | Xの外部リンク付き投稿が伸びにくいかは、根拠が分かれている | https://buffer.com/resources/links-on-x/ 、https://ppc.land/x-drops-year-old-link-penalty-musk-tells-zuckerberg-on-platform/ | utmで自社のデータを取る（EXP-007） |
+| 2026-10-21 | テーラーメイドは2027年にドライバー・FW・ハイブリッドを発売せずQi4Dを継続販売、2年サイクルとの報道(報道ベース。公式発表は未確認、原文は未照合) | https://shotnavi.jp/newslive/news_41717.htm | 型落ち・現行比較の需要が続く可能性(推測) |
+| 2026-10-21 | 楽天スーパーSALE 12月は例年4〜11日(2021年以降の実績からの予想記事。2026年の公式発表は未確認)。10月分の楽天お買い物マラソンも公式日程は未確認 | https://appllio.com/rakuten-super-sale-schedule | 掲載計画は公式日程の確定後に最終化 |
+| 2026-10-21 | 営業の環境から楽天・Amazon・VCの公式ホストに接続できない(プロキシ拒否)。料率(Amazon 4%など)は第三者・2020年の資料のみで未確認 | 営業・総務・経理の記録(2026-10-21) | 料率を判断に使わない。社長端末での確認が必要 |
