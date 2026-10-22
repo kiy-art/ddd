@@ -176,6 +176,7 @@ def test_new_guide_opportunities_matches_brand_and_dedupes_by_query(db_session, 
 
 def test_run_daily_optimization_applies_homepage_reorder_from_real_clicks(db_session, monkeypatch):
     monkeypatch.setattr(content_optimizer.content_metrics, "capture_daily_snapshot", lambda db: content_optimizer.content_metrics.SnapshotCaptureResult(False, False, 0))
+    monkeypatch.setattr(content_optimizer.get_settings(), "homepage_reorder_enabled", True)
     product = _make_product(db_session)
     crud.create_affiliate_click(
         db_session, schemas.AffiliateClickCreate(product_id=product.id, shop="amazon", placement="product_detail_cta")
@@ -185,6 +186,18 @@ def test_run_daily_optimization_applies_homepage_reorder_from_real_clicks(db_ses
     reorder_actions = [a for a in result.actions if a.action_type == "reorder_homepage"]
     assert len(reorder_actions) == 1
     assert product.name in reorder_actions[0].decision_basis
+
+
+def test_run_daily_optimization_skips_homepage_reorder_while_paused(db_session, monkeypatch):
+    monkeypatch.setattr(content_optimizer.content_metrics, "capture_daily_snapshot", lambda db: content_optimizer.content_metrics.SnapshotCaptureResult(False, False, 0))
+    monkeypatch.setattr(content_optimizer.get_settings(), "homepage_reorder_enabled", False)
+    product = _make_product(db_session)
+    crud.create_affiliate_click(
+        db_session, schemas.AffiliateClickCreate(product_id=product.id, shop="amazon", placement="product_detail_cta")
+    )
+
+    result = content_optimizer.run_daily_optimization(db_session)
+    assert [a for a in result.actions if a.action_type == "reorder_homepage"] == []
 
 
 def test_run_daily_optimization_applies_a_rewrite_and_persists_it(db_session, monkeypatch):

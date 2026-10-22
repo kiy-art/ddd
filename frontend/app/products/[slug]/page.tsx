@@ -388,8 +388,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-500">
                     実績
                   </span>
-                  <span className="text-xs text-foreground/40">
-                    {comparedOffers ? `現在の最安値（${shopOffers.length}店舗を比較）` : "現在価格"}
+                  <span className="text-xs text-foreground/65">
+                    {comparedOffers ? `${shopOffers.length}店舗を比較した最安値${lowestAt ? `（${lowestAt}時点）` : "（当サイト取得の価格）"}` : "現在価格"}
                   </span>
                 </div>
                 <span className="font-num text-4xl font-semibold text-foreground">
