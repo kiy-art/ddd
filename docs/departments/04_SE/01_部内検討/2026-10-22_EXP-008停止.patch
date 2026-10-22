@@ -1,0 +1,68 @@
+diff --git a/backend/app/config.py b/backend/app/config.py
+index ca42d80..f0b0ecb 100644
+--- a/backend/app/config.py
++++ b/backend/app/config.py
+@@ -78,6 +78,13 @@ class Settings(BaseSettings):
+     # Never inferred or guessed - with this empty the corner simply makes no
+     # sale-event claim.
+     consumable_sale_events: str = ""
++    # EXP-008 (トップ「注目ギア」の自動入れ替え, content_optimizer's
++    # reorder_homepage action) is paused by default (2026-10 代表者会議、
++    # 決裁レベルA). Set HOMEPAGE_REORDER_ENABLED=true on Render to resume.
++    # While paused, no new reorder_homepage action is stored; the homepage
++    # keeps showing the last stored decision, and past actions are still
++    # evaluated.
++    homepage_reorder_enabled: bool = False
+ 
+     @property
+     def cors_origin_list(self) -> list[str]:
+diff --git a/backend/app/content_optimizer.py b/backend/app/content_optimizer.py
+index d54ba37..eba71ff 100644
+--- a/backend/app/content_optimizer.py
++++ b/backend/app/content_optimizer.py
+@@ -829,9 +829,11 @@ def run_daily_optimization(db: Session) -> OptimizationRunResult:
+ 
+     actions: list[models.AiOptimizationAction] = []
+ 
+-    trending = select_trending_products(db)
+-    if trending:
+-        actions.append(_apply_homepage_reorder(db, trending))
++    # EXP-008 pause flag (config.homepage_reorder_enabled, default False).
++    if get_settings().homepage_reorder_enabled:
++        trending = select_trending_products(db)
++        if trending:
++            actions.append(_apply_homepage_reorder(db, trending))
+ 
+     # Each auto-revert's routine regeneration may have spent a Claude call -
+     # it comes out of the same approved daily budget. A retitle revert
+diff --git a/backend/tests/test_content_optimizer.py b/backend/tests/test_content_optimizer.py
+index 5257b0f..23b4bc7 100644
+--- a/backend/tests/test_content_optimizer.py
++++ b/backend/tests/test_content_optimizer.py
+@@ -176,6 +176,7 @@ def test_new_guide_opportunities_matches_brand_and_dedupes_by_query(db_session,
+ 
+ def test_run_daily_optimization_applies_homepage_reorder_from_real_clicks(db_session, monkeypatch):
+     monkeypatch.setattr(content_optimizer.content_metrics, "capture_daily_snapshot", lambda db: content_optimizer.content_metrics.SnapshotCaptureResult(False, False, 0))
++    monkeypatch.setattr(content_optimizer.get_settings(), "homepage_reorder_enabled", True)
+     product = _make_product(db_session)
+     crud.create_affiliate_click(
+         db_session, schemas.AffiliateClickCreate(product_id=product.id, shop="amazon", placement="product_detail_cta")
+@@ -187,6 +188,18 @@ def test_run_daily_optimization_applies_homepage_reorder_from_real_clicks(db_ses
+     assert product.name in reorder_actions[0].decision_basis
+ 
+ 
++def test_run_daily_optimization_skips_homepage_reorder_while_paused(db_session, monkeypatch):
++    monkeypatch.setattr(content_optimizer.content_metrics, "capture_daily_snapshot", lambda db: content_optimizer.content_metrics.SnapshotCaptureResult(False, False, 0))
++    monkeypatch.setattr(content_optimizer.get_settings(), "homepage_reorder_enabled", False)
++    product = _make_product(db_session)
++    crud.create_affiliate_click(
++        db_session, schemas.AffiliateClickCreate(product_id=product.id, shop="amazon", placement="product_detail_cta")
++    )
++
++    result = content_optimizer.run_daily_optimization(db_session)
++    assert [a for a in result.actions if a.action_type == "reorder_homepage"] == []
++
++
+ def test_run_daily_optimization_applies_a_rewrite_and_persists_it(db_session, monkeypatch):
+     monkeypatch.setattr(content_optimizer.content_metrics, "capture_daily_snapshot", lambda db: content_optimizer.content_metrics.SnapshotCaptureResult(False, False, 0))
+     product = _make_product(db_session)
