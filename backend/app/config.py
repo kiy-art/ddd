@@ -78,6 +78,13 @@ class Settings(BaseSettings):
     # Never inferred or guessed - with this empty the corner simply makes no
     # sale-event claim.
     consumable_sale_events: str = ""
+    # EXP-008 (トップ「注目ギア」の自動入れ替え, content_optimizer's
+    # reorder_homepage action) is paused by default (2026-10 代表者会議、
+    # 決裁レベルA). Set HOMEPAGE_REORDER_ENABLED=true on Render to resume.
+    # While paused, no new reorder_homepage action is stored; the homepage
+    # keeps showing the last stored decision, and past actions are still
+    # evaluated.
+    homepage_reorder_enabled: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

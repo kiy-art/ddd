@@ -149,7 +149,10 @@ export default async function Home({
 
   const siteStats = await statsPromise;
   const heroImages = [...bestBuy, ...allProducts].map((p) => p.image_url).filter(Boolean).slice(0, 6);
-  const featuredGuides = GUIDES.filter((g) => g.featured);
+  const featuredGuides = [
+    ...GUIDES.filter((g) => g.pinned),
+    ...GUIDES.filter((g) => g.featured && !g.pinned),
+  ];
 
   return (
     <div className="flex flex-col">

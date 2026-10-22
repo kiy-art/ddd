@@ -829,9 +829,11 @@ def run_daily_optimization(db: Session) -> OptimizationRunResult:
 
     actions: list[models.AiOptimizationAction] = []
 
-    trending = select_trending_products(db)
-    if trending:
-        actions.append(_apply_homepage_reorder(db, trending))
+    # EXP-008 pause flag (config.homepage_reorder_enabled, default False).
+    if get_settings().homepage_reorder_enabled:
+        trending = select_trending_products(db)
+        if trending:
+            actions.append(_apply_homepage_reorder(db, trending))
 
     # Each auto-revert's routine regeneration may have spent a Claude call -
     # it comes out of the same approved daily budget. A retitle revert
