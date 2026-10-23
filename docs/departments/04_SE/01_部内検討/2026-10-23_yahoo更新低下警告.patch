@@ -1,0 +1,154 @@
+--- a/backend/app/routers/admin.py	2026-10-23 15:08:46.947744802 +0000
++++ b/backend/app/routers/admin.py	2026-10-23 15:08:46.950271479 +0000
+@@ -1,5 +1,6 @@
+ import dataclasses
+ import datetime
++import re
+ import queue
+ import threading
+ 
+@@ -21,6 +22,41 @@
+ _ANALYSIS_PROGRESS_EVERY = 5
+ 
+ 
++# Yahoo update-count drop warning (2026-10 SE): a quiet fall in the daily
++# Yahoo update count (e.g. rate limiting) was only visible by reading the
++# summary line. Warning level only, so it never counts as an "error".
++_YAHOO_DROP_RATIO = 0.6
++_YAHOO_DROP_MIN_HISTORY = 3
++_YAHOO_COUNT_RE = re.compile(r"Yahoo更新(\d+)件")
++
++
++def _warn_if_yahoo_dropped(db: Session, yahoo_updated: int) -> bool:
++    """Log one warning when today's Yahoo update count is under 60% of the
++    average of the last 7 days of daily_job summaries. Needs >= 3 past runs
++    with a positive average; never raises."""
++    try:
++        since = datetime.datetime.now() - datetime.timedelta(days=7)
++        rows = db.execute(
++            select(models.ErrorLog.message).where(
++                models.ErrorLog.source == "daily_job", models.ErrorLog.created_at >= since
++            )
++        ).scalars().all()
++        past = [int(m.group(1)) for m in (_YAHOO_COUNT_RE.search(r) for r in rows) if m]
++        if len(past) < _YAHOO_DROP_MIN_HISTORY:
++            return False
++        avg = sum(past) / len(past)
++        if avg <= 0 or yahoo_updated >= avg * _YAHOO_DROP_RATIO:
++            return False
++        crud.create_error_log(
++            db, source="yahoo_drop", level="warning",
++            message=f"Yahoo更新件数が低下: 今回{yahoo_updated}件 / 直近7日平均{avg:.0f}件({len(past)}回)",
++        )
++        return True
++    except Exception:  # noqa: BLE001 - monitoring must never fail the daily job
++        db.rollback()
++        return False
++
++
+ @router.get("/products", response_model=list[schemas.ProductOut])
+ def list_all_products(db: Session = Depends(get_db)):
+     return list(db.execute(select(models.Product).order_by(models.Product.updated_at.desc())).scalars().all())
+@@ -397,6 +433,7 @@
+             except Exception as exc:  # noqa: BLE001 - Yahoo failing shouldn't fail the whole job
+                 db.rollback()
+                 crud.create_error_log(db, source="price_fetch", message=f"Yahoo fetch failed: {exc}")
++            _warn_if_yahoo_dropped(db, yahoo_updated)
+             progress.finish_stage("yahoo_prices", f"更新{yahoo_updated}件 / スキップ{yahoo_skipped}件")
+ 
+         progress.start_stage("discovery")
+--- a/frontend/app/disclaimer/page.tsx	2026-10-23 15:06:27.586327109 +0000
++++ b/frontend/app/disclaimer/page.tsx	2026-10-23 15:06:27.610730712 +0000
+@@ -53,7 +53,7 @@
+         <section className="flex flex-col gap-2">
+           <h2 className="font-display text-lg font-medium text-foreground">価格・在庫情報について</h2>
+           <ul className="list-disc space-y-1 pl-5">
+-            <li>価格は、楽天市場とYahoo!ショッピングの商品検索APIから1日1回取得しています。Amazonの価格は取得していません。</li>
++            <li>楽天市場の価格は、商品検索APIから1日1回取得しています。Yahoo!ショッピングの価格は、取得できた時点のもので、商品ごとに更新日が異なります。Amazonの価格は取得していません。</li>
+             <li>掲載している価格・在庫状況は変動する可能性があります。</li>
+             <li>実際の購入時には、必ず販売元サイトで最新の価格・在庫をご確認ください。</li>
+             <li>価格の誤表示や情報の遅延によって生じたいかなる損害についても、当サイトは責任を負いかねます。</li>
+--- a/frontend/app/faq/page.tsx	2026-10-23 15:06:27.591380094 +0000
++++ b/frontend/app/faq/page.tsx	2026-10-23 15:06:27.610915067 +0000
+@@ -12,7 +12,7 @@
+   },
+   {
+     q: "価格データはどこから取得していますか？",
+-    a: "楽天市場とYahoo!ショッピングの商品検索APIを通じて取得した実際の販売価格を、1日1回自動で記録しています（価格の推移は楽天市場の価格）。Amazonの価格は取得していません。手入力やAIによる価格の推測は行っていません。",
++    a: "楽天市場の商品検索APIを通じて取得した実際の販売価格を1日1回自動で記録しています（価格の推移は楽天市場の価格）。Yahoo!ショッピングの価格は、取得できた時点のもので、商品ごとに更新日が異なります。Amazonの価格は取得していません。手入力やAIによる価格の推測は行っていません。",
+   },
+   {
+     q: "商品ページのAIによる説明文は信頼できますか？",
+--- a/frontend/components/DataSourceNote.tsx	2026-10-23 15:06:27.594965985 +0000
++++ b/frontend/components/DataSourceNote.tsx	2026-10-23 15:06:27.611093475 +0000
+@@ -2,7 +2,7 @@
+   {
+     label: "現在価格・価格履歴",
+     detail:
+-      "楽天市場とYahoo!ショッピングの商品検索APIから1日1回自動取得しています（価格履歴は楽天市場の価格）。Amazonの価格は取得していません。",
++      "楽天市場の価格を1日1回自動取得しています（価格履歴は楽天市場の価格）。Yahoo!ショッピングの価格は取得できた時点のもので、商品ごとに更新日が異なります。Amazonの価格は取得していません。",
+   },
+   {
+     label: "メーカー希望小売価格・発売日・スキルレベル等",
+--- a/frontend/lib/guides.ts	2026-10-23 15:06:36.119577742 +0000
++++ b/frontend/lib/guides.ts	2026-10-23 15:06:36.134056850 +0000
+@@ -197,6 +197,59 @@
+       },
+     ],
+   },
++  // 2026-10-23 (marketing): Qi4D(2026)対Qi35(2025)の型落ち比較。価格は希望小売のみ(報道/価格.com)。PAR.の実売価格は書かず商品ページへ誘導。
++  {
++    slug: "qi4d-qi35-kataochi-hikaku",
++    title: "テーラーメイド Qi4D と Qi35 の違いは？型落ちQi35の買い時の見方【PAR.】",
++    description:
++      "2026年1月発売のQi4Dドライバーと、1世代前のQi35の違い・価格の見方を整理。PAR.が記録する楽天市場の価格推移(1日1回)で、型落ちQi35が今買い時かを確かめる手順をまとめました。",
++    publishedAt: "2026-10-24",
++    relatedCategories: ["driver"],
++    pinned: true,
++    sections: [
++      {
++        heading: "先に結論：Qi35は型落ち。仕様が決まっているなら価格推移を見て、迷うなら試打が先",
++        paragraphs: [
++          "【PR】このページから進めるPAR.の商品ページには、楽天市場・Yahoo!ショッピングなどのアフィリエイトリンク（広告）が含まれます。リンク先で商品が購入されると、PAR.が紹介料を受け取ることがあります。",
++          "Qi4Dは2026年1月29日発売のモデルで、2025年2月発売のQi35は1世代前（型落ち）にあたります（価格.com・報道の掲載内容。2026年10月23日に検索結果で確認、原文は未照合）。型落ちは価格が動きやすい一方、欲しいロフト・シャフトから在庫が減ることもあります。",
++        ],
++      },
++      {
++        heading: "Qi4DとQi35、わかっている違い",
++        paragraphs: [
++          "Qi4Dのラインナップは通常型・MAX・LS・MAX LITEの4種で、可変式のTASウェイトと、±2°・12通りのロフト調整スリーブを備えると紹介されています（価格.comの掲載情報）。Qi35も同じく通常型・MAX・MAX LITE・LSの4機種です（ゴルフダイジェスト・みんなのゴルフの報道）。",
++          "飛距離や打感の差は打ち手のスイングで変わるため、このページでは数字で言い切りません。差が気になる場合は同じ条件で試打してください。",
++        ],
++      },
++      {
++        heading: "価格の見方",
++        paragraphs: [
++          "Qi4Dの希望小売価格は、REAX 50シャフト装着モデルで税込107,800円と掲載されています（価格.com、2026年10月23日確認）。Qi35の新品定価は、今回の確認では見つかりませんでした。",
++          "実売価格はショップ・シャフト・フレックス・新品か中古かで変わります。同じ仕様同士で比べてください。",
++        ],
++      },
++      {
++        heading: "PAR.でQi35の価格推移を確かめる手順",
++        paragraphs: [
++          "手順1：PAR.のドライバーのカテゴリからQi35（またはQi4D）の商品ページを開きます。手順2：価格推移グラフ（楽天市場の記録、1日1回更新）で、価格がどの範囲で動いてきたかを見ます。Yahoo!ショッピングは取得時点の価格です。手順3：買い時スコアで、過去と比べた今の位置を確認します。スコアは将来の価格を約束するものではありません。",
++          "Amazonの価格はPAR.では取得していません。記録期間が短い商品は、参考程度にしてください。",
++        ],
++      },
++      {
++        heading: "どちらを選ぶ？",
++        paragraphs: [
++          "最新の仕様を重視するならQi4D、価格を抑えたい・前作で十分ならQi35、が基本の分け方です。一般的な型落ちの考え方は、ガイド「型落ちゴルフクラブは買うべき？メリットと注意点」を、新旧モデルの別例はガイド「スリクソンZXi 型落ちは買い時？」をご覧ください。",
++        ],
++      },
++      {
++        heading: "出典と免責",
++        paragraphs: [
++          "出典：価格.com テーラーメイド Qi4D ドライバー https://kakaku.com/item/K0001762964/ ／ ゴルフダイジェスト・みんなのゴルフ Qi35発表記事 https://www.golfdigest-minna.jp/_ct/17742298?tg=Qi35 （いずれも2026年10月23日に検索結果の要約で確認）。",
++          "価格は記載時点のもので、購入を保証・推奨するものではありません。購入前に各ショップの最新の価格・在庫・送料を確認してください。",
++        ],
++      },
++    ],
++  },
+   {
+     slug: "driver-comparison",
+     title: "最新ドライバー比較：買い時スコアが高い順にチェック",

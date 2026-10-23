@@ -53,7 +53,7 @@ export default function DisclaimerPage() {
         <section className="flex flex-col gap-2">
           <h2 className="font-display text-lg font-medium text-foreground">価格・在庫情報について</h2>
           <ul className="list-disc space-y-1 pl-5">
-            <li>価格は、楽天市場とYahoo!ショッピングの商品検索APIから1日1回取得しています。Amazonの価格は取得していません。</li>
+            <li>楽天市場の価格は、商品検索APIから1日1回取得しています。Yahoo!ショッピングの価格は、取得できた時点のもので、商品ごとに更新日が異なります。Amazonの価格は取得していません。</li>
             <li>掲載している価格・在庫状況は変動する可能性があります。</li>
             <li>実際の購入時には、必ず販売元サイトで最新の価格・在庫をご確認ください。</li>
             <li>価格の誤表示や情報の遅延によって生じたいかなる損害についても、当サイトは責任を負いかねます。</li>
