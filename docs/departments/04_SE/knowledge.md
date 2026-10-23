@@ -23,6 +23,7 @@
 - 2026-10-21 [001] curlはこの環境で使え、sitemap1,152URLの標本18件はすべて200・canonicalあり。compareのslug/titleに日時混入96件(根拠: curl par-gear.com/sitemap.xml)
 - 2026-10-22 [001] EXP-008の「悪化」=施策前7日と後7日の商品群ショップクリック合計が-10%以下。上位クリックを選んで比べるため平均への回帰で悪化が出やすく、対照も無いので判定不能(推測)。停止はフラグ homepage_reorder_enabled(既定False)の差分で、一時コピーpytest全564件合格(根拠: content_optimizer.py 675-703行、01_部内検討/2026-10-22_EXP-008停止.md)
 - 2026-10-22 [001] 本番の注目ギアは1商品のみで、product_urlがexample.comの表記(根拠: curl /api/homepage/trending 2026-10-23)
+- 2026-10-23 [001] gitの履歴は10/18の1コミットにまとまり、それ以前のrobots/sitemap/canonicalの反映日はコードから確定できない。sitemapは1,154URL(比較639)で10/17会議の比較除外は未実施。商品ページは約39KB(gzip)、応答開始0.6秒(根拠: git log、curl par-gear.com 2026-10-23)
 
 ## 代表者会議から持ち帰ったこと
 - 2026-10-21 [001] 10/17会議: canonical差分はbuild確認と/ranking?categoryの扱い決定が条件、営業の373件の内訳(クリック数順)をSEに依頼、比較ページのSCクリック取得(根拠: 議事録 2026-10/2026-10-17.md 43・90-92行)
