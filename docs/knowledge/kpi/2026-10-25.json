@@ -1,0 +1,155 @@
+{
+  "generated_at": "2026-10-24T15:03:35Z",
+  "catalog": {
+    "published_products": 431,
+    "products_total": 712,
+    "pending_review": 217,
+    "published_by_category": {
+      "glove": 60,
+      "ball": 103,
+      "rangefinder": 60,
+      "other": 8,
+      "putter": 23,
+      "wedge": 8,
+      "iron": 62,
+      "driver": 107
+    },
+    "with_image": 426
+  },
+  "shop_clicks": {
+    "total": 27,
+    "last_7d": 2,
+    "prev_7d": 6,
+    "last_30d": 27,
+    "last_7d_by_shop": {
+      "rakuten": 2
+    },
+    "last_7d_by_placement": {
+      "popular_rakuten_ranking": 1,
+      "store_comparison": 1
+    }
+  },
+  "partner_clicks": {
+    "total": 0,
+    "last_7d": 0,
+    "last_30d": 0,
+    "last_7d_by_placement": {}
+  },
+  "search_console": {
+    "snapshot_date": "2026-10-24",
+    "window_days": 3,
+    "pages_counted": 3,
+    "impressions": 3,
+    "clicks": 0,
+    "ctr": 0.0,
+    "avg_position": 7.3
+  },
+  "ga4": {
+    "snapshot_date": "2026-10-24",
+    "window_days": 1,
+    "pages_counted": 6,
+    "pageviews": 7
+  },
+  "snapshot_page_limit": 100,
+  "price_alerts": {
+    "total": 3,
+    "notified": 2,
+    "visitor_email_enabled": false
+  },
+  "errors_last_7d": {
+    "info": 920,
+    "error": 7,
+    "warning": 270
+  },
+  "last_daily_job": {
+    "at": "2026-10-24T00:09:54Z",
+    "summary": "日次更新ジョブ完了: 楽天更新523件/スキップ175件, Yahoo更新17件/スキップ681件, 新商品発見14件, 人気ランキング反映88件, 分析712件中AI再生成196件, 値下がり通知送信0件/スキップ0件, X投稿0件/スキップ1件"
+  },
+  "market": {
+    "basis": "newest price in the last 7 days vs the newest price 23-37 days ago (published products only)",
+    "by_category": {
+      "ball": {
+        "compared": 72,
+        "down": 24,
+        "up": 12,
+        "flat": 36,
+        "median_change_pct": 0.0
+      },
+      "driver": {
+        "compared": 87,
+        "down": 11,
+        "up": 6,
+        "flat": 70,
+        "median_change_pct": 0.0
+      },
+      "glove": {
+        "compared": 41,
+        "down": 0,
+        "up": 1,
+        "flat": 40,
+        "median_change_pct": 0.0
+      },
+      "iron": {
+        "compared": 46,
+        "down": 2,
+        "up": 12,
+        "flat": 32,
+        "median_change_pct": 0.0
+      },
+      "other": {
+        "compared": 6,
+        "down": 0,
+        "up": 0,
+        "flat": 6,
+        "median_change_pct": 0.0
+      },
+      "putter": {
+        "compared": 17,
+        "down": 2,
+        "up": 1,
+        "flat": 14,
+        "median_change_pct": 0.0
+      },
+      "rangefinder": {
+        "compared": 51,
+        "down": 1,
+        "up": 4,
+        "flat": 46,
+        "median_change_pct": 0.0
+      },
+      "wedge": {
+        "compared": 8,
+        "down": 0,
+        "up": 3,
+        "flat": 5,
+        "median_change_pct": 0.1
+      }
+    },
+    "new_products_30d": {
+      "glove": 60,
+      "ball": 38,
+      "rangefinder": 60,
+      "other": 8,
+      "putter": 4,
+      "iron": 47,
+      "driver": 90
+    }
+  },
+  "optimization_actions_last_30d": [
+    {
+      "type": "reorder_homepage",
+      "verdict": "not_evaluated",
+      "count": 2
+    },
+    {
+      "type": "reorder_homepage",
+      "verdict": "worse",
+      "count": 25
+    },
+    {
+      "type": "reorder_homepage",
+      "verdict": "improved",
+      "count": 1
+    }
+  ]
+}
