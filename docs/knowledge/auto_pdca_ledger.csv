@@ -29,3 +29,6 @@ date,action_type,verdict,count_last_30d
 2026-10-25,reorder_homepage,not_evaluated,2
 2026-10-25,reorder_homepage,worse,25
 2026-10-25,reorder_homepage,improved,1
+2026-10-26,reorder_homepage,not_evaluated,1
+2026-10-26,reorder_homepage,worse,26
+2026-10-26,reorder_homepage,improved,1
