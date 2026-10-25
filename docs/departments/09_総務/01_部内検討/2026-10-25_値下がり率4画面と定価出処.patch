@@ -1,0 +1,44 @@
+--- a/frontend/app/deals/page.tsx
++++ b/frontend/app/deals/page.tsx
+@@ -47,7 +47,7 @@
+               {deals.map(({ product, dropPercent }, i) => (
+                 <FadeIn key={product.id} delay={(i % 6) * 60} className="flex flex-col gap-2">
+                   <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">
+-                    前回価格より {dropPercent}% 値下がり
++                    前回の記録 ¥{product.previous_price?.toLocaleString("ja-JP")} より {dropPercent}% 値下がり（最新の記録との比較）
+                   </span>
+                   <ProductCard product={product} listSource="deals" />
+                 </FadeIn>
+--- a/frontend/app/guides/[slug]/page.tsx
++++ b/frontend/app/guides/[slug]/page.tsx
+@@ -35,7 +35,7 @@
+         : await getProducts();
+       return computeDeals(products)
+         .slice(0, limit)
+-        .map(({ product, dropPercent }) => ({ product, caption: `前回価格より ${dropPercent}% 値下がり` }));
++        .map(({ product, dropPercent }) => ({ product, caption: `前回の記録 ¥${product.previous_price?.toLocaleString("ja-JP")} より ${dropPercent}% 値下がり（最新の記録との比較）` }));
+     }
+   } catch {
+     return [];
+--- a/frontend/app/page.tsx
++++ b/frontend/app/page.tsx
+@@ -299,7 +299,7 @@
+               {topDeals.map(({ product, dropPercent }, i) => (
+                 <FadeIn key={product.id} delay={i * 90} className="flex flex-col gap-2">
+                   <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">
+-                    前回価格より {dropPercent}% 値下がり
++                    前回の記録 ¥{product.previous_price?.toLocaleString("ja-JP")} より {dropPercent}% 値下がり（最新の記録との比較）
+                   </span>
+                   <ProductCard product={product} listSource="homepage_price_drops" />
+                 </FadeIn>
+--- a/frontend/app/products/[slug]/page.tsx
++++ b/frontend/app/products/[slug]/page.tsx
+@@ -411,7 +411,7 @@
+                 {msrpPct !== null && (
+                   <span className={`text-sm font-semibold ${msrpPct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50"}`}>
+                     {msrpPct > 0 ? "+" : ""}
+-                    {msrpPct}% 定価より
++                    {msrpPct}% 定価より<span className="ml-1 text-xs font-normal text-foreground/50">（定価＝メーカー希望小売価格。公式情報をもとに編集部が調査）</span>
+                   </span>
+                 )}
+                 {hasReliableTrend && product.price_change_percent !== null ? (
