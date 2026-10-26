@@ -4,7 +4,7 @@ import FadeIn from "@/components/FadeIn";
 import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { Product, getProducts } from "@/lib/api";
-import { computeDeals } from "@/lib/deals";
+import { computeDeals, dropLabel } from "@/lib/deals";
 import PrNotice from "@/components/PrNotice";
 
 export const revalidate = 0;
@@ -30,7 +30,7 @@ export default async function DealsPage() {
       <PageHeader
         eyebrow="Price Drops"
         title="価格が下がった商品"
-        description={`直近の価格更新で値下がりした${deals.length}商品です。すべて実際に記録された値下がりのみを掲載しています。`}
+        description={`直近の価格更新で値下がりした${deals.length}商品です。当サイトが記録した「前回記録」との比較で、販売店・セット内容・クーポンが同じとは限りません。購入前に各販売店の最新価格をご確認ください。`}
         collageImages={deals.map(({ product }) => product.image_url)}
       />
 
@@ -44,14 +44,17 @@ export default async function DealsPage() {
             <div>
             <PrNotice className="mb-6" />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {deals.map(({ product, dropPercent }, i) => (
+              {deals.map((deal, i) => {
+                const { product } = deal;
+                return (
                 <FadeIn key={product.id} delay={(i % 6) * 60} className="flex flex-col gap-2">
                   <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">
-                    前回価格より {dropPercent}% 値下がり
+                    {dropLabel(deal)}
                   </span>
                   <ProductCard product={product} listSource="deals" />
                 </FadeIn>
-              ))}
+                );
+              })}
             </div>
             </div>
           )}

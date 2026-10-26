@@ -10,7 +10,7 @@ import HowItWorks from "@/components/HowItWorks";
 import Newsletter from "@/components/Newsletter";
 import ProductCard from "@/components/ProductCard";
 import { BUY_SCORE_LABELS, Product, TrendingProducts, getProducts, getSiteStats, getTrendingProducts } from "@/lib/api";
-import { computeDeals } from "@/lib/deals";
+import { computeDeals, dropLabel } from "@/lib/deals";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { GUIDES } from "@/lib/guides";
 import { freshPopularityRank } from "@/lib/popularity";
@@ -296,14 +296,17 @@ export default async function Home({
             </FadeIn>
 
             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {topDeals.map(({ product, dropPercent }, i) => (
+              {topDeals.map((deal, i) => {
+                const { product } = deal;
+                return (
                 <FadeIn key={product.id} delay={i * 90} className="flex flex-col gap-2">
                   <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">
-                    前回価格より {dropPercent}% 値下がり
+                    {dropLabel(deal)}
                   </span>
                   <ProductCard product={product} listSource="homepage_price_drops" />
                 </FadeIn>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>

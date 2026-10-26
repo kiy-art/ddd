@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import FadeIn from "@/components/FadeIn";
 import ProductCard from "@/components/ProductCard";
 import { CATEGORY_LABELS, Product, getCategoryProducts, getProducts } from "@/lib/api";
-import { computeDeals } from "@/lib/deals";
+import { computeDeals, dropLabel } from "@/lib/deals";
 import { GUIDES, Guide, getGuideBySlug } from "@/lib/guides";
 import { SITE_URL } from "@/lib/siteUrl";
 import PrNotice from "@/components/PrNotice";
@@ -35,7 +35,7 @@ async function loadFeaturedProducts(
         : await getProducts();
       return computeDeals(products)
         .slice(0, limit)
-        .map(({ product, dropPercent }) => ({ product, caption: `前回価格より ${dropPercent}% 値下がり` }));
+        .map((deal) => ({ product: deal.product, caption: dropLabel(deal) }));
     }
   } catch {
     return [];
