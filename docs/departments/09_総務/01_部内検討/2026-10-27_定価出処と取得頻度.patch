@@ -1,0 +1,26 @@
+diff --git a/frontend/app/products/[slug]/page.tsx b/frontend/app/products/[slug]/page.tsx
+index a8ed371..e076a66 100644
+--- a/frontend/app/products/[slug]/page.tsx
++++ b/frontend/app/products/[slug]/page.tsx
+@@ -411,7 +411,7 @@ export default async function ProductPage({ params }: { params: Promise<Params>
+                 {msrpPct !== null && (
+                   <span className={`text-sm font-semibold ${msrpPct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50"}`}>
+                     {msrpPct > 0 ? "+" : ""}
+-                    {msrpPct}% 定価より
++                    {msrpPct}% 定価より<span className="ml-1 text-xs font-normal text-foreground/50">（定価＝メーカー希望小売価格。公式情報をもとに編集部が調査）</span>
+                   </span>
+                 )}
+                 {hasReliableTrend && product.price_change_percent !== null ? (
+diff --git a/frontend/components/StoreComparisonTable.tsx b/frontend/components/StoreComparisonTable.tsx
+index 5491d1b..4bac7d6 100644
+--- a/frontend/components/StoreComparisonTable.tsx
++++ b/frontend/components/StoreComparisonTable.tsx
+@@ -174,7 +174,7 @@ export default function StoreComparisonTable({
+       </ul>
+ 
+       <p className="border-t border-border px-6 py-4 text-sm leading-relaxed text-foreground/80 sm:px-8">
+-        価格はPAR.が1日1回取得した各ショップの価格です。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク）。
++        価格はPAR.が取得した各ショップの価格です（楽天市場は1日1回、Yahoo!ショッピングは取得できた時点）。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク）。
+         {hasSponsoredRow &&
+           "※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。"}
+         価格・在庫は変動するため、購入前に販売元サイトでご確認ください。

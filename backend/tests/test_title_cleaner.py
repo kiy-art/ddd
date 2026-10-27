@@ -403,3 +403,12 @@ def test_clean_product_title_accepts_ai_result_using_kanji_honma(monkeypatch):
         assert title_cleaner.clean_product_title(HONMA_RAW, "Honma", "driver") == "本間ゴルフ TW757 Type-S 1W"
     finally:
         get_settings.cache_clear()
+
+
+def test_strip_promotional_noise_removes_bare_discount_and_period_copy():
+    f = title_cleaner.strip_promotional_noise
+    assert f("タイトリスト 10%OFF 9/17 9/29 2025 PRO V1", "タイトリスト") == "タイトリスト 2025 PRO V1"
+    assert f("スリクソン 10000円OFF Z-STAR XV 9/23まで", "スリクソン") == "スリクソン Z-STAR XV"
+    assert f("タイトリスト 10/4 20:00 10/09 01:59 グローブ", "タイトリスト") == "タイトリスト グローブ"
+    # a lone fraction (not a sale period) is untouched
+    assert "1/12" in f("スリクソン Z-STAR XV 1/12", "スリクソン")

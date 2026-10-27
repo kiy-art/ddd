@@ -411,7 +411,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 {msrpPct !== null && (
                   <span className={`text-sm font-semibold ${msrpPct < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50"}`}>
                     {msrpPct > 0 ? "+" : ""}
-                    {msrpPct}% 定価より
+                    {msrpPct}% 定価より<span className="ml-1 text-xs font-normal text-foreground/50">（定価＝メーカー希望小売価格。編集部調べ）</span>
                   </span>
                 )}
                 {hasReliableTrend && product.price_change_percent !== null ? (
