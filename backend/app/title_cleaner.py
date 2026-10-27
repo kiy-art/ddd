@@ -61,6 +61,17 @@ _BRACKET_TAG_PATTERN = re.compile(r"[【\[（][^】\]）]*[】\]）]")
 # copy. A fixed calendar cutoff has no place in a product's own name.
 _DATE_LIMIT_PATTERN = re.compile(r"\d{1,2}/\d{1,2}まで|\d{1,2}月\d{1,2}日まで|本日限定|今だけ")
 
+# Discount/period copy outside brackets ("10%OFF", "10,000円OFF",
+# "10％オフ", "9/17 9/29", "10/4 20:00 10/09 01:59"). Left in the name,
+# these ended up in product slugs/URLs ("titleist-10-off-09-17-09-29-...").
+# Date forms need a time or a second date right after, so a lone "1/12"
+# (not a sale period) is never touched.
+_DISCOUNT_PERIOD_PATTERN = re.compile(
+    r"(?:最大\s*)?\d[\d,]*\s*(?:%|％|円)\s*(?:OFF|off|オフ)"
+    r"|\d{1,2}/\d{1,2}\s+\d{1,2}:\d{2}(?:\s*[-~〜]?\s*\d{1,2}/\d{1,2}\s+\d{1,2}:\d{2})?"
+    r"|\d{1,2}/\d{1,2}\s*[-~〜]?\s*\d{1,2}/\d{1,2}"
+)
+
 # "2026年モデル" - strips only the "年モデル" marketing-label wording,
 # keeping the year digits themselves (STEP23; was a blanket strip of the
 # whole match through STEP19-22, which meant "2023年モデル" and "2025年
@@ -290,6 +301,7 @@ def _dedupe_brand_name_repeats(text: str, brand: str) -> str:
 def strip_promotional_noise(raw_title: str, brand: str | None = None) -> str:
     text = _BRACKET_TAG_PATTERN.sub(" ", raw_title)
     text = _DATE_LIMIT_PATTERN.sub(" ", text)
+    text = _DISCOUNT_PERIOD_PATTERN.sub(" ", text)
     text = _YEAR_MODEL_PATTERN.sub(r"\1", text)  # keep the year, drop only "年モデル"
     text = _QUANTITY_PATTERN.sub(" ", text)
     text = _PROMO_PATTERN.sub(" ", text)
