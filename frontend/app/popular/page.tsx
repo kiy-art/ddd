@@ -27,9 +27,9 @@ const THIN_DATA_DAYS = 7;
 // How many ranking positions to show before "もっと見る" (the backend keeps 30).
 const INITIAL_ROWS = 10;
 
-const POPULAR_TITLE = "人気ランキング｜楽天市場の売れ筋ゴルフ用品";
+const POPULAR_TITLE = "ゴルフ用品 人気ランキング｜楽天の売れ筋と価格・買い時（毎日更新）";
 const POPULAR_DESCRIPTION =
-  "楽天市場のカテゴリ別売れ筋ランキング（ドライバー・アイアン・ウェッジ・パター・ボール）を毎日更新。価格とレビュー、PAR.の買い時判定もあわせて確認できます。";
+  "楽天市場のカテゴリ別売れ筋ランキングを毎日取得。価格とレビュー、PAR.の買い時判定もあわせて確認できます。";
 
 // X posts link here as /popular?category=driver. The share image shows that
 // category's real top 3 (app/og/popular/route.tsx) instead of the plain default card.

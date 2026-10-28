@@ -37,6 +37,13 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// 10/17 meeting (agenda 3): "A vs B" comparison pages are 657 of ~1,180
+// sitemap URLs (more than the 438 products). They stay crawlable through
+// internal links and keep their canonical; they are only left out of the
+// sitemap so crawl attention goes to product/category pages first. Set
+// back to true to restore them (reversible).
+const INCLUDE_COMPARE_PAIRS_IN_SITEMAP = false;
+
 function sitemapUrl(path: string): string {
   return `${SITE_URL}${path}`;
 }
@@ -127,8 +134,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .map(([path]) => ({ url: sitemapUrl(path), changeFrequency: "daily" as const, priority: 0.7 }));
 
   const pairPaths = new Set<string>();
-  for (const p of products) {
-    for (const rival of nearestRivals(p, products, 2)) pairPaths.add(pairHref(p.slug, rival.slug));
+  if (INCLUDE_COMPARE_PAIRS_IN_SITEMAP) {
+    for (const p of products) {
+      for (const rival of nearestRivals(p, products, 2)) pairPaths.add(pairHref(p.slug, rival.slug));
+    }
   }
   const pairEntries: MetadataRoute.Sitemap = [...pairPaths].map((path) => ({
     url: sitemapUrl(path),
