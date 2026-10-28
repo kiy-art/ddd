@@ -34,3 +34,4 @@ date,action_type,verdict,count_last_30d
 2026-10-26,reorder_homepage,improved,1
 2026-10-27,reorder_homepage,worse,27
 2026-10-28,reorder_homepage,worse,25
+2026-10-29,reorder_homepage,worse,23
