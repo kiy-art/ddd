@@ -28,7 +28,15 @@ export default function PageHeader({
 }) {
   return (
     <section className="relative overflow-hidden border-b border-border bg-card px-6 py-16 sm:py-24">
-      {collageImages && <ProductPhotoCollage images={collageImages} />}
+      {/* 2026-10-30 (社長室/Webデザイン): the collage slots sit at left 56-88%,
+          which on a 375px phone lands on top of the description (e.g. /popular's
+          「当サイト独自の順位ではありません」 was covered). Decorative only, so hide it
+          below sm. */}
+      {collageImages && (
+        <div className="hidden sm:block">
+          <ProductPhotoCollage images={collageImages} />
+        </div>
+      )}
       <GolfMotif
         variant={motif}
         className="pointer-events-none absolute -right-16 -top-10 h-56 w-[420px] text-brand/[0.07] sm:h-72 sm:w-[540px]"

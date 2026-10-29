@@ -316,9 +316,12 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
           <FadeIn delay={100} className="flex flex-col gap-6">
             <TrackViewed slug={product.slug} />
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
+            {/* 2026-10-30 (社長室/Webデザイン): on a 375px phone the 比較/♡ buttons
+                took ~120px beside a text-3xl title, so names broke mid-word
+                ("スコッティキ/ャメロン パタ/ー"). Stack on phones, side by side from sm. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={`/brand/${encodeURIComponent(product.brand)}`}
                     className="text-xs font-medium uppercase tracking-widest text-foreground/40 hover:text-brand"
@@ -343,7 +346,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     </span>
                   )}
                 </div>
-                <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+                <h1 className="mt-2 font-display text-2xl font-semibold leading-snug text-foreground sm:text-4xl sm:leading-tight">
                   {product.name}
                 </h1>
                 {product.release_date && (

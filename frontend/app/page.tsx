@@ -9,7 +9,7 @@ import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
 import Newsletter from "@/components/Newsletter";
 import ProductCard from "@/components/ProductCard";
-import { BUY_SCORE_LABELS, Product, TrendingProducts, getProducts, getSiteStats, getTrendingProducts } from "@/lib/api";
+import { BUY_SCORE_LABELS, CATEGORIES, CATEGORY_LABELS, Product, TrendingProducts, getProducts, getSiteStats, getTrendingProducts } from "@/lib/api";
 import { computeDeals, dropLabel } from "@/lib/deals";
 import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { GUIDES } from "@/lib/guides";
@@ -17,6 +17,8 @@ import { freshPopularityRank } from "@/lib/popularity";
 import PrNotice from "@/components/PrNotice";
 import { SITE_URL } from "@/lib/siteUrl";
 import TodayBuyShowcase from "@/components/TodayBuyShowcase";
+
+const HOME_BROWSE_LIMIT = 12;
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -449,13 +451,33 @@ export default async function Home({
                 現在表示できる商品がありません。価格データが蓄積され次第表示されます。
               </p>
             ) : (
-              <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {listProducts.map((product, i) => (
-                  <FadeIn key={product.id} delay={(i % 6) * 60}>
-                    <ProductCard product={product} listSource="homepage_browse_all" />
-                  </FadeIn>
-                ))}
-              </div>
+              <>
+                {/* 2026-10-30 (社長室/Webデザイン): this list rendered all 50 cards in
+                    one column on phones (home was ~45,000px tall at 375px). Show the
+                    first 12 and hand off to the category pages, which hold the full
+                    catalog, the way large price-comparison sites end their home page. */}
+                <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {listProducts.slice(0, HOME_BROWSE_LIMIT).map((product, i) => (
+                    <FadeIn key={product.id} delay={(i % 6) * 60}>
+                      <ProductCard product={product} listSource="homepage_browse_all" />
+                    </FadeIn>
+                  ))}
+                </div>
+                <div className="mt-10">
+                  <p className="text-sm font-semibold text-foreground">カテゴリ別にすべての商品を見る</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {CATEGORIES.map((c) => (
+                      <Link
+                        key={c}
+                        href={`/category/${c}`}
+                        className="tap rounded-full border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground/75 hover:border-brand hover:text-brand"
+                      >
+                        {CATEGORY_LABELS[c]}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </section>

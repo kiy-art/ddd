@@ -64,6 +64,19 @@ const TAB_BAR_ITEMS = [
       <path d="M4 11 L12 4 L20 11 M6 10 V20 H18 V10" strokeLinecap="round" strokeLinejoin="round" />
     ),
   },
+  // 2026-10-30 (社長室/Webデザイン): /popular is where most shop clicks come
+  // from (last_7d_by_placement: popular_rakuten_ranking 4 of 6, kpi 2026-10-29),
+  // but it was only reachable through 「もっと」. Five tabs fit at 375px (~75px each).
+  {
+    href: "/popular",
+    label: "人気",
+    icon: (
+      <>
+        <path d="M5 20 V13 M12 20 V6 M19 20 V10" strokeLinecap="round" />
+        <path d="M3 20 H21" strokeLinecap="round" />
+      </>
+    ),
+  },
   {
     href: "/deals",
     label: "値下がり",
