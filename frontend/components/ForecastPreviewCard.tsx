@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Product } from "@/lib/api";
 import { forecastMonthLabel } from "@/lib/forecast";
 import { trackEvent } from "@/lib/analytics";
+import { displayName } from "@/lib/displayName";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -24,7 +25,7 @@ export default function ForecastPreviewCard({ product }: { product: Product }) {
         {product.brand}
       </span>
       <h3 className="line-clamp-2 font-display text-lg font-medium leading-snug text-foreground">
-        {product.name}
+        {displayName(product)}
       </h3>
 
       <div className="flex items-end justify-between gap-3 border-t border-border pt-4">

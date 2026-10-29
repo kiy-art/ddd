@@ -8,6 +8,7 @@ import { Product } from "@/lib/api";
 import { trackAffiliateClick } from "@/lib/affiliateTracking";
 import { trackEvent } from "@/lib/analytics";
 import { getPositioningFacts } from "@/lib/badges";
+import { displayName } from "@/lib/displayName";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -51,7 +52,7 @@ export default function CompareStrip({ products, currentId }: { products: Produc
           className="flex flex-col gap-2"
         >
           <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{p.brand}</span>
-          <span className="line-clamp-2 font-display text-sm font-medium text-foreground">{p.name}</span>
+          <span className="line-clamp-2 font-display text-sm font-medium text-foreground">{displayName(p)}</span>
           <span className="font-num text-lg font-semibold text-foreground">{yen(p.current_price)}</span>
           {/* STEP61: positioning + loft, so the strip compares more than price */}
           {(getPositioningFacts(p).length > 0 || p.specs?.loft) && (

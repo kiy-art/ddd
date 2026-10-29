@@ -9,6 +9,7 @@ import { CATEGORY_LABELS, Product } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
 import { comparePrice } from "@/lib/priceCopy";
 import { shopOf } from "@/lib/shopRows";
+import { displayName } from "@/lib/displayName";
 
 // Same threshold as ProductCard: a "30日平均" claim needs real history.
 const THIN_DATA_DAYS = 7;
@@ -86,7 +87,7 @@ function PickCard({ product, large = false }: { product: Product; large?: boolea
               large ? "text-base sm:text-lg" : "text-[13px] sm:text-sm"
             }`}
           >
-            {product.name}
+            {displayName(product)}
           </h3>
           <p className={`mt-auto font-num font-semibold text-foreground ${large ? "text-2xl" : "text-lg"}`}>
             {yen(product.current_price)}

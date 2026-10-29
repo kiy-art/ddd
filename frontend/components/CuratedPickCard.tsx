@@ -5,6 +5,7 @@ import Link from "next/link";
 import SafeProductImage from "@/components/SafeProductImage";
 import { Product } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
+import { displayName } from "@/lib/displayName";
 
 function yen(value: number | null): string {
   if (value === null) return "-";
@@ -41,7 +42,7 @@ export default function CuratedPickCard({
       </div>
       <div>
         <span className="text-[10px] font-medium uppercase tracking-widest text-foreground/40">{product.brand}</span>
-        <h3 className="mt-0.5 line-clamp-2 text-sm font-medium leading-snug text-foreground">{product.name}</h3>
+        <h3 className="mt-0.5 line-clamp-2 text-sm font-medium leading-snug text-foreground">{displayName(product)}</h3>
         <p className="mt-1 font-num text-lg font-semibold text-foreground">{yen(product.current_price)}</p>
       </div>
     </Link>

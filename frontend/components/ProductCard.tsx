@@ -14,6 +14,7 @@ import { trackEvent } from "@/lib/analytics";
 import { getPopularityBadge, getPositioningFacts, getProductBadge } from "@/lib/badges";
 import { comparePrice } from "@/lib/priceCopy";
 import { shopOf } from "@/lib/shopRows";
+import { displayName } from "@/lib/displayName";
 
 // See app/products/[slug]/page.tsx for why this threshold exists: a
 // "30-day average" claim needs more than a day or two of real data behind it.
@@ -144,7 +145,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
               {CATEGORY_LABELS[product.category] ?? product.category} · {product.brand}
             </span>
             <h3 className="mt-1 line-clamp-2 font-display text-[15px] font-bold sm:text-[17px] leading-snug tracking-tight text-foreground">
-              {product.name}
+              {displayName(product)}
             </h3>
             {positioningFacts.length > 0 && (
               <div className="mt-1.5 hidden flex-wrap gap-1 sm:flex">

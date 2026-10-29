@@ -9,6 +9,7 @@ import type { ProductDetail } from "@/lib/api";
 import { PERFORMANCE_TYPE_LABELS, SKILL_LEVEL_LABELS } from "@/lib/badges";
 import { forecastMonthLabel } from "@/lib/forecast";
 import { SPEC_ORDER } from "@/lib/productSpecs";
+import { displayName } from "@/lib/displayName";
 
 // The side-by-side comparison table - /compare (the visitor's own list,
 // removable) and the STEP69 "A vs B" pages (/compare/[pair]).
@@ -59,7 +60,7 @@ export default function CompareTable({
                               href={`/products/${p.slug}`}
                               className="line-clamp-2 font-display text-sm font-medium leading-snug text-foreground hover:text-brand"
                             >
-                              {p.name}
+                              {displayName(p)}
                             </Link>
                             <p className="mt-1 text-[11px] uppercase tracking-widest text-foreground/40">{p.brand}</p>
                           </div>

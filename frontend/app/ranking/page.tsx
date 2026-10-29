@@ -7,6 +7,7 @@ import PageHeader from "@/components/PageHeader";
 import SafeProductImage from "@/components/SafeProductImage";
 import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
 import { getProductBadge } from "@/lib/badges";
+import { displayName } from "@/lib/displayName";
 
 export const revalidate = 0;
 
@@ -80,7 +81,7 @@ function FeaturedRankCard({ product }: { product: Product }) {
         <div>
           <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">{product.brand}</span>
           <h2 className="mt-1 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-            {product.name}
+            {displayName(product)}
           </h2>
         </div>
         <div className="flex items-end gap-6">
@@ -110,7 +111,7 @@ function MediumRankCard({ product, rank }: { product: Product; rank: number }) {
       <ProductThumb product={product} className="aspect-square w-full sm:w-24" />
       <div className="min-w-0 flex-1">
         <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{product.brand}</span>
-        <div className="truncate font-display text-base font-medium text-foreground">{product.name}</div>
+        <div className="truncate font-display text-base font-medium text-foreground">{displayName(product)}</div>
         <div className="mt-1 font-num text-lg font-semibold text-foreground">{yen(product.current_price)}</div>
       </div>
       <AiBuySignal
@@ -133,7 +134,7 @@ function CompactRankRow({ product, rank }: { product: Product; rank: number }) {
       <ProductThumb product={product} className="aspect-square w-14" />
       <div className="min-w-0 flex-1">
         <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{product.brand}</span>
-        <div className="truncate font-display text-base font-medium text-foreground">{product.name}</div>
+        <div className="truncate font-display text-base font-medium text-foreground">{displayName(product)}</div>
         <div className="mt-1 text-sm text-foreground/50">{yen(product.current_price)}</div>
       </div>
       <AiBuySignal

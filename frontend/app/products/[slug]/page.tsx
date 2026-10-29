@@ -36,6 +36,7 @@ import { productSeoDescription, productSeoTitle } from "@/lib/productSeo";
 import { getLowestOffer, getShopOffers } from "@/lib/shopOffers";
 import { SHOP_MARKS, type ShopRow, buildShopBoard, formatUpdatedAt, staleLabel } from "@/lib/shopRows";
 import { SITE_URL } from "@/lib/siteUrl";
+import { displayName } from "@/lib/displayName";
 
 export const revalidate = 0;
 
@@ -349,7 +350,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   )}
                 </div>
                 <h1 className="mt-2 font-display text-2xl font-semibold leading-snug text-foreground sm:text-4xl sm:leading-tight">
-                  {product.name}
+                  {displayName(product)}
                 </h1>
                 {product.release_date && (
                   <p className="mt-1 text-xs text-foreground/40">
@@ -758,7 +759,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     href={pairHref(product.slug, r.slug)}
                     className="rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-semibold text-foreground/70 hover:border-brand/40 hover:text-brand"
                   >
-                    vs {r.brand} {r.name}
+                    vs {displayName(r)}
                   </Link>
                 ))}
               </div>

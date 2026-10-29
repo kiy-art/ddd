@@ -10,6 +10,7 @@ import { pairCandidates, pairHref, pairSlug, nearestRivals } from "@/lib/compare
 import { productDisplayName } from "@/lib/productSeo";
 import { SITE_URL } from "@/lib/siteUrl";
 import PrNotice from "@/components/PrNotice";
+import { displayName } from "@/lib/displayName";
 
 // STEP69: "A vs B" pages for searches like "Qi35 G440 比較 / 違い".
 // Same category only. Every line of "違いのポイント" is built from stored
@@ -227,7 +228,7 @@ export default async function ComparePairPage({ params }: { params: Promise<Para
                     href={pairHref(o.with.slug, o.slug)}
                     className="rounded-full border border-border px-4 py-2 text-xs text-foreground/70 hover:border-brand/40 hover:text-brand"
                   >
-                    {o.with.name} vs {o.brand} {o.name}
+                    {displayName(o.with)} vs {displayName(o)}
                   </Link>
                 ))}
               </div>

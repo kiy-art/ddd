@@ -9,6 +9,79 @@ const CONFIDENCE_META: Record<string, { dotClass: string; label: string }> = {
   low: { dotClass: "bg-signal-low", label: "低" },
 };
 
+const CONFIDENCE_LEVEL: Record<string, number> = { high: 3, medium: 2, low: 1 };
+
+// An icon per kind of reason, picked from words the backend text uses.
+function reasonIcon(reason: string): string {
+  if (/逆方向|不確実|ばらつき/.test(reason)) return "⚠️";
+  if (/傾向|変化|下落|上昇/.test(reason)) return "📉";
+  if (/データ|件/.test(reason)) return "📊";
+  return "•";
+}
+
+function ForecastRangeChart({
+  current,
+  low,
+  high,
+  center,
+  month,
+}: {
+  current: number | null;
+  low: number;
+  high: number;
+  center: number;
+  month: string;
+}) {
+  const values = [low, high, center, ...(current !== null ? [current] : [])];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const pad = (max - min) * 0.08 || max * 0.05;
+  const pos = (v: number) => ((v - (min - pad)) / (max - min + pad * 2)) * 100;
+
+  return (
+    <div
+      className="rounded-xl border border-border bg-background px-4 pb-4 pt-9"
+      role="img"
+      aria-label={`現在${yen(current)}、${month}の予測${yen(low)}〜${yen(high)}（中心${yen(center)}）`}
+    >
+      <div className="relative h-3 rounded-full bg-foreground/5">
+        <div
+          className="absolute inset-y-0 rounded-full bg-brand/30"
+          style={{ left: `${pos(low)}%`, width: `${pos(high) - pos(low)}%` }}
+        />
+        <span
+          className="absolute top-1/2 h-5 w-1 -translate-x-1/2 -translate-y-1/2 rounded bg-brand"
+          style={{ left: `${pos(center)}%` }}
+        />
+        <span
+          className="absolute -top-7 -translate-x-1/2 whitespace-nowrap rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold text-white"
+          style={{ left: `${Math.min(88, Math.max(12, pos(center)))}%` }}
+        >
+          🔮 {month} {yen(center)}
+        </span>
+        {current !== null && (
+          <>
+            <span
+              className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-foreground shadow"
+              style={{ left: `${pos(current)}%` }}
+            />
+            <span
+              className="absolute top-5 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold text-foreground"
+              style={{ left: `${Math.min(88, Math.max(12, pos(current)))}%` }}
+            >
+              今 {yen(current)}
+            </span>
+          </>
+        )}
+      </div>
+      <div className="mt-8 flex justify-between font-num text-[10px] text-foreground/45">
+        <span>予測下限 {yen(low)}</span>
+        <span>予測上限 {yen(high)}</span>
+      </div>
+    </div>
+  );
+}
+
 const TREND_LABEL: Record<string, string> = {
   down: "下落傾向",
   up: "上昇傾向",
@@ -87,44 +160,44 @@ function ForecastBody({ product }: { product: Product }) {
         🔮 ここからは予測です（過去の価格からの推測で、将来価格の保証ではありません）
       </p>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
-          <span className="text-xs text-foreground/45">予測中心値</span>
-          <p className="mt-1 font-num text-2xl font-semibold text-foreground">{yen(forecastCenter)}</p>
-          <p className="mt-0.5 text-xs text-foreground/45">
-            予測レンジ {yen(forecastLow)}〜{yen(forecastHigh)}
-          </p>
-        </div>
-        <div>
-          <span className="text-xs text-foreground/45">予測時期</span>
-          <p className="mt-1 font-display text-2xl font-semibold text-foreground">
-            {forecastMonthLabel(product.forecast_target_date!)}
-          </p>
-          <p className="mt-0.5 text-xs text-foreground/45">{trendLabel}</p>
-        </div>
-        <div>
-          <span className="text-xs text-foreground/45">予測信頼度</span>
-          <p className="mt-1 flex items-center gap-2 font-display text-2xl font-semibold text-foreground">
-            <span className={`inline-block h-2.5 w-2.5 rounded-full ${confidence.dotClass}`} aria-hidden />
-            {confidence.label}
-          </p>
-          <p className="mt-0.5 text-xs text-foreground/45">利用できる価格データの量に基づく確度です</p>
-        </div>
+      {/* 2026-10-30 (社長指示「グラフ化」): the three number columns became
+          one price axis - today's price vs the forecast range. */}
+      <ForecastRangeChart
+        current={current}
+        low={forecastLow}
+        high={forecastHigh}
+        center={forecastCenter}
+        month={forecastMonthLabel(product.forecast_target_date!)}
+      />
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="rounded-full bg-foreground/5 px-3 py-1.5 font-medium text-foreground/70">
+          {product.forecast_trend === "down" ? "📉" : product.forecast_trend === "up" ? "📈" : "➡️"} {trendLabel}
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground/5 px-3 py-1.5 font-medium text-foreground/70">
+          予測の確度
+          <span className="inline-flex gap-0.5" aria-label={confidence.label}>
+            {[0, 1, 2].map((k) => (
+              <span
+                key={k}
+                className={`h-2.5 w-2.5 rounded-full ${k < CONFIDENCE_LEVEL[product.forecast_confidence!] ? confidence.dotClass : "bg-foreground/15"}`}
+              />
+            ))}
+          </span>
+          {confidence.label}
+        </span>
       </div>
 
       {reasons.length > 0 && (
         <div>
           <span className="text-xs font-medium uppercase tracking-widest text-foreground/40">予測の根拠</span>
-          <ol className="mt-2 flex flex-col gap-2 text-sm text-foreground/60">
+          <ul className="mt-2 flex flex-col gap-2">
             {reasons.map((reason, i) => (
-              <li key={i} className="flex gap-2.5">
-                <span className="shrink-0 font-display text-xs font-semibold text-accent-dark">
-                  {["①", "②", "③", "④", "⑤"][i] ?? `${i + 1}.`}
-                </span>
+              <li key={i} className="flex items-start gap-2.5 rounded-lg bg-background px-3 py-2 text-xs leading-relaxed text-foreground/65">
+                <span aria-hidden="true" className="shrink-0 text-base leading-none">{reasonIcon(reason)}</span>
                 <span>{reason}</span>
               </li>
             ))}
-          </ol>
+          </ul>
         </div>
       )}
 

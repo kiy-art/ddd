@@ -17,6 +17,7 @@ import { freshPopularityRank } from "@/lib/popularity";
 import PrNotice from "@/components/PrNotice";
 import { SITE_URL } from "@/lib/siteUrl";
 import TodayBuyShowcase from "@/components/TodayBuyShowcase";
+import { displayName } from "@/lib/displayName";
 
 const HOME_BROWSE_LIMIT = 12;
 
@@ -388,7 +389,7 @@ export default async function Home({
                         {product.brand}
                       </span>
                       <div className="truncate font-display text-base font-medium text-foreground">
-                        {product.name}
+                        {displayName(product)}
                       </div>
                       <div className="mt-1 text-sm text-foreground/50">{yen(product.current_price)}</div>
                     </div>

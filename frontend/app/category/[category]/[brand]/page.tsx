@@ -13,6 +13,7 @@ import { pairHref } from "@/lib/comparePairs";
 import { SORT_LABELS, SORT_OPTIONS, type SortOption, isSortOption, sortProducts } from "@/lib/productSort";
 import { SITE_URL } from "@/lib/siteUrl";
 import PrNotice from "@/components/PrNotice";
+import { displayName } from "@/lib/displayName";
 
 // STEP69: one page per maker within a category ("PING ドライバー") - a
 // real search phrase the plain category page can't rank for. Everything
@@ -210,7 +211,7 @@ export default async function BrandCategoryPage({
                 href={pairHref(cheapest.slug, rival.slug)}
                 className="rounded-full border border-border px-4 py-2 text-foreground/70 hover:border-brand/40 hover:text-brand"
               >
-                {cheapest.name} と {rival.brand} {rival.name} を比較 →
+                {displayName(cheapest)} と {displayName(rival)} を比較 →
               </Link>
             )}
           </div>
