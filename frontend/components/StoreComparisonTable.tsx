@@ -173,12 +173,21 @@ export default function StoreComparisonTable({
         ))}
       </ul>
 
-      <p className="border-t border-border px-6 py-4 text-sm leading-relaxed text-foreground/80 sm:px-8">
-        価格はPAR.が取得した各ショップの価格です（楽天市場は1日1回、Yahoo!ショッピングは取得できた時点）。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク、ゴルフ5・アルペンは価格未取得のためストアのトップへのリンク）。
-        {hasSponsoredRow &&
-          "※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。"}
-        価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
-      </p>
+      {/* 2026-10-30: PR stays visible; how the prices were collected is one tap away. */}
+      <div className="border-t border-border px-6 py-4 text-xs leading-relaxed text-foreground/70 sm:px-8">
+        {hasSponsoredRow && (
+          <p className="flex items-start gap-2">
+            <span className="shrink-0 rounded border border-foreground/30 px-1.5 py-0.5 text-[10px] font-semibold">PR</span>
+            <span>広告を含みます。リンク経由の購入で当サイトが紹介料を受け取ることがあります。</span>
+          </p>
+        )}
+        <details className="mt-2">
+          <summary className="cursor-pointer font-medium text-foreground/60">ℹ️ 価格の取り方（タップで開く）</summary>
+          <p className="mt-1.5">
+            価格はPAR.が取得した各ショップの価格です（楽天市場は1日1回、Yahoo!ショッピングは取得できた時点）。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク、ゴルフ5・アルペンは価格未取得のためストアのトップへのリンク）。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
+          </p>
+        </details>
+      </div>
       {rows.some((row) => row.key === "alpen") && (
         // ValueCommerce's impression counter for the ゴルフ5・アルペン link (program 2145165).
         // eslint-disable-next-line @next/next/no-img-element

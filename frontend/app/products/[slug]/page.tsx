@@ -478,11 +478,22 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                 </TrackedCta>
               )}
               {primaryShop && (
-                <p className="-mt-1 text-center text-[11px] text-foreground/65">
-                  {primaryShop.stale
-                    ? `${staleLabel(primaryShop)}です。最新の価格・在庫・送料は${primaryShop.label}のページで確認できます`
-                    : `${comparedOffers && primaryShop.isLowest ? `当サイトで取得した${shopOffers.map((o) => o.label).join("・")}の価格での比較` : "当サイト取得の価格"}${formatUpdatedAt(primaryShop.updatedAt) ? `（${primaryShop.label}の価格は${formatUpdatedAt(primaryShop.updatedAt)}時点）` : ""}。他店の取得時点は各店の表示を確認してください。在庫・送料・ポイントは${primaryShop.label}のページで確認できます`}
-                </p>
+                primaryShop.stale ? (
+                  <p className="-mt-1 text-center text-[11px] text-foreground/65">
+                    {`${staleLabel(primaryShop)}です。最新の価格・在庫・送料は${primaryShop.label}のページで確認できます`}
+                  </p>
+                ) : (
+                  // 2026-10-30: one short line visible; the full note one tap away.
+                  <details className="-mt-1 text-center text-[11px] text-foreground/65 [&_summary::-webkit-details-marker]:hidden">
+                    <summary className="cursor-pointer list-none">
+                      🕒 {formatUpdatedAt(primaryShop.updatedAt) ? `${formatUpdatedAt(primaryShop.updatedAt)}時点の価格` : "当サイト取得の価格"}
+                      <span className="ml-1 underline decoration-dotted">詳細</span>
+                    </summary>
+                    <p className="mt-1 text-left leading-relaxed">
+                      {`${comparedOffers && primaryShop.isLowest ? `当サイトで取得した${shopOffers.map((o) => o.label).join("・")}の価格での比較` : "当サイト取得の価格"}${formatUpdatedAt(primaryShop.updatedAt) ? `（${primaryShop.label}の価格は${formatUpdatedAt(primaryShop.updatedAt)}時点）` : ""}。他店の取得時点は各店の表示を確認してください。在庫・送料・ポイントは${primaryShop.label}のページで確認できます`}
+                    </p>
+                  </details>
+                )
               )}
               {secondaryShops.length > 0 && (
                 <div className="flex flex-col gap-2">
@@ -554,8 +565,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   </TrackedCta>
                 )}
               </div>
-              <p className="text-sm leading-relaxed text-foreground/80">
-                ※広告・PRを含みます。リンクにはアフィリエイトリンクが含まれ、リンク経由の購入により当サイトが紹介料を受け取ることがあります。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
+              {/* 2026-10-30: kept visible (広告であることは目立つ位置に必要), shortened to two lines. */}
+              <p className="flex items-start gap-2 text-xs leading-relaxed text-foreground/70">
+                <span className="shrink-0 rounded border border-foreground/30 px-1.5 py-0.5 text-[10px] font-semibold text-foreground/70">PR</span>
+                <span>広告を含みます。リンク経由の購入で当サイトが紹介料を受け取ることがあります。価格・在庫は購入前に販売元でご確認ください。</span>
               </p>
             </div>
 
