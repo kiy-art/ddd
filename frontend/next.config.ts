@@ -13,6 +13,18 @@ const nextConfig: NextConfig = {
   // listed (URL only) if another site links to it. The admin layout is a
   // client component and cannot export metadata, so noindex is sent as an
   // HTTP header instead. ":path*" also matches /admin itself.
+  // 2026-10-30: the admin UI is closed by the 社長's decision (numbers are
+  // now read from one dashboard outside the site). Every /admin page
+  // redirects to the top page. The backend admin API (/api/admin/*,
+  // token-protected) is untouched, so the nightly jobs and click counts
+  // keep working. To reopen the screens, delete this redirects() block.
+  async redirects() {
+    return [
+      { source: "/admin", destination: "/", permanent: false },
+      { source: "/admin/:path*", destination: "/", permanent: false },
+    ];
+  },
+
   async headers() {
     return [
       {
