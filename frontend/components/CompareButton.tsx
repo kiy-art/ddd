@@ -27,7 +27,7 @@ export default function CompareButton({ slug, className }: { slug: string; class
       title={atLimit ? `比較は最大${MAX_COMPARE}件までです` : undefined}
       className={
         className ??
-        `rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+        `inline-flex min-h-11 items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
           inCompare
             ? "border-brand bg-brand text-on-brand"
             : "border-border bg-background text-foreground/60 hover:border-brand/40 hover:text-brand"

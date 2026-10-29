@@ -79,10 +79,15 @@ export default function ProductCard({ product, listSource }: { product: Product;
           list_source: listSource ?? "unknown",
         })
       }
-      className="flex flex-1 flex-col"
+      className="flex flex-1 flex-row sm:flex-col"
     >
-      <div className="relative aspect-[4/3] w-full bg-background">
-        <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5">
+      {/* 2026-10-30 (社長室/Webデザイン, 社長承認 B-2): on phones the card was a
+          ~600px tall vertical block, so one product filled most of the screen.
+          Below sm it is now a horizontal row (photo left, facts right), about
+          250px tall - roughly 3 products per screen, like kakaku.com's lists.
+          From sm up the layout is unchanged. */}
+      <div className="relative aspect-square w-32 shrink-0 bg-background sm:aspect-[4/3] sm:w-full">
+        <div className="absolute left-3 top-3 z-10 hidden flex-col items-start gap-1.5 sm:flex">
           {isPopularAndDropping && (
             <span className="rounded-full bg-sale px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white shadow-sm">
               人気なのに値下がり中
@@ -108,27 +113,41 @@ export default function ProductCard({ product, listSource }: { product: Product;
         </div>
         <FavoriteButton
           slug={product.slug}
-          className="absolute right-3 top-3 z-10 rounded-full bg-background/80 p-2 text-foreground/60 shadow-sm backdrop-blur-sm transition-colors hover:text-brand"
+          className="absolute right-0 top-0 z-10 rounded-full bg-background/80 p-3 text-foreground/60 sm:right-3 sm:top-3 sm:p-2 shadow-sm backdrop-blur-sm transition-colors hover:text-brand"
         />
         <SafeProductImage
             src={product.image_url}
             alt={product.name}
             category={product.category}
-            className="object-contain p-8 transition-transform duration-500 group-hover:scale-[1.04]"
+            className="object-contain p-2 transition-transform sm:p-8 duration-500 group-hover:scale-[1.04]"
           />
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3 sm:gap-4 sm:p-6">
+        {/* Phones: the photo is too small to carry the badges, so the first one moves here. */}
+        {(isPopularAndDropping || popularityBadge || badge) && (
+          <span
+            className={`self-start rounded-full px-2 py-0.5 text-[10px] font-semibold sm:hidden ${
+              isPopularAndDropping
+                ? "bg-sale text-white"
+                : popularityBadge || badge?.tone === "strong"
+                  ? "bg-brand text-on-brand"
+                  : "border border-border-strong bg-white text-foreground/75"
+            }`}
+          >
+            {isPopularAndDropping ? "人気なのに値下がり中" : popularityBadge ? popularityBadge.label : badge?.label}
+          </span>
+        )}
+        <div className="flex items-start justify-between gap-2 sm:gap-3">
           <div className="min-w-0">
             <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">
               {CATEGORY_LABELS[product.category] ?? product.category} · {product.brand}
             </span>
-            <h3 className="mt-1 line-clamp-2 font-display text-[17px] font-bold leading-snug tracking-tight text-foreground">
+            <h3 className="mt-1 line-clamp-2 font-display text-[15px] font-bold sm:text-[17px] leading-snug tracking-tight text-foreground">
               {product.name}
             </h3>
             {positioningFacts.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
+              <div className="mt-1.5 hidden flex-wrap gap-1 sm:flex">
                 {positioningFacts.slice(0, 2).map((fact) => (
                   <span
                     key={fact.label}
@@ -151,13 +170,13 @@ export default function ProductCard({ product, listSource }: { product: Product;
           />
         </div>
 
-        <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+        <div className="mt-auto flex flex-col gap-1.5 border-t border-border pt-2 sm:gap-3 sm:pt-4">
           <div className="flex items-end justify-between gap-3">
             <div>
               {comparison && comparison.direction === "down" && referencePrice !== null && (
                 <div className="text-xs text-foreground/35 line-through">{yen(referencePrice)}</div>
               )}
-              <div className="font-num text-2xl font-semibold text-foreground">
+              <div className="font-num text-xl font-semibold text-foreground sm:text-2xl">
                 {yen(product.current_price)}
               </div>
               {product.category === "iron" && (
@@ -195,11 +214,13 @@ export default function ProductCard({ product, listSource }: { product: Product;
           )}
 
           {hasReliableTrend && product.lowest_price !== null && product.average_price !== null && product.current_price !== null && (
-            <MiniPriceRangeBar
-              low={product.lowest_price}
-              average={product.average_price}
-              current={product.current_price}
-            />
+            <div className="hidden sm:block">
+              <MiniPriceRangeBar
+                low={product.lowest_price}
+                average={product.average_price}
+                current={product.current_price}
+              />
+            </div>
           )}
         </div>
 
@@ -207,13 +228,13 @@ export default function ProductCard({ product, listSource }: { product: Product;
     </Link>
 
       {/* Outside the product link: a link inside a link is invalid HTML. */}
-      <div className="flex items-center gap-2 px-6 pb-6">
+      <div className="flex items-center gap-2 px-3 pb-3 sm:px-6 sm:pb-6">
         {shop && product.affiliate_url && (
           <TrackedCta
             href={product.affiliate_url}
             target="_blank"
             rel="noopener noreferrer sponsored"
-            className="btn-shop tap inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 text-[13px] font-semibold"
+            className="btn-shop tap inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 text-[13px] font-semibold"
             event="cta_click"
             params={{
               product_id: product.id,
