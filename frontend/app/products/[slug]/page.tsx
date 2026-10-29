@@ -22,6 +22,7 @@ import ProductFAQ from "@/components/ProductFAQ";
 import SafeProductImage from "@/components/SafeProductImage";
 import StickyBuyBar from "@/components/StickyBuyBar";
 import StoreComparisonTable from "@/components/StoreComparisonTable";
+import PartnerOfferJalanGolf from "@/components/PartnerOfferJalanGolf";
 import TrackedCta from "@/components/TrackedCta";
 import TrackViewed from "@/components/TrackViewed";
 import { CATEGORY_LABELS, Product, ProductDetail, getCategoryProducts, getProduct, getSiteStats } from "@/lib/api";
@@ -675,6 +676,11 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
         <FadeIn id="store-comparison" className="mt-12 scroll-mt-20">
           <StoreComparisonTable product={product} lastUpdatedAt={lastPriceUpdatedAt} />
         </FadeIn>
+
+        {/* #004 / DQ-19: the one PR partner-offer slot, right after the comparison table. */}
+        <div className="mt-6">
+          <PartnerOfferJalanGolf productId={product.id} category={product.category} />
+        </div>
 
         <FadeIn className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-10">
           <div className="flex items-center gap-2">
