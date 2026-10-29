@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   return {
     title: `${name}の買い時商品一覧`,
     description: `${name}の商品の価格推移と買い時判定を一覧で確認できます。`,
+    alternates: { canonical: `/brand/${encodeURIComponent(name)}` },
   };
 }
 
