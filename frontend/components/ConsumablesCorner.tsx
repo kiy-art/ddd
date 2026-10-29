@@ -20,7 +20,7 @@ import { getAmazonSearchUrl } from "@/lib/amazon";
 // rendered - it's an extra, never something that can break the page.
 
 const PICKS_TIMEOUT_MS = 4000;
-const TITLE = "🤖 AIアナリティクス厳選：今週の買い足し・定番消耗品";
+const TITLE = "AIアナリティクス厳選：今週の買い足し・定番消耗品";
 
 function yen(value: number): string {
   return `¥${value.toLocaleString("ja-JP")}`;
@@ -126,7 +126,7 @@ function PickCard({ pick, placement }: { pick: ConsumablePick; placement: string
               category={trackingCategory}
               placement={placement}
             >
-              楽天で見る
+              楽天市場で見る
               <CtaArrow className="h-3.5 w-3.5" />
             </TrackedCta>
           )}

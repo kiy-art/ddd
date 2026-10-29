@@ -123,17 +123,28 @@ export default async function Home({
     bestBuy = [...bestBuy, ...fallbackRanked].slice(0, BEST_BUY_COUNT);
   }
 
-  const topDeals = computeDeals(allProducts).slice(0, 3);
-  const popularAndDropping = allProducts
+  // 2026-10-30 (社長室/Webデザイン, 社長承認 B-3): the same product used to
+  // appear in up to 4 home sections (Z-STAR XV 4x, Scotty Cameron 3x). Each
+  // section now skips products an earlier section already showed, in page
+  // order. The ranking list is exempt - its order is the point of it.
+  const shown = new Set<number>(bestBuy.map((p) => p.id));
+  const takeFresh = <T,>(items: T[], idOf: (item: T) => number, count: number): T[] => {
+    const picked = items.filter((item) => !shown.has(idOf(item))).slice(0, count);
+    picked.forEach((item) => shown.add(idOf(item)));
+    return picked;
+  };
+
+  const popularAndDropping = takeFresh(allProducts
     .filter((p) => {
       if (freshPopularityRank(p) === null) return false;
       if (p.msrp !== null && p.current_price !== null && p.current_price < p.msrp) return true;
       const reliable = p.buy_score !== "insufficient_data" && p.history_span_days >= THIN_DATA_DAYS;
       return reliable && p.price_change_percent !== null && p.price_change_percent < 0;
     })
-    .sort((a, b) => (freshPopularityRank(a) ?? 999) - (freshPopularityRank(b) ?? 999))
-    .slice(0, 3);
-  const forecastPicks = allProducts
+    .sort((a, b) => (freshPopularityRank(a) ?? 999) - (freshPopularityRank(b) ?? 999)), (p) => p.id, 3);
+  const trendingProducts = takeFresh(trending.products, (p) => p.id, trending.products.length);
+  const topDeals = takeFresh(computeDeals(allProducts), (d) => d.product.id, 3);
+  const forecastPicks = takeFresh(allProducts
     .filter(
       (p) =>
         p.forecast_trend === "down" &&
@@ -143,8 +154,10 @@ export default async function Home({
         p.forecast_high_price !== null &&
         p.forecast_target_date !== null
     )
-    .sort((a, b) => (b.current_price! - b.forecast_center_price!) - (a.current_price! - a.forecast_center_price!))
-    .slice(0, 3);
+    .sort((a, b) => (b.current_price! - b.forecast_center_price!) - (a.current_price! - a.forecast_center_price!)), (p) => p.id, 3);
+  // A visitor who picked a filter tab wants that whole filtered list, so only
+  // the default view skips what the sections above already showed.
+  const browseProducts = (activeTab === "all" ? listProducts.filter((p) => !shown.has(p.id)) : listProducts).slice(0, HOME_BROWSE_LIMIT);
   const topRanked = [...allProducts]
     .sort((a, b) => (b.buy_signal_score ?? -1) - (a.buy_signal_score ?? -1))
     .slice(0, 5);
@@ -253,7 +266,7 @@ export default async function Home({
         </section>
       )}
 
-      {!error && trending.products.length > 0 && (
+      {!error && trendingProducts.length > 0 && (
         <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-3">
@@ -267,7 +280,7 @@ export default async function Home({
             </FadeIn>
 
             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {trending.products.map((product, i) => (
+              {trendingProducts.map((product, i) => (
                 <FadeIn key={product.id} delay={i * 90}>
                   <ProductCard product={product} listSource="homepage_trending" />
                 </FadeIn>
@@ -446,7 +459,7 @@ export default async function Home({
               </div>
             </FadeIn>
 
-            {listProducts.length === 0 ? (
+            {browseProducts.length === 0 ? (
               <p className="mt-12 rounded-2xl border border-dashed border-border bg-background px-4 py-12 text-center text-sm text-foreground/50">
                 現在表示できる商品がありません。価格データが蓄積され次第表示されます。
               </p>
@@ -457,7 +470,7 @@ export default async function Home({
                     first 12 and hand off to the category pages, which hold the full
                     catalog, the way large price-comparison sites end their home page. */}
                 <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {listProducts.slice(0, HOME_BROWSE_LIMIT).map((product, i) => (
+                  {browseProducts.map((product, i) => (
                     <FadeIn key={product.id} delay={(i % 6) * 60}>
                       <ProductCard product={product} listSource="homepage_browse_all" />
                     </FadeIn>
