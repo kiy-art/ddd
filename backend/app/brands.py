@@ -16,6 +16,7 @@ import re
 # product than to publish one under a guessed/wrong brand.
 BRAND_KEYWORDS = {
     "PING": "PING",
+    "ピンゴルフ": "PING",  # 2026-10-30: the maker's own "PING Golf" in katakana
     "ピン": "PING",
     "Titleist": "Titleist",
     "タイトリスト": "Titleist",
@@ -103,7 +104,9 @@ BRAND_KEYWORDS = {
 # "ライトグリーン" / "ハイライト" / "ライトウェイト", and "ダイヤ" is also
 # "ダイヤモンド" - so they only count as a whole katakana word.
 KEYWORD_PATTERNS = {
-    "ピン": re.compile(r"ピン(?![ァ-ヶー型])"),
+    # 2026-10-30: also "ピン タイプ" / "ピン 型" with a space - putter head
+    # shape words that got WOSS and no-brand putters filed as PING.
+    "ピン": re.compile(r"ピン(?![ァ-ヶー型])(?!\s*(?:タイプ|型))"),
     "ライト": re.compile(r"(?<![ァ-ヶー])ライト(?![ァ-ヶー])"),
     "ダイヤ": re.compile(r"(?<![ァ-ヶー])ダイヤ(?![ァ-ヶー])"),
     "LITE": re.compile(r"\bLITE\b"),
@@ -132,7 +135,7 @@ def match_brand(item_name: str) -> str | None:
 # cleaned title, not a duplicate). Used by title_cleaner.py to collapse a
 # shop repeating a brand's own name in two scripts down to one mention.
 BRAND_NAME_SYNONYMS: dict[str, list[str]] = {
-    "PING": ["ピン"],
+    "PING": ["ピンゴルフ", "ピン"],
     "Titleist": ["タイトリスト"],
     "Callaway": ["キャロウェイ"],
     "TaylorMade": ["テーラーメイド"],

@@ -532,6 +532,14 @@ export function adminRunCategoryMigration(token: string, dryRun: boolean) {
   });
 }
 
+// 2026-10-30: fixes products filed under the wrong brand (backend app/brand_migration.py).
+export function adminRunBrandMigration(token: string, dryRun: boolean) {
+  return apiFetch<{ applied: boolean; products_checked: number; rebranded: number; sent_to_review: number; plan_lines: string[] }>(
+    `/api/admin/run-brand-migration?dry_run=${dryRun}`,
+    { method: "POST", headers: adminHeaders(token) }
+  );
+}
+
 // STEP61: applies the researched maker facts (level / type / release date).
 export function adminRunProductFacts(token: string, dryRun: boolean) {
   return apiFetch<{ applied: boolean; products_checked: number; updated: number; plan_lines: string[] }>(

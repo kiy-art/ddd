@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, kpi, models, pipeline, popularity, product_facts, progress, retention, schemas, self_heal, title_migration, x_post
+from app import brand_migration, category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, kpi, models, pipeline, popularity, product_facts, progress, retention, schemas, self_heal, title_migration, x_post
 from app.auth import require_admin
 from app.database import SessionLocal, get_db
 
@@ -797,6 +797,25 @@ def run_category_migration(dry_run: bool = False, db: Session = Depends(get_db))
         "products_checked": result.products_checked,
         "moved": result.moved,
         "moved_by_category": result.moved_by_category,
+        "plan_lines": result.plan_lines,
+    }
+
+
+@router.post("/run-brand-migration")
+def run_brand_migration(dry_run: bool = False, db: Session = Depends(get_db)):
+    """2026-10-30: fixes products filed under the wrong brand (app/
+    brand_migration.py) - renames the brand when the listing names exactly
+    one other maker, and sends "ピン タイプ"-only matches back to review.
+    ?dry_run=true returns the plan without writing; the admin panel shows
+    that preview first and only applies after the owner confirms it."""
+    result = brand_migration.run_brand_migration(db, apply=not dry_run)
+    if result.applied:
+        crud.create_error_log(db, source="brand_migration", level="info", message="\n".join(result.plan_lines))
+    return {
+        "applied": result.applied,
+        "products_checked": result.products_checked,
+        "rebranded": result.rebranded,
+        "sent_to_review": result.sent_to_review,
         "plan_lines": result.plan_lines,
     }
 

@@ -7,6 +7,7 @@ import {
   ImprovementOpportunity,
   adminDiscoverProducts,
   adminRefreshConsumables,
+  adminRunBrandMigration,
   adminRunCategoryMigration,
   CATEGORY_LABELS,
   adminBackfillImages,
@@ -63,6 +64,7 @@ export default function AdminDashboard() {
     text: string;
     lines: string[];
   } | null>(null);
+  const [brandStatus, setBrandStatus] = useState<{ phase: "checking" | "applying" | "done" | "error"; text: string; lines: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   // STEP61: today's three copy-paste drafts (朝・昼・夜).
   const [xDrafts, setXDrafts] = useState<XPostDraft[] | null | undefined>(undefined);
@@ -460,6 +462,47 @@ export default function AdminDashboard() {
     }
   };
 
+  // 2026-10-30: brand fixes - same preview-then-confirm flow as the
+  // category fix above.
+  const handleBrandMigration = async () => {
+    if (!token) return;
+    setBusy(true);
+    setBrandStatus({ phase: "checking", text: "ブランドを確認しています…（サーバーが休止中の場合、起動に1分ほどかかることがあります）", lines: [] });
+    try {
+      const preview = await adminRunBrandMigration(token, true);
+      const lines = preview.plan_lines.filter((line) => line.startsWith("- id=")).map((line) => line.slice(2));
+      const total = preview.rebranded + preview.sent_to_review;
+      if (total === 0) {
+        setBrandStatus({ phase: "done", text: `確認完了：${preview.products_checked}件を確認しました。直す必要のある商品はありません。`, lines: [] });
+        return;
+      }
+      const summary = `ブランド変更${preview.rebranded}件・確認待ちに戻す（非公開）${preview.sent_to_review}件`;
+      setBrandStatus({ phase: "checking", text: `${summary}の予定です（まだ変更していません）。`, lines });
+      const confirmed = window.confirm(`次の${total}件を直します（${summary}）:\n\n${lines.slice(0, 30).join("\n")}\n\n実行しますか？`);
+      if (!confirmed) {
+        setBrandStatus({ phase: "done", text: `キャンセルしました。何も変更していません（${summary}の予定でした）。`, lines });
+        return;
+      }
+      setBrandStatus({ phase: "applying", text: "ブランドを修正しています…", lines });
+      const result = await adminRunBrandMigration(token, false);
+      setBrandStatus({
+        phase: "done",
+        text: `修正しました：ブランド変更${result.rebranded}件・確認待ちに戻した商品${result.sent_to_review}件（「確認待ち」から承認すると再公開できます）。`,
+        lines,
+      });
+      await load();
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setBrandStatus({
+        phase: "error",
+        text: `ブランドの確認に失敗しました：${detail}${detail.includes("Not Found") || detail.includes("404") ? "（バックエンドが最新版になっていない可能性があります。Renderでgolf-deals-backendのデプロイ状況をご確認ください）" : ""}`,
+        lines: [],
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleCleanTitles = async () => {
     if (!token) return;
     const confirmed = window.confirm(
@@ -642,6 +685,47 @@ export default function AdminDashboard() {
             {categoryStatus.lines.length > 0 && (
               <ul className="mt-2 max-h-64 overflow-y-auto font-num text-xs text-foreground/60">
                 {categoryStatus.lines.map((line) => (
+                  <li key={line} className="border-t border-border py-1 first:border-0">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-display font-medium text-foreground">ブランドの修正</h2>
+        <p className="text-sm text-foreground/50">
+          商品名に別メーカーの名前しか無い商品（例：L.A.B GolfのパターがPINGで登録）のブランドを直し、
+          「ピン タイプ」「ピン型」などの形の言葉だけでPINGと誤認された商品を「確認待ち」（非公開）に戻します。
+          押すとまず変更予定の一覧を表示し、確認してから実行します。
+        </p>
+        <button
+          onClick={handleBrandMigration}
+          disabled={busy}
+          className="w-fit rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {brandStatus?.phase === "checking" && brandStatus.lines.length === 0
+            ? "確認中…"
+            : brandStatus?.phase === "applying"
+              ? "修正中…"
+              : "ブランドを確認・修正する"}
+        </button>
+        {brandStatus && (
+          <div
+            role="status"
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              brandStatus.phase === "error"
+                ? "border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+                : "border-border bg-background text-foreground/75"
+            }`}
+          >
+            <p>{brandStatus.text}</p>
+            {brandStatus.lines.length > 0 && (
+              <ul className="mt-2 max-h-64 overflow-y-auto font-num text-xs text-foreground/60">
+                {brandStatus.lines.map((line) => (
                   <li key={line} className="border-t border-border py-1 first:border-0">
                     {line}
                   </li>

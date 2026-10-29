@@ -8,7 +8,7 @@
 // Same "same name, other script" pairs as backend/app/brands.py
 // BRAND_NAME_SYNONYMS, plus the English spellings shops use.
 const BRAND_ALIASES: Record<string, string[]> = {
-  PING: ["PING", "ピン"],
+  PING: ["PING", "ピンゴルフ", "ピン"],
   Titleist: ["Titleist", "TITLEIST", "タイトリスト"],
   Callaway: ["Callaway", "CALLAWAY", "キャロウェイ"],
   TaylorMade: ["TaylorMade", "TAYLORMADE", "TaylorMade Golf", "テーラーメイド"],
