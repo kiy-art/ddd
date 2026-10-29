@@ -195,7 +195,7 @@ export default async function Home({
                 <h2 className="mt-2 font-display text-xl font-semibold text-foreground sm:text-2xl">
                   注目の特集ガイド
                 </h2>
-                <p className="mt-1 text-sm text-foreground/55">実際の価格データに基づいた、今チェックしたい商品の特集です。</p>
+                <p className="mt-1 text-sm text-foreground/55">価格データで選んだ特集</p>
               </div>
               <Link
                 href="/guides"
@@ -215,7 +215,7 @@ export default async function Home({
                     <h3 className="font-display text-base font-semibold leading-snug text-foreground">
                       {guide.title}
                     </h3>
-                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-foreground/55">
+                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-foreground/55 max-sm:hidden">
                       {guide.description}
                     </p>
                   </Link>
@@ -244,7 +244,7 @@ export default async function Home({
                   人気なのに値下がり中
                 </h2>
                 <p className="mt-3 max-w-lg text-sm text-foreground/55">
-                  楽天市場の実際の売れ筋ランキングに入っているのに、価格が下がっている商品です。
+                  🔥 楽天の売れ筋 × 📉 値下がり
                 </p>
               </div>
               <Link
@@ -275,7 +275,7 @@ export default async function Home({
                 今、注目されているギア
               </h2>
               <p className="max-w-lg text-sm text-foreground/55">
-                実際のクリック数をもとに、直近よく見られている商品をまとめました。
+                👀 いまクリックが多い商品
               </p>
             </FadeIn>
 
@@ -414,7 +414,7 @@ export default async function Home({
               あなたに合うクラブを診断
             </h2>
             <p className="mt-3 max-w-md text-sm text-foreground/55">
-              カテゴリと予算を選ぶだけで、今チェックすべき商品を価格データから絞り込みます。
+              カテゴリと予算を選ぶだけで候補がわかります
             </p>
           </div>
           <Link

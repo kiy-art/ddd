@@ -46,9 +46,25 @@ export default function Hero({
             <span className="inline-block bg-gradient-to-r from-[#047857] via-[#059669] to-[#10b981] bg-clip-text text-transparent [-webkit-background-clip:text]">買うのは今か、</span>
             <span className="inline-block bg-gradient-to-r from-[#047857] via-[#059669] to-[#10b981] bg-clip-text text-transparent [-webkit-background-clip:text]">待つか。</span>
           </h1>
-          <p className="text-sm leading-relaxed text-foreground/65 sm:text-lg">
-            価格の記録から、今日の買い時の目安をお伝えします。
-          </p>
+          {/* 2026-10-30: the concept as a 3-icon flow instead of a sentence
+              (社長指示「文字が多い。絵で一目で」). The sentence stays for
+              screen readers and search engines. */}
+          <p className="sr-only">価格の記録から、今日の買い時の目安をお伝えします。</p>
+          <ol aria-hidden="true" className="flex items-center gap-1 sm:gap-2.5">
+            {[
+              { icon: "📅", label: "毎日記録" },
+              { icon: "📉", label: "平均と比較" },
+              { icon: "🎯", label: "買い時を判定" },
+            ].map((s, i, arr) => (
+              <li key={s.label} className="flex items-center gap-1 sm:gap-2.5">
+                <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-brand/20 bg-white/90 px-2.5 py-1.5 text-[11px] font-semibold text-foreground shadow-sm sm:px-4 sm:py-2 sm:text-sm">
+                  <span className="text-xs sm:text-base">{s.icon}</span>
+                  {s.label}
+                </span>
+                {i < arr.length - 1 && <span className="text-[11px] text-brand/60 sm:text-base">→</span>}
+              </li>
+            ))}
+          </ol>
           <div className="hidden flex-wrap gap-3 pt-2 sm:flex">
             <Link href="#best-buy" className="btn-shop rounded-full px-7 py-3.5 text-sm font-semibold">
               今日の買い時を見る
