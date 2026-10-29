@@ -88,7 +88,7 @@ export default async function BrandPage({ params }: { params: Promise<Params> })
   return (
     <div>
       <PageHeader
-        eyebrow="Brand"
+        eyebrow="ブランド"
         title={name}
         description={`${products.length}商品の価格を毎日追跡しています。`}
         stats={stats}

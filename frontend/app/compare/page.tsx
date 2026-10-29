@@ -40,7 +40,7 @@ export default async function ComparePage({
   return (
     <div>
       <PageHeader
-        eyebrow="Compare"
+        eyebrow="比較"
         title="商品比較"
         description={`価格・買い時スコア・価格予測を並べて比較できます（最大${MAX_COMPARE}商品）。`}
         collageImages={products.map((p) => p.image_url)}

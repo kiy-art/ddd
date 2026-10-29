@@ -80,7 +80,8 @@ export default async function FinderPage({
   return (
     <div>
       <PageHeader
-        eyebrow="Golf Club Finder"
+        eyebrow="クラブ診断"
+        tone="buy"
         title="クラブ診断"
         description="カテゴリと予算を選ぶだけで、今チェックすべき商品を価格データから絞り込みます。"
         motif="flag"

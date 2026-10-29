@@ -107,7 +107,7 @@ export default async function CategoryPage({
   return (
     <div>
       <PageHeader
-        eyebrow="Category"
+        eyebrow="カテゴリ"
         title={`今日の${categoryLabel}お買い得情報`}
         description={summary}
         collageImages={products.map((p) => p.image_url)}

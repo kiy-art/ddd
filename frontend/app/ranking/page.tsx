@@ -107,7 +107,7 @@ function MediumRankCard({ product, rank }: { product: Product; rank: number }) {
       href={`/products/${product.slug}`}
       className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-brand/40 sm:flex-row sm:items-center"
     >
-      <span className="font-display text-4xl font-semibold text-foreground/15">{String(rank).padStart(2, "0")}</span>
+      <span className="font-display text-4xl font-bold text-brand">{String(rank).padStart(2, "0")}</span>
       <ProductThumb product={product} className="aspect-square w-full sm:w-24" />
       <div className="min-w-0 flex-1">
         <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{product.brand}</span>
@@ -130,7 +130,7 @@ function CompactRankRow({ product, rank }: { product: Product; rank: number }) {
       href={`/products/${product.slug}`}
       className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-brand/40 sm:p-5"
     >
-      <span className="w-8 shrink-0 text-center font-display text-xl font-semibold text-foreground/25">{rank}</span>
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-base font-bold ${rank <= 3 ? "bg-brand text-on-brand" : "bg-foreground/5 text-foreground/45"}`}>{rank}</span>
       <ProductThumb product={product} className="aspect-square w-14" />
       <div className="min-w-0 flex-1">
         <span className="text-[11px] font-medium uppercase tracking-widest text-foreground/40">{product.brand}</span>
@@ -170,7 +170,8 @@ export default async function RankingPage({
   return (
     <div>
       <PageHeader
-        eyebrow="Ranking"
+        eyebrow="買い時ランキング"
+        tone="buy"
         title="買い時ランキング"
         description="今、最も買い時なゴルフ用品をカテゴリ別にランキング表示しています。"
         collageImages={ranked.map((p) => p.image_url)}

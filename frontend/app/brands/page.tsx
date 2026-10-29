@@ -19,7 +19,7 @@ export default async function BrandsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Brands"
+        eyebrow="ブランド一覧"
         title="ブランドで探す"
         description={`${brands.length}ブランドの商品を毎日価格追跡しています。`}
         motif="dimples"

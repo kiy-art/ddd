@@ -182,7 +182,8 @@ export default async function PopularPage({
   return (
     <div>
       <PageHeader
-        eyebrow="Popular"
+        eyebrow="人気"
+        tone="gold"
         title="人気ランキング"
         description={`楽天市場のカテゴリ別売れ筋ランキングを毎日取得して掲載しています。当サイト独自の順位ではありません。${
           active ? `（ランキング取得：${fetchedLabel(active.fetched_at)}）` : ""
