@@ -85,7 +85,13 @@ export default function AiBuySignal({
             {score !== null && size === "lg" && <span className="ml-0.5 text-xs font-medium text-foreground/40">/100</span>}
           </span>
         </div>
-        <span className={`whitespace-nowrap font-semibold ${dims.labelText}`} style={{ color }}>
+        {/* 2026-10-30: buy verdicts are a filled emerald pill so the eye
+            lands on them; hold/wait stay a quiet grey pill. */}
+        <span
+          className={`whitespace-nowrap rounded-full px-2 py-0.5 font-bold ${dims.labelText} ${
+            positive ? "bg-brand text-on-brand" : "bg-foreground/[0.06] text-accent-dark"
+          }`}
+        >
           {verdict.label}
         </span>
         {size === "lg" && <span className="text-[10px] text-foreground/40">{SCORE_NAME}</span>}

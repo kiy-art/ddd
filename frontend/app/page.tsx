@@ -1,3 +1,4 @@
+import SectionHeading from "@/components/SectionHeading";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -177,7 +178,7 @@ export default async function Home({
         {!error && bestBuy.length > 0 && (
           <div className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-3">
-              <h2 className="font-display text-lg font-semibold text-foreground sm:text-2xl">今日の買い時</h2>
+              <h2 className="flex items-center gap-2 font-display text-lg font-bold text-foreground sm:text-2xl"><span aria-hidden className="h-5 w-1.5 rounded-full bg-brand" />今日の買い時<span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-on-brand">今が買い時</span></h2>
               <span className="text-xs text-foreground/65">価格の記録から選んだ{bestBuy.length}商品</span>
             </div>
             <p className="text-xs text-foreground/65">記録した価格にもとづく目安です。将来の価格を保証するものではありません。</p>
@@ -191,13 +192,7 @@ export default async function Home({
         <section className="border-t border-border bg-background px-6 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Featured Guides</span>
-                <h2 className="mt-2 font-display text-xl font-semibold text-foreground sm:text-2xl">
-                  注目の特集ガイド
-                </h2>
-                <p className="mt-1 text-sm text-foreground/55">価格データで選んだ特集</p>
-              </div>
+              <SectionHeading tone="buy" label="特集" title="注目の特集ガイド" sub="価格データで選んだ特集" />
               <Link
                 href="/guides"
                 className="shrink-0 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground/70 transition-colors hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
@@ -211,7 +206,7 @@ export default async function Home({
                 <FadeIn key={guide.slug} delay={i * 80}>
                   <Link
                     href={`/guides/${guide.slug}`}
-                    className="block h-full rounded-2xl border border-brand/30 bg-card p-5 transition-colors hover:border-brand/60 sm:p-6"
+                    className="block h-full rounded-2xl border border-border border-l-4 border-l-brand bg-card p-5 transition-colors hover:border-brand/60 sm:p-6"
                   >
                     <h3 className="font-display text-base font-semibold leading-snug text-foreground">
                       {guide.title}
@@ -234,20 +229,10 @@ export default async function Home({
       )}
 
       {!error && popularAndDropping.length > 0 && (
-        <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
+        <section className="border-t border-gold/20 bg-gold-wash px-6 py-14 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <span className="text-xs font-medium uppercase tracking-[0.3em] text-sale">
-                  Popular &amp; Dropping
-                </span>
-                <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-                  人気なのに値下がり中
-                </h2>
-                <p className="mt-3 max-w-lg text-sm text-foreground/55">
-                  🔥 楽天の売れ筋 × 📉 値下がり
-                </p>
-              </div>
+              <SectionHeading tone="gold" label="人気 × 値下がり" title="人気なのに値下がり中" sub="楽天の売れ筋のうち、値段が下がっている商品" />
               <Link
                 href="/popular"
                 className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground/70 transition-colors hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
@@ -268,16 +253,10 @@ export default async function Home({
       )}
 
       {!error && trendingProducts.length > 0 && (
-        <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
+        <section className="border-t border-border bg-card px-6 py-14 sm:py-24">
           <div className="mx-auto max-w-7xl">
-            <FadeIn className="flex flex-col gap-3">
-              <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Trending Now</span>
-              <h2 className="max-w-lg font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-                今、注目されているギア
-              </h2>
-              <p className="max-w-lg text-sm text-foreground/55">
-                👀 いまクリックが多い商品
-              </p>
+            <FadeIn>
+              <SectionHeading tone="neutral" label="注目" title="今、注目されているギア" sub="いまクリックが多い商品" />
             </FadeIn>
 
             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -292,17 +271,10 @@ export default async function Home({
       )}
 
       {!error && topDeals.length > 0 && (
-        <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
+        <section className="border-t border-sale/15 bg-sale-wash px-6 py-14 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
-                  Today&apos;s Price Drops
-                </span>
-                <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-                  価格が下がった商品
-                </h2>
-              </div>
+              <SectionHeading tone="drop" label="値下がり" title="価格が下がった商品" sub="前回の記録より安くなった商品" />
               <Link
                 href="/deals"
                 className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground/70 transition-colors hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
@@ -316,7 +288,7 @@ export default async function Home({
                 const { product } = deal;
                 return (
                 <FadeIn key={product.id} delay={i * 90} className="flex flex-col gap-2">
-                  <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">
+                  <span className="self-start rounded-md bg-sale px-2 py-1 text-xs font-bold text-white">
                     {dropLabel(deal)}
                   </span>
                   <ProductCard product={product} listSource="homepage_price_drops" />
@@ -329,18 +301,15 @@ export default async function Home({
       )}
 
       {!error && forecastPicks.length > 0 && (
-        <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
+        <section className="border-t border-forecast/15 bg-forecast-wash px-6 py-14 sm:py-24">
           <div className="mx-auto max-w-7xl">
-            <FadeIn className="flex flex-col gap-3">
-              <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
-                Price Forecast
-              </span>
-              <h2 className="max-w-lg font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-                今後、値下がりが期待される商品
-              </h2>
-              <p className="max-w-lg text-sm text-foreground/55">
-                過去の価格データをもとにした予測情報です。将来価格を保証するものではありません。
-              </p>
+            <FadeIn>
+              <SectionHeading
+                tone="forecast"
+                label="予測"
+                title="今後、値下がりが期待される商品"
+                sub="過去の価格データをもとにした予測情報です。将来価格を保証するものではありません。"
+              />
             </FadeIn>
 
             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -355,20 +324,13 @@ export default async function Home({
       )}
 
       {!error && topRanked.length > 0 && (
-        <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
+        <section className="bg-fairway px-6 py-14 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
-                  Ranking
-                </span>
-                <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-                  買い時ランキング
-                </h2>
-              </div>
+              <SectionHeading tone="onDark" label="ランキング" title="買い時ランキング" sub="買い時スコアが高い順" />
               <Link
                 href="/ranking"
-                className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground/70 transition-colors hover:border-brand/40 hover:text-brand dark:hover:text-brand-light"
+                className="self-start rounded-full border border-white/40 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/10 sm:self-auto"
               >
                 すべて見る →
               </Link>
@@ -379,9 +341,13 @@ export default async function Home({
                 <FadeIn key={product.id} delay={i * 60}>
                   <Link
                     href={`/products/${product.slug}`}
-                    className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-brand/40 sm:p-5"
+                    className="flex items-center gap-4 rounded-2xl bg-card p-4 transition-transform hover:-translate-y-0.5 sm:p-5"
                   >
-                    <span className="w-10 shrink-0 text-center font-display text-2xl font-semibold text-foreground/25">
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-lg font-bold ${
+                        i === 0 ? "bg-[#f5c542] text-fairway" : i === 1 ? "bg-[#d6dde0] text-fairway" : i === 2 ? "bg-[#e3b28a] text-fairway" : "bg-foreground/5 text-foreground/45"
+                      }`}
+                    >
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -391,7 +357,7 @@ export default async function Home({
                       <div className="truncate font-display text-base font-medium text-foreground">
                         {displayName(product)}
                       </div>
-                      <div className="mt-1 text-sm text-foreground/50">{yen(product.current_price)}</div>
+                      <div className="font-num mt-1 text-base font-semibold text-foreground">{yen(product.current_price)}</div>
                     </div>
                     <AiBuySignal
                       buyScore={product.buy_score}
@@ -407,17 +373,9 @@ export default async function Home({
         </section>
       )}
 
-      <section className="border-t border-border bg-background px-6 py-24 sm:py-32">
+      <section className="border-t border-brand/20 bg-mint px-6 py-14 sm:py-24">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Golf Club Finder</span>
-            <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-              あなたに合うクラブを診断
-            </h2>
-            <p className="mt-3 max-w-md text-sm text-foreground/55">
-              カテゴリと予算を選ぶだけで候補がわかります
-            </p>
-          </div>
+          <SectionHeading tone="buy" label="クラブ診断" title="あなたに合うクラブを診断" sub="カテゴリと予算を選ぶだけで候補がわかります" />
           <Link
             href="/finder"
             className="shrink-0 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.02]"
@@ -428,17 +386,10 @@ export default async function Home({
       </section>
 
       {!error && (
-        <section className="border-t border-border bg-card px-6 py-24 sm:py-32">
+        <section className="border-t border-border bg-card px-6 py-14 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <FadeIn className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">
-                  Browse All
-                </span>
-                <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-                  すべてのゴルフ用品
-                </h2>
-              </div>
+              <SectionHeading tone="neutral" label="一覧" title="すべてのゴルフ用品" />
               {/* Segmented filter - scrolls sideways on a phone instead of wrapping. */}
               <div className="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:px-0">
                 <div className="inline-flex gap-0.5 rounded-full border border-border bg-background p-1">

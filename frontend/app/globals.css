@@ -49,6 +49,17 @@
   --sale: #c2412d;
   --sale-dark: #9a3220;
 
+  /* STEP-color (2026-10-30): section tones so each part of the page has
+     its own colour meaning, instead of white-on-white everywhere.
+     emerald = buy now / vermilion = price drop / gold = popular & top
+     ranks / blue = forecast. Washes are section backgrounds; the strong
+     tone is for the eyebrow pill and heading bar only. */
+  --sale-wash: #fdf1ee;
+  --gold: #a16207;
+  --gold-wash: #fdf7e8;
+  --forecast: #2f5d8a;
+  --forecast-wash: #eef4fa;
+
   /* Buy-score scale: emerald (buy) / slate (hold) / quiet gray (wait). */
   --signal-high: #047857;
   --signal-mid: #64748b;
@@ -78,6 +89,11 @@
   --color-accent-dark: var(--accent-dark);
   --color-sale: var(--sale);
   --color-sale-dark: var(--sale-dark);
+  --color-sale-wash: var(--sale-wash);
+  --color-gold: var(--gold);
+  --color-gold-wash: var(--gold-wash);
+  --color-forecast: var(--forecast);
+  --color-forecast-wash: var(--forecast-wash);
   --color-signal-high: var(--signal-high);
   --color-signal-mid: var(--signal-mid);
   --color-signal-low: var(--signal-low);
