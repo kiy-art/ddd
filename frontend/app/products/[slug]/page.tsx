@@ -78,6 +78,7 @@ function shopButtonLabel(row: ShopRow): string {
 }
 
 function shopButtonNote(row: ShopRow): string {
+  if (row.key === "alpen") return "ストアのトップへ移動（商品はストア内で検索）";
   if (row.kind === "search") return "検索結果で価格を確認";
   if (row.price === null) return "価格は販売ページで確認";
   if (row.stale) return staleLabel(row) ?? "";

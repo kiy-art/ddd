@@ -159,7 +159,7 @@ export default function StoreComparisonTable({
                 target="_blank"
                 rel={row.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
                 className={`tap inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-3 text-[13px] font-semibold sm:min-w-[11rem] sm:flex-none sm:px-5 sm:text-sm ${
-                  row.isLowest || (row.kind === "search" && row.sponsored)
+                  row.isLowest || (row.kind === "search" && row.sponsored && row.key !== "alpen")
                     ? "btn-shop"
                     : "btn-ghost text-foreground/80 hover:text-foreground"
                 }`}
@@ -174,11 +174,16 @@ export default function StoreComparisonTable({
       </ul>
 
       <p className="border-t border-border px-6 py-4 text-sm leading-relaxed text-foreground/80 sm:px-8">
-        価格はPAR.が取得した各ショップの価格です（楽天市場は1日1回、Yahoo!ショッピングは取得できた時点）。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク）。
+        価格はPAR.が取得した各ショップの価格です（楽天市場は1日1回、Yahoo!ショッピングは取得できた時点）。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク、ゴルフ5・アルペンは価格未取得のためストアのトップへのリンク）。
         {hasSponsoredRow &&
           "※広告・PRを含みます。リンク経由の購入により当サイトが紹介料を受け取ることがあります。"}
         価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
       </p>
+      {rows.some((row) => row.key === "alpen") && (
+        // ValueCommerce's impression counter for the ゴルフ5・アルペン link (program 2145165).
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="https://ad.jp.ap.valuecommerce.com/servlet/gifbanner?sid=3782576&pid=892736409" width={1} height={1} alt="" className="block h-px w-px" />
+      )}
     </div>
   );
 }

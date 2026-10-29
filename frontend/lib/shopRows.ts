@@ -19,7 +19,15 @@ import { YAHOO_SEARCH_IS_AFFILIATE, getYahooSearchUrl } from "@/lib/yahoo";
 // Amazon and Yahoo! without a matched listing are search links, the maker
 // site is a plain link - those rows never show a price or "最安".
 
-export type ShopKey = "rakuten" | "yahoo" | "amazon" | "official" | "other";
+export type ShopKey = "rakuten" | "yahoo" | "amazon" | "alpen" | "official" | "other";
+
+// #004 / 2026-10-30 (社長A): ゴルフ5・アルペン (ValueCommerce program 2145165, 3.8%).
+// The program has no MyLink/LinkSwitch, so the only link is to the store's top
+// page - never a price, never "最安". pid 892736409 tells it apart from Yahoo!.
+export const ALPEN_TOP_URL = "https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=3782576&pid=892736409";
+export function isAlpenUrl(url: string): boolean {
+  return url.includes("pid=892736409");
+}
 
 export type ShopRow = {
   key: ShopKey;
@@ -44,6 +52,7 @@ export type ShopRow = {
 };
 
 export function shopOf(url: string): { key: ShopKey; label: string } {
+  if (isAlpenUrl(url)) return { key: "alpen", label: "ゴルフ5・アルペン" };
   try {
     const host = new URL(url).hostname;
     if (host.includes("rakuten.co.jp")) return { key: "rakuten", label: "楽天市場" };
@@ -157,6 +166,21 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
       ctaType: YAHOO_SEARCH_IS_AFFILIATE ? "affiliate_search" : "marketplace_search",
     });
   }
+  links.push({
+    key: "alpen",
+    label: "ゴルフ5・アルペン",
+    url: ALPEN_TOP_URL,
+    price: null,
+    kind: "search",
+    sponsored: true,
+    updatedAt: null,
+    stale: false,
+    ageDays: null,
+    isLowest: false,
+    note: "公式オンラインストアのトップへ移動します（商品はストア内で検索）",
+    cta: "ゴルフ5・アルペンで探す",
+    ctaType: "affiliate_search",
+  });
   if (product.product_url && product.product_url !== product.affiliate_url) {
     links.push({
       key: "official",
@@ -203,6 +227,7 @@ export const SHOP_MARKS: Record<ShopKey, { glyph: string; className: string }> =
   rakuten: { glyph: "楽", className: "bg-[#bf0000] text-white" },
   yahoo: { glyph: "Y!", className: "bg-[#ff0033] text-white" },
   amazon: { glyph: "a", className: "bg-[#131921] text-[#ff9900]" },
+  alpen: { glyph: "5", className: "bg-foreground/10 text-foreground/70" },
   official: { glyph: "公", className: "bg-foreground/10 text-foreground/60" },
   other: { glyph: "店", className: "bg-foreground/10 text-foreground/60" },
 };

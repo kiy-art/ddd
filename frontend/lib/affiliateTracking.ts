@@ -9,6 +9,8 @@ import { trackEvent } from "@/lib/analytics";
 export type Shop = "amazon" | "rakuten" | "yahoo" | "official" | "alpen" | "partner";
 
 export function detectShop(url: string): Shop {
+  // ゴルフ5・アルペン's ValueCommerce link (lib/shopRows.ts ALPEN_TOP_URL) - not Yahoo!.
+  if (url.includes("pid=892736409")) return "alpen";
   try {
     const host = new URL(url).hostname;
     if (host.includes("rakuten.co.jp")) return "rakuten";
