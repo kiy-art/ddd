@@ -78,11 +78,6 @@ const TAB_BAR_ITEMS = [
     ),
   },
   {
-    href: "/deals",
-    label: "値下がり",
-    icon: <path d="M4 6 L12 15 L16 11 L20 15 M14 15 H20 V9" strokeLinecap="round" strokeLinejoin="round" />,
-  },
-  {
     href: "/ranking",
     label: "買い時",
     icon: (
@@ -90,6 +85,19 @@ const TAB_BAR_ITEMS = [
         <path d="M7 20 H17 M12 15 V20" strokeLinecap="round" />
         <path d="M6 4 H18 V9 C18 12.5 15.3 15 12 15 C8.7 15 6 12.5 6 9 Z" strokeLinejoin="round" />
       </>
+    ),
+  },
+  // 2026-10-31 (Webデザイン/社長承認済み): 「値下がり」タブを外し「買い時」に一本化、
+  // 「お気に入り」を追加。値下がりは「もっと」内の「値下がり中」から行ける。
+  {
+    href: "/favorites",
+    label: "お気に入り",
+    icon: (
+      <path
+        d="M12 20 C5 15 4 11.5 4 9.5 A4 4 0 0 1 12 8 A4 4 0 0 1 20 9.5 C20 11.5 19 15 12 20 Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     ),
   },
 ] as const;
