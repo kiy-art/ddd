@@ -424,7 +424,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                   <span className={msrpPct !== null ? "text-xs text-foreground/40" : "text-sm font-semibold " + (product.price_change_percent < 0 ? "text-brand dark:text-brand-light" : "text-foreground/50")}>
                     {product.price_change_percent > 0 ? "+" : ""}
                     {lowestOffer?.shop === "yahoo" ? "楽天価格 " : ""}
-                    {product.price_change_percent}% vs 30日平均
+                    {product.price_change_percent === 0 ? "30日平均と同水準" : `${product.price_change_percent}% vs 30日平均`}
                   </span>
                 ) : (
                   msrpPct === null && (
