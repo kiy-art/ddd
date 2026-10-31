@@ -205,12 +205,7 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
     row.stale = !isFresh(row.updatedAt, now);
     row.ageDays = ageDays(row.updatedAt, now);
     // Too old to show at all: keep the listing link, drop the number.
-    if (row.stale && (row.ageDays === null || row.ageDays > OFFER_MAX_SHOWN_DAYS)) {
-      row.price = null;
-      // 2026-11-01 (Webデザイン): with no number to show, the button itself says
-      // the next step ("最新価格を見る") instead of repeating "で見る".
-      row.cta = `${row.label}で最新価格を見る`;
-    }
+    if (row.stale && (row.ageDays === null || row.ageDays > OFFER_MAX_SHOWN_DAYS)) row.price = null;
   }
   // Fresh prices cheapest-first; then stale ones newest-first (an old price
   // has no claim to be compared on price); then the search/maker links.
@@ -224,7 +219,7 @@ export function buildShopBoard(product: Product, rakutenUpdatedAt: string | null
 // "3日前の価格" for a stale row; null for a fresh one.
 export function staleLabel(row: ShopRow): string | null {
   if (!row.stale) return null;
-  if (row.price === null) return "価格が古いため非表示";
+  if (row.price === null) return "価格は販売ページで確認";
   return row.ageDays !== null ? `${row.ageDays}日前の価格` : "取得日時不明の価格";
 }
 

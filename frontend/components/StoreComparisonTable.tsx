@@ -128,10 +128,7 @@ export default function StoreComparisonTable({
                 <span className="text-xs text-foreground/65">
                   {row.kind === "price"
                     ? row.stale
-                      ? row.price === null
-                        ? // 2026-11-01: price too old to show -> say so once, give the last fetch time, point to the shop.
-                          `${staleLabel(row)}${formatUpdatedAt(row.updatedAt) ? `（最終取得 ${formatUpdatedAt(row.updatedAt)}）` : ""}・最新価格は販売ページで確認`
-                        : `${staleLabel(row)}${formatUpdatedAt(row.updatedAt) ? `（${formatUpdatedAt(row.updatedAt)} 時点）` : ""}・最新は販売ページで確認`
+                      ? `${staleLabel(row)}${formatUpdatedAt(row.updatedAt) ? `（${formatUpdatedAt(row.updatedAt)} 時点）` : ""}・最新は販売ページで確認`
                       : formatUpdatedAt(row.updatedAt)
                         ? `${formatUpdatedAt(row.updatedAt)} 時点・送料/ポイントは販売ページで確認`
                         : "送料/ポイントは販売ページで確認"
