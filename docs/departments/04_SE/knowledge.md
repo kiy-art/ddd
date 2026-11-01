@@ -52,3 +52,4 @@
 - 2026-10-28 [001] /deals値下がり見出しは本番反映済み(宿題完了)。sitemap1,182URLのうち比較657(56%)・商品438。比較除外のsitemap patchを作成。表示急減はサイト側の不具合では説明できず、登録状況はSearch Console確認待ち(根拠: curl par-gear.com 2026-10-28、01_部内検討/2026-10-28_sitemap比較除外.md)
 - 2026-10-31 [001] data/real_products_batch*.csv はどの自動処理でも取り込まれず(日次ジョブは--csv無し)、手動のadmin import/csvが必要。Spider ZTは本番に無く(404、公開435件に無し)batch7未取込とみられる。取り込み手順を作成(根拠: 04_SE/01_部内検討/2026-10-31_SpiderZT未掲載の原因と取り込み手順.md、curl /api/products 2026-10-31)
 - 2026-10-31 [001] ゴルフ5・アルペンのVCリンクはshopRows.tsに実装済み。追加は商品別URL次第で要社長(根拠: frontend/lib/shopRows.ts 24行)
+- 2026-11-02 [001] Yahoo 429は既に1日1行で打ち切り済み。warningへ下げるとself_healがlevel==errorのみ読むため再開案内が消える。上限値は未取得で、ironは1商品最大2回消費(根拠: 04_SE/01_部内検討/2026-11-02_Yahoo更新429の扱い.md、pipeline.py 418行、self_heal.py 268行)
