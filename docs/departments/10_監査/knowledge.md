@@ -28,6 +28,7 @@
 - 2026-10-27 [001] 市場の値下がり件数(kpi market)は PriceHistory 由来で、書き込みは楽天の日次取得と手入力だけ。X投稿の「楽天市場の記録」は事実に合う(根拠: backend/app/kpi.py 82〜124行、pipeline.py 317行)
 - 2026-11-02 [001] X投稿の文面が正しくても、リンク先ページに出典なしの表現(why-consider 295行「2〜3割」)が残っていれば投稿の条件にする(根拠: 01_部内検討/2026-11-02_夜の成果物チェック.md 1-2(C)、frontend/lib/guides.ts 295行)
 - 2026-10-27 [001] product_facts.csv の定価21行のうち公式確認日(verified_on)があるのは3行。Qi35 99,000円は無し(根拠: backend/data/product_facts.csv、公開API 2026-10-28 0時台)
+- 2026-11-02 [001] 全商品と公開商品の差は pending_review だけではない(insufficient_data も非公開)。「非公開の割合」を使う効果見積もりは crud._published で内訳を確かめる(根拠: backend/app/crud.py 84〜88行、01_部内検討/2026-11-02_夜の成果物監査.md #4)
 
 ## 代表者会議から持ち帰ったこと
 
