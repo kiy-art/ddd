@@ -53,3 +53,4 @@
 - 2026-10-31 [001] data/real_products_batch*.csv はどの自動処理でも取り込まれず(日次ジョブは--csv無し)、手動のadmin import/csvが必要。Spider ZTは本番に無く(404、公開435件に無し)batch7未取込とみられる。取り込み手順を作成(根拠: 04_SE/01_部内検討/2026-10-31_SpiderZT未掲載の原因と取り込み手順.md、curl /api/products 2026-10-31)
 - 2026-10-31 [001] ゴルフ5・アルペンのVCリンクはshopRows.tsに実装済み。追加は商品別URL次第で要社長(根拠: frontend/lib/shopRows.ts 24行)
 - 2026-11-02 [001] Yahoo 429は既に1日1行で打ち切り済み。warningへ下げるとself_healがlevel==errorのみ読むため再開案内が消える。上限値は未取得で、ironは1商品最大2回消費(根拠: 04_SE/01_部内検討/2026-11-02_Yahoo更新429の扱い.md、pipeline.py 418行、self_heal.py 268行)
+- 2026-11-02 [001] iron 2回目検索は既に「1回目0件時のみ」で絞る余地小。価格取得は審査待ち含む全754件が対象で公開433より枠を4割使う。Yahoo順を公開優先にするpatch作成、一時コピーpytest571件合格(根拠: 04_SE/01_部内検討/2026-11-02_yahoo_公開商品優先.md、pipeline.py 213行)

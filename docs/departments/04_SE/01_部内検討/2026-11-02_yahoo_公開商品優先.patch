@@ -1,0 +1,49 @@
+--- a/backend/app/pipeline.py
++++ b/backend/app/pipeline.py
+@@ -367,7 +367,8 @@
+ 
+     `only_product_ids`: same as fetch_rakuten_prices.
+ 
+-    Order (STEP56): never-checked products first, then the
++    Order: published products before pending_review ones (the quota is
++    spent on pages visitors can see first), then (STEP56) never-checked first, then the
+     longest-unchecked (yahoo_checked_at). Yahoo's daily call quota can run out partway
+     through a run (see YahooQuotaExceeded below) - in a fixed id order the
+     same products at the end of the list were cut off every single day and
+@@ -378,7 +379,7 @@
+     """
+     products = sorted(
+         _products_for_fetch(db, only_product_ids),
+-        key=lambda p: (p.yahoo_checked_at is not None, p.yahoo_checked_at or datetime.datetime.min, p.id),
++        key=lambda p: (bool(p.pending_review), p.yahoo_checked_at is not None, p.yahoo_checked_at or datetime.datetime.min, p.id),
+     )
+     updated = 0
+     skipped = 0
+--- a/backend/tests/test_pipeline.py
++++ b/backend/tests/test_pipeline.py
+@@ -684,6 +684,25 @@
+     assert products[2].yahoo_checked_at is not None  # a no-match is recorded as checked
+ 
+ 
++def test_fetch_yahoo_prices_checks_published_products_before_pending_review(db_session, monkeypatch):
++    pending = crud.create_product(
++        db_session, schemas.ProductCreate(name="Hidden", brand="PING", category="iron", initial_price=60000)
++    )
++    shown = crud.create_product(
++        db_session, schemas.ProductCreate(name="Shown", brand="PING", category="iron", initial_price=60000)
++    )
++    pending.pending_review = True  # never checked, but not visible to visitors
++    import datetime
++
++    shown.yahoo_checked_at = datetime.datetime.utcnow()  # checked today
++    db_session.commit()
++    order = []
++    monkeypatch.setattr(yahoo, "search_lowest_price", lambda keyword, **_: order.append(keyword))
++    monkeypatch.setattr(pipeline.time, "sleep", lambda s: None)
++    pipeline.fetch_yahoo_prices(db_session)
++    assert order == ["PING Shown", "PING Hidden"]
++
++
+ def test_send_price_alert_notifications_waits_for_the_privacy_policy(db_session, monkeypatch):
+     """STEP74 (approval #003): even with Resend configured, no visitor gets
+     mail until PRIVACY_POLICY_PUBLISHED is set."""
