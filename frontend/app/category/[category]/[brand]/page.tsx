@@ -65,9 +65,9 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { min, max } = facts(data.products);
   const n = data.products.length;
   const url = `${SITE_URL}${brandCategoryHref(category, data.brand)}`;
-  const title = `${data.brand}の${label}の価格比較・買い時｜${n}モデルの最安値と価格推移`;
+  const title = `${data.brand}の${label}の価格比較・買い時｜${n}モデルの価格推移`;
   const range = min !== null && max !== null ? (min === max ? `現在${yen(min)}。` : `現在${yen(min)}〜${yen(max)}。`) : "";
-  const description = `${data.brand}の${label}${n}モデルの価格を楽天市場・Yahoo!ショッピングで毎日比較。${range}過去の価格推移から、今が買い時かをAIが判定します。`;
+  const description = `${data.brand}の${label}${n}モデルの価格を楽天市場で毎日記録し、Yahoo!ショッピングの価格も取得できた範囲で比較。${range}過去の価格推移から、今が買い時かをAIが判定します。`;
   return {
     title,
     description,

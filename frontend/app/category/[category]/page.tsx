@@ -49,8 +49,8 @@ export async function generateMetadata({
   // ("%s | PAR.") already appends it to the <title> field. openGraph/
   // twitter titles aren't covered by that template, so they get it added
   // explicitly below.
-  const title = `${label}の最安値・買い時ランキング｜価格推移を比較`;
-  const description = `${label}の価格推移と過去最安値をもとに、今が買い時の${label}をAIが判定。値下がりしやすい時期の目安も掲載しています。`;
+  const title = `${label}の価格比較｜楽天市場の価格推移と買い時判定`;
+  const description = `${label}の楽天市場の価格を毎日記録し、価格推移と買い時の判定を商品ごとに表示。値下がりした商品も探せます。`;
   const ogTitle = `${title} - PAR.`;
 
   return {
