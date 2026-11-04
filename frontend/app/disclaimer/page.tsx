@@ -36,7 +36,7 @@ export default function DisclaimerPage() {
           <ul className="list-disc space-y-1 pl-5">
             <li>楽天アフィリエイト（楽天市場へのリンク）</li>
             <li>Amazonアソシエイト・プログラム：Amazonのアソシエイトとして、PAR.は適格販売により収入を得ています。</li>
-            <li>バリューコマース（Yahoo!ショッピングへのリンク）</li>
+            <li>バリューコマース（Yahoo!ショッピングへのリンク、商品ページ内の「じゃらんゴルフ」広告枠）</li>
           </ul>
         </section>
 
