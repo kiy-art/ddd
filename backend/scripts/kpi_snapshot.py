@@ -24,8 +24,14 @@ import os
 import pathlib
 import re
 import sys
+import http.client
+import urllib.error
+import urllib.request
 
-import httpx
+try:  # httpx is in requirements.txt, but the nightly cloud routine may lack it
+    import httpx
+except ImportError:  # fall back to the standard library so the day is not lost
+    httpx = None
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 KNOWLEDGE = ROOT / "docs" / "knowledge"
@@ -160,6 +166,23 @@ def record(summary: dict, today: datetime.date, knowledge: pathlib.Path = KNOWLE
     return row
 
 
+def fetch(url: str, headers: dict) -> tuple[int, str]:
+    """GET `url` and return (status, body). Uses httpx when installed, else urllib
+    (which honours HTTPS_PROXY / SSL_CERT_FILE like httpx does)."""
+    if httpx is not None:
+        try:
+            response = httpx.get(url, headers=headers, timeout=120)
+        except httpx.HTTPError as exc:
+            raise OSError(type(exc).__name__) from exc
+        return response.status_code, response.text
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return response.status, response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        return exc.code, ""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
@@ -171,15 +194,21 @@ def main() -> int:
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     base = os.environ.get("PAR_API_BASE", "https://golf-deals-backend.onrender.com").rstrip("/")
     try:
-        response = httpx.get(f"{base}/api/admin/kpi-summary", headers=headers, timeout=120)
-        if response.status_code in (401, 403):
-            print("Not authorized - set the API credential for the admin API (未取得).", file=sys.stderr)
-            return 2
-        response.raise_for_status()
-    except httpx.HTTPError as exc:
+        status, body = fetch(f"{base}/api/admin/kpi-summary", headers)
+    except (OSError, ValueError, http.client.HTTPException) as exc:  # httpx.HTTPError and urllib errors are OSError/ValueError
         print(f"Could not fetch KPIs: {type(exc).__name__}", file=sys.stderr)
         return 1
-    summary = response.json()
+    if status in (401, 403):
+        print("Not authorized - set the API credential for the admin API (未取得).", file=sys.stderr)
+        return 2
+    if status >= 400:
+        print(f"Could not fetch KPIs: HTTP {status}", file=sys.stderr)
+        return 1
+    try:
+        summary = json.loads(body)
+    except ValueError:
+        print("Could not fetch KPIs: invalid JSON", file=sys.stderr)
+        return 1
     today = (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).date()  # JST
     if args.dry_run:
         print(json.dumps(ledger_row(summary, today), ensure_ascii=False, indent=2))
