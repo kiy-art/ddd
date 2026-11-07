@@ -123,7 +123,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const title = `${nameA} と ${nameB} を比較｜違い・スペック・価格・買い時`;
   const prices =
     a.current_price !== null && b.current_price !== null ? `現在価格は${yen(a.current_price)}と${yen(b.current_price)}。` : "";
-  const description = `${nameA}と${nameB}の違いを、対象レベル・タイプ・スペック・価格推移・買い時スコアで比較。${prices}楽天市場・Yahoo!ショッピングの価格を毎日更新しています。`;
+  const description = `${nameA}と${nameB}の違いを、対象レベル・タイプ・スペック・価格推移・買い時スコアで比較。${prices}楽天市場の価格は1日1回、Yahoo!ショッピングは取得できた時点で更新しています。`;
   return {
     title,
     description,
