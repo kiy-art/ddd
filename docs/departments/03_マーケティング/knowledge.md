@@ -3,6 +3,7 @@
 1行1件。`- YYYY-MM-DD [事業番号] 内容(根拠: 出典)`。推測は「推測」と書く。古くなった行は消さずに打ち消し線を引く。
 
 ## 部署の学び
+- 2026-11-07 [001] sitemapはproducts429・brand24・category×brand34・guides14・compare0。ガイド14本のうち型落ち系・買い替え系に意図重複の恐れ(推測。SC別ページ数字は未取得)(根拠: https://par-gear.com/sitemap.xml、2026-11-07_週次レポートと棚卸し.md)
 - 2026-10-11 [001] プライム感謝祭2026は先行10/13(火)0:00〜10/15、本番10/16〜10/19 23:59。ポイントアップは「エントリー＋合計1万円(税込)以上」で上限1万pt・期間限定ポイント(根拠: https://press.aboutamazon.com/jp/2026/9/prime-appreciation-sale-2026 、2026-10-12確認)
 - 2026-10-11 [001] PAR.はAmazonの価格を取得していないため、セール記事・投稿は「Amazonのセール価格をPAR.の楽天・Yahoo!の価格記録と並べて確かめる」形にする(根拠: frontend/app/disclaimer/page.tsx)
 - 2026-10-11 [001] ガイドのPR表記(PrNotice)は featured の商品カードが出るときだけ表示される。featured無し・0件のガイドは本文にPRの一文を入れる(根拠: frontend/app/guides/[slug]/page.tsx)
