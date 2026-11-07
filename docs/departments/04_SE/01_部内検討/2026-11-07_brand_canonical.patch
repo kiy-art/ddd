@@ -1,0 +1,12 @@
+diff --git a/frontend/app/brand/[brand]/page.tsx b/frontend/app/brand/[brand]/page.tsx
+index 19c0770..a843484 100644
+--- a/frontend/app/brand/[brand]/page.tsx
++++ b/frontend/app/brand/[brand]/page.tsx
+@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
+   return {
+     title: `${name}の買い時商品一覧`,
+     description: `${name}の商品の価格推移と買い時判定を一覧で確認できます。`,
++    alternates: { canonical: `/brand/${encodeURIComponent(name)}` },
+   };
+ }
+ 
