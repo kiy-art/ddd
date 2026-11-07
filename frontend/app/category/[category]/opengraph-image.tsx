@@ -41,7 +41,7 @@ export default async function Image({ params }: { params: Promise<{ category: st
       <CollectionCard
         eyebrow="TODAY'S DEALS"
         title={`今日の${label}\nお買い得`}
-        subtitle={products.length > 0 ? `${products.length}商品の価格を毎日追跡。今が買い時かをスコアで判定` : "価格推移と買い時判定を毎日更新"}
+        subtitle={products.length > 0 ? `${products.length}商品の価格を1日1回記録。今が買い時かをスコアで判定` : "価格推移と買い時判定を1日1回更新"}
         photos={photos}
         footerRight="相場推移・ショップ別価格・買い時判定"
       />

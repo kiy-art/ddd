@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   return {
     title: `${name}の買い時商品一覧`,
     description: `${name}の商品の価格推移と買い時判定を一覧で確認できます。`,
+    alternates: { canonical: `/brand/${encodeURIComponent(name)}` },
   };
 }
 
@@ -90,7 +91,7 @@ export default async function BrandPage({ params }: { params: Promise<Params> })
       <PageHeader
         eyebrow="ブランド"
         title={name}
-        description={`${products.length}商品の価格を毎日追跡しています。`}
+        description={`${products.length}商品の価格を1日1回記録しています。`}
         stats={stats}
         collageImages={products.map((p) => p.image_url)}
       >
