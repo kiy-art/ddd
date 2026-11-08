@@ -12,7 +12,9 @@ import {
   OG_COLORS,
   OG_SIZE,
   PhotoTile,
+  dropHeadline,
   fetchImageDataUri,
+  findRecentDrop,
   productShareFacts,
   truncate,
   withTimeout,
@@ -56,6 +58,78 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 
   const facts = productShareFacts(product);
   const photo = await fetchImageDataUri(product.image_url);
+  const drop = findRecentDrop(product);
+
+  // 2026-11-08: a recent real price drop gets a hook-first card - the
+  // headline and the before→after prices are what make people tap it on X.
+  if (drop) {
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            backgroundImage: "linear-gradient(135deg, #FFF1F2 0%, #FFF7ED 55%, #ECFDF5 100%)",
+            padding: "48px 60px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <BrandMark size={34} />
+            <div
+              style={{
+                display: "flex",
+                background: "#E11D48",
+                color: "#FFFFFF",
+                fontSize: 30,
+                fontWeight: 700,
+                padding: "10px 28px",
+                borderRadius: 999,
+              }}
+            >
+              {`値下がり -${drop.percentDown}%`}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+              <span style={{ display: "flex", fontSize: dropHeadline(drop).length > 11 ? (photo ? 50 : 60) : 64, fontWeight: 700, color: "#E11D48", lineHeight: 1.15 }}>
+                {dropHeadline(drop)}
+              </span>
+              <span style={{ display: "flex", fontSize: 28, color: OG_COLORS.paper, marginTop: 14, lineHeight: 1.3 }}>
+                {truncate(`${product.brand} ${product.name}`, photo ? 26 : 36)}
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 22 }}>
+                <span
+                  style={{
+                    display: "flex",
+                    fontSize: 40,
+                    color: OG_COLORS.muted,
+                    textDecoration: "line-through",
+                  }}
+                >
+                  {yen(drop.before)}
+                </span>
+                <span style={{ display: "flex", fontSize: 40, color: OG_COLORS.muted }}>→</span>
+                <span style={{ display: "flex", fontSize: 84, fontWeight: 700, color: OG_COLORS.paper }}>
+                  {yen(drop.after)}
+                </span>
+              </div>
+              <span style={{ display: "flex", fontSize: 26, color: OG_COLORS.accent, marginTop: 14, fontWeight: 600 }}>
+                {`${drop.stableDays}日ずっと${yen(drop.before)}だったのに…`}
+              </span>
+            </div>
+            {photo && <PhotoTile src={photo} size={360} />}
+          </div>
+
+          <Footer right="毎日の楽天の価格記録より" />
+        </div>
+      ),
+      { ...size }
+    );
+  }
 
   const score = facts.hasReliableTrend ? product.buy_signal_score : null;
   // Same fallback ladder the product page itself uses (AiBuySignal.tsx /

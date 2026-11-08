@@ -149,6 +149,73 @@ export function productShareFacts(product: ProductDetail): ProductShareFacts {
   return { hasReliableTrend, savingsYen, savingsPercent, atRecordedLowest, hook };
 }
 
+// 2026-11-08 (社長指示: X投稿のカード画像を「つい押したくなる」形に):
+// a real, recent price STEP - the price sat at one level for several
+// recorded days, then dropped. Only steps are used (not a listing swap
+// that bounces up and down): every record in the stable window before
+// the drop must be the same price, and nothing after it may be higher
+// than the new price. Returns null when there is no such drop in the
+// last 14 days or it is under 5% - the card then keeps its old layout.
+export interface RecentDrop {
+  before: number;
+  after: number;
+  yenDown: number;
+  percentDown: number;
+  stableDays: number;
+  dropDate: string; // YYYY-MM-DD (JST)
+  daysAgo: number;
+}
+
+const DAY_MS = 86_400_000;
+const jstDate = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3_600_000).toISOString().slice(0, 10);
+
+export function findRecentDrop(product: ProductDetail, now: number = Date.now()): RecentDrop | null {
+  const current = product.current_price;
+  const history = (product.price_history || [])
+    .filter((h) => typeof h.price === "number" && h.price > 0 && h.recorded_at)
+    .slice()
+    .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
+  if (current === null || history.length < 6) return null;
+
+  // Walk back from the newest record to the first one that isn't the current price.
+  let i = history.length - 1;
+  while (i >= 0 && history[i].price <= current) i--;
+  if (i < 0) return null;
+  const dropRecord = history[i + 1];
+  if (!dropRecord || now - new Date(dropRecord.recorded_at).getTime() > 14 * DAY_MS) return null;
+
+  // The stable level right before the drop.
+  const before = history[i].price;
+  let j = i;
+  while (j >= 0 && history[j].price === before) j--;
+  const stableStart = history[j + 1];
+  const stableDays = Math.round(
+    (new Date(history[i].recorded_at).getTime() - new Date(stableStart.recorded_at).getTime()) / DAY_MS
+  );
+  if (i - j < 3 || stableDays < 3) return null;
+
+  const yenDown = before - current;
+  const percentDown = Math.round((yenDown / before) * 100);
+  if (yenDown <= 0 || yenDown / before < 0.05) return null;
+
+  return {
+    before,
+    after: current,
+    yenDown,
+    percentDown,
+    stableDays,
+    dropDate: jstDate(dropRecord.recorded_at),
+    daysAgo: Math.max(0, Math.floor((now - new Date(dropRecord.recorded_at).getTime()) / DAY_MS)),
+  };
+}
+
+// "1週間で¥5,000ダウン！"-style headline for a RecentDrop - true and short.
+export function dropHeadline(drop: RecentDrop): string {
+  const when =
+    drop.daysAgo === 0 ? "今日" : drop.daysAgo === 1 ? "昨日" : drop.daysAgo <= 6 ? `${drop.daysAgo}日前` : "この2週間で";
+  return `${when}、${yen(drop.yenDown)}ダウン！`;
+}
+
 export function BrandMark({ label = "PAR.", size = 40 }: { label?: string; size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
