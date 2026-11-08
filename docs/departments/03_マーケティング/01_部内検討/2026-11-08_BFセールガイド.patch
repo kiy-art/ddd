@@ -1,0 +1,71 @@
+--- a/frontend/lib/guides.ts
++++ b/frontend/lib/guides.ts
+@@ -40,40 +40,40 @@
+ export const GUIDES: Guide[] = [
+   // 2026-10-12 (marketing, audited): seasonal guide for Prime Big Deal Days 2026.
+   // 2026-11-01 (marketing): rewritten for Black Friday prep (sale ended 10/19). Slug kept.
+-  // TODO: once Amazon/Rakuten/Alpen announce 2026 BF dates, replace ONLY the section
+-  // "ブラックフライデーの日程..." (past-examples) with the official dates + source URL,
+-  // and re-check description. Do not state dates before an official announcement.
++  // 2026-11-08 (marketing, P-005): BF-first rewrite (title/description/PR-first/schedule section). Slug kept (same URL reused).
++  // TODO before publish: re-check the schedule section against each company's OFFICIAL page; if an official date is
++  // announced, replace ONLY the "ブラックフライデーの日程..." section with the official dates + source URL.
++  // If the official pages cannot be opened, delete the past-examples paragraph rather than publish unverified dates.
+   {
+     slug: "prime-appreciation-sale-2026-golf",
+-    title: "プライム感謝祭は終了。ブラックフライデー前にゴルフ用品の価格を確かめる方法【PAR.】",
++    title: "ブラックフライデー2026のゴルフ用品：セール前に価格を確かめる方法【PAR.】",
+     description:
+-      "Amazonプライム感謝祭2026は10月19日に終了しました。次の大型セールに向けて、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。過去のセール日程の例も載せています。",
+-    publishedAt: "2026-10-12",
++      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。2026年の日程は公式発表前のため、過去の開催例と予想の目安を分けて載せています。",
++    publishedAt: "2026-11-08",
+     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
+     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
+     sections: [
+       {
+-        heading: "先にお知らせ：プライム感謝祭2026は終了しています",
++        heading: "先に確認：ブラックフライデー前にやっておくこと",
+         paragraphs: [
+           "【PR】このページにはアフィリエイトリンク（広告）を含みます。リンク先で商品が購入されると、PAR.が紹介料を受け取ることがあります。",
+-          "Amazonのプライム感謝祭は10月19日（月）で終了しました。このページは、次の大型セール（ブラックフライデーなど）の前に、価格をどう確かめるかを整理した内容に書き換えています。",
++          "ブラックフライデーのセールを待つかどうかは、割引の表示ではなく、同じ商品がこれまでいくらで売られていたかと比べると判断しやすくなります。このページでは、セール前に控えておく価格の見方と手順を整理しています。",
+           "なお、PAR.はAmazonの価格を取得していません。Amazonのセール価格は、Amazonの商品ページで確認したうえで、PAR.に記録されている楽天市場の価格と並べて比べてください。",
+-          "セール中の価格が適正かどうかは、表示されている割引の大きさよりも、同じ商品がこれまでいくらで売られていたかと比べると判断しやすくなります。PAR.では、楽天市場の価格を1日1回記録しています（Yahoo!ショッピングは取得できた時点の価格で、商品ごとに更新日が異なります）。商品ページの価格推移グラフは、楽天市場の価格の記録です。",
+         ],
+       },
+       {
+-        heading: "ブラックフライデーの日程：2026年は公式発表前。過去の例",
++        heading: "ブラックフライデーの日程：2026年は公式発表前。過去の例と予想",
+         paragraphs: [
+-          "2026年のブラックフライデーの日程は、このページの更新時点（2026年11月1日）で、確認できた範囲では各社から公式には発表されていません。発表されたら、各社の公式ページで確認してください。",
+-          "参考までに、過去の開催期間の例です（いずれも公式以外の記事や過去の告知による情報で、2026年も同じとは限りません）。Amazon：2025年は先行が11月21日〜23日、本番が11月24日〜12月1日ごろ。楽天市場：2025年は11月20日20時〜11月27日1時59分ごろ。",
+-          "例年11月下旬に始まる傾向はありますが、2026年の開始日・終了日は断定できません。楽天市場の終了日は、過去の記事の間でも表記が分かれる年があります。",
+-          "出典（2026年11月1日時点、原文は未確認で検索結果の要約にもとづく）：https://www.pondaichi-act2.tech/amazon-black-friday-2026-dates/ 、https://gori.me/amazon/amazon-sale/150656 、https://ichioshi.smt.docomo.ne.jp/articles/common/515077",
++          "2026年のブラックフライデーの日程は、このページの更新時点（2026年11月8日）で、確認できた範囲では、楽天市場・Yahoo!ショッピング・アルペンから公式には発表されていません。Amazonについては、11月中の開催が案内され、詳細は11月19日ごろに発表される予定と報じられています（報道ベース。公式の原文は未確認）。発表されたら、各社の公式ページで確認してください。",
++          "参考までに、過去の開催期間の例です（いずれも過去の告知や報道による情報で、2026年も同じとは限りません）。Amazon：2025年は先行が11月21日〜23日、本番が11月24日〜12月1日ごろ。楽天市場：2025年は11月20日20時〜11月27日1時59分ごろ。アルペングループ（アルペン・スポーツデポ・ゴルフ5など）：2025年は11月21日〜12月1日の11日間と案内されました。",
++          "例年11月下旬に始まる傾向はありますが、これは過去の例からの予想で、2026年の開始日・終了日は断定できません。楽天市場の終了日は、過去の記事の間でも表記が分かれる年があります。",
++          "出典（2026年11月8日時点、原文は未確認で検索結果の要約にもとづく）：https://gori.me/amazon/amazon-sale/150656 、https://ichioshi.smt.docomo.ne.jp/articles/common/515077 、https://getnavi.jp/sports/923363/ 、https://premium.gamepedia.jp/shopping/archives/54362",
+         ],
+       },
+       {
+         heading: "割引の表示だけで判断しない理由",
+         paragraphs: [
+-          "「◯割引」「大幅値下げ」といった表示は、何の価格と比べたものかによって意味が変わります。比べる元の価格が、実際にその価格で売られていた期間が短いものだと、値引きが大きく見えることがあります。",
++          "セール会場の「大幅値下げ」「割引」といった表示は、何の価格と比べたものかによって意味が変わります。比べる元の価格が、実際にその価格で売られていた期間が短いものだと、値引きが大きく見えることがあります。",
+           "そのため、表示の大きさよりも「この商品はここ数週間〜数か月、いくらくらいで売られていたか」を見るほうが、今の価格の位置づけをつかみやすくなります。PAR.の価格推移は、実際に記録した価格だけで描いています。",
+         ],
+       },
+@@ -108,6 +108,12 @@
+           "相場から大きく外れて安い価格は、並行輸入品や販売元の違いが理由のこともあります。価格だけで決めず、販売元の情報も確認することをおすすめします。",
+         ],
+       },
++      {
++        heading: "参考：プライム感謝祭2026は10月19日に終了しています",
++        paragraphs: [
++          "Amazonのプライム感謝祭2026は10月19日（月）で終了しました。このページは、次の大型セールの前に価格をどう確かめるかをまとめた内容に更新しています。",
++        ],
++      },
+     ],
+   },
+   // 2026-10-18 (marketing): ZXi型落ち固有ガイド。一般論 why-consider-last-years-model と相互リンク(共食い回避)。
