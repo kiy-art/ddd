@@ -29,7 +29,15 @@ function yen(value: number | null): string {
   return `¥${value.toLocaleString("ja-JP")}`;
 }
 
-export default function ProductCard({ product, listSource }: { product: Product; listSource?: string }) {
+export default function ProductCard({
+  product,
+  listSource,
+  placement = "product_card",
+}: {
+  product: Product;
+  listSource?: string;
+  placement?: string;
+}) {
   const hasReliableTrend = product.buy_score !== "insufficient_data" && product.history_span_days >= THIN_DATA_DAYS;
   const pct = hasReliableTrend ? product.price_change_percent : null;
   const badge = getProductBadge(product);
@@ -248,7 +256,7 @@ export default function ProductCard({ product, listSource }: { product: Product;
             }}
             productId={product.id}
             category={product.category}
-            placement="product_card"
+            placement={placement}
           >
             {shop.label}で見る
             <CtaArrow className="h-3.5 w-3.5" />
