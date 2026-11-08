@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 import { CATEGORIES, getBrands, getSitemapProducts } from "@/lib/api";
 import { BRAND_PAGE_MIN_PRODUCTS, brandCategoryHref } from "@/lib/brandFilter";
 import { nearestRivals, pairHref } from "@/lib/comparePairs";
-import { GUIDES } from "@/lib/guides";
+import { GUIDES, listAllGuides } from "@/lib/guides";
 import { SITE_URL } from "@/lib/siteUrl";
 
 
@@ -77,6 +77,11 @@ function toLastModified(value: string | null | undefined): Date | undefined {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Static guides plus DB-backed AI guides (/api/guides). listAllGuides()
+  // never throws (falls back to the static ones), so a backend hiccup can't
+  // break the sitemap; the next hourly regeneration picks the AI ones up.
+  const guides = await withTimeout(listAllGuides(), FETCH_TIMEOUT_MS).catch(() => null);
+  const allGuides = guides ?? GUIDES;
   const staticEntries: MetadataRoute.Sitemap = [
     { url: sitemapUrl(""), changeFrequency: "daily", priority: 1 },
     { url: sitemapUrl("/deals"), changeFrequency: "daily", priority: 0.8 },
@@ -91,7 +96,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily" as const,
       priority: 0.7,
     })),
-    ...GUIDES.map((guide) => ({
+    ...allGuides.map((guide) => ({
       url: sitemapUrl(`/guides/${guide.slug}`),
       lastModified: toLastModified(guide.publishedAt),
       changeFrequency: "monthly" as const,

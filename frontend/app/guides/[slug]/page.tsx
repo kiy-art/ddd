@@ -136,7 +136,7 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
                   {caption && (
                     <span className="px-1 text-xs font-semibold text-brand dark:text-brand-light">{caption}</span>
                   )}
-                  <ProductCard product={product} listSource={`guide:${guide.slug}`} />
+                  <ProductCard product={product} listSource={`guide:${guide.slug}`} placement="guide_card" />
                 </FadeIn>
               ))}
             </div>
