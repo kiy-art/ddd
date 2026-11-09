@@ -9,6 +9,7 @@ import { computeDeals, dropLabel } from "@/lib/deals";
 import { GUIDES, Guide, getGuideBySlug } from "@/lib/guides";
 import { SITE_URL } from "@/lib/siteUrl";
 import PrNotice from "@/components/PrNotice";
+import GuideEndShops from "@/components/GuideEndShops";
 
 export const revalidate = 0;
 
@@ -159,6 +160,8 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
           </section>
         ))}
       </div>
+
+      <GuideEndShops products={featuredProducts.map((f) => f.product)} listSource={`guide:${guide.slug}`} />
 
       {guide.relatedCategories && guide.relatedCategories.length > 0 && (
         <div className="mt-14 rounded-2xl border border-border bg-card p-6 sm:p-8">

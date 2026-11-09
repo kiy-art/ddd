@@ -104,8 +104,38 @@ export default async function CategoryPage({
         ? `本日、値下がり中の${categoryLabel}が${droppedRecently}点あります。`
         : `${categoryLabel}を${products.length}点、毎日価格を追跡しています。`;
 
+  // 技術SEO: カテゴリ一覧にもパンくず・商品リストの構造化データを出す
+  // (ブランド別ページと同じ形)。ItemListは上位30件に絞りHTMLを肥大させない。
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "ホーム", item: SITE_URL },
+        { "@type": "ListItem", position: 2, name: categoryLabel, item: `${SITE_URL}/category/${category}` },
+      ],
+    },
+    ...(sortedProducts.length > 0
+      ? [
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            itemListElement: sortedProducts.slice(0, 30).map((p, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              url: `${SITE_URL}/products/${p.slug}`,
+              name: p.name,
+            })),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div>
+      {jsonLd.map((block, i) => (
+        <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(block) }} />
+      ))}
       <PageHeader
         eyebrow="カテゴリ"
         title={`今日の${categoryLabel}お買い得情報`}
