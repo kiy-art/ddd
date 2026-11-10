@@ -32,6 +32,7 @@
 - 2026-11-05 [001] kpi台帳の欠け(10/24・10/30・10/31・11/3・11/4)のうち11/4分はhttpx未導入でkpi_snapshot.pyが起動できず記録ゼロだったのが原因。他日は未確認。httpx無しでも動くurllib代替patchを作成(根拠: 04_SE/01_部内検討/2026-11-05_日次kpi欠けの原因と対策.md、backend/scripts/kpi_snapshot.py)
 - 2026-11-06 [001] 11/6時点 robots.txt・sitemap(521URL、商品433)・トップcanonical/JSON-LD・標本9URLにnoindex等の遮断なし。/brand/[brand]だけcanonical無し(patch作成、tsc OK)(根拠: curl par-gear.com 2026-11-06)
 - 2026-11-07 [001] sitemapは517URLで/compare/は0件(除外は反映済、依頼の629/1,143は古い数字)。トップHTMLはgzipで約45KB。kpi jsonは10/30〜11/4が無く、11/1・11/2の台帳行はjson無しの手動追記で、httpx不足だけでは全期間を説明できない(実行履歴なしのため未確定)。SCに表示がありインデックス自体は済み(根拠: curl par-gear.com 2026-11-07、git log docs/knowledge/kpi、04_SE/01_部内検討/2026-11-07_brand_canonical適用可否_と_kpi_json停止の原因.md)
+- 2026-11-10 [001] BFガイド(prime-appreciation-sale-2026-golf、11/8書き直し)は本番sitemapに掲載済み(lastmod 2026-11-08)で『未掲載』は再現せず。存在しないguide URLは200+noindexのソフト404形。10/21前後の変更でsitemap・canonical・noindexが原因の形跡なし(根拠: curl par-gear.com 2026-11-10、04_SE/01_部内検討/2026-11-10_BFガイドsitemap確認_と_P003原因切り分け.md)
 
 ## 代表者会議から持ち帰ったこと
 - 2026-11-01 [001] 10/28会議: 比較657件のsitemap除外は条件付き実行(2週間・11/11まで悪化で戻す)、373件の算出はSE担当・期日10/31、reorder停止は『判定不能』を記録(根拠: 議事録 2026-10/2026-10-28.md 21・24・44行)
@@ -65,3 +66,4 @@
 - 2026-11-05 [001] 安定運用の点検に「夜のルーチン環境で依存パッケージ(httpx等)が無くても日次記録が残るか」が無い → 1章4に足す(根拠: 2026-11-05_日次kpi欠けの原因と対策.md)
 - 2026-11-08 [001] sitemapは静的GUIDES(guides.ts)なら自動掲載・DBのAIガイドは未掲載の穴(今は0件)。guideのlastmodはpublishedAtのみで書き直しが反映されない(根拠: frontend/app/sitemap.ts、2026-11-08_sitemapとguide自動掲載_と_検索表示減の切り分け.md)
 - 2026-11-09 [001] カテゴリ一覧8ページにJSON-LDが無かった(ブランド別は有)ので追加(コード変更・tsc通過)。category/driverのHTMLは約800KBと重い。実測は curl で sitemap522URL・全ページcanonical正常(根拠: 2026-11-09_カテゴリ一覧の構造化データ追加.md、curl par-gear.com)
+- 2026-11-10 [001] curl確認を複数URLのループで出力すると取り違えやすい(今夜/popularのcanonicalを誤読) → 点検手順に『URLごとにHTMLを保存し、再取得で再現確認してから不具合と書く』を足す(根拠: 2026-11-10_BFガイドsitemap確認_と_P003原因切り分け.md)

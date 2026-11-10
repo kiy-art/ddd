@@ -3,6 +3,7 @@
 1行1件。`- YYYY-MM-DD [事業番号] 内容(根拠: 出典)`。推測は「推測」と書く。古くなった行は消さずに打ち消し線を引く。
 
 ## 部署の学び
+- 2026-11-10 [001] BFガイド(prime-appreciation-sale-2026-golf)は本番でBF版titleに更新済み・sitemap.xml掲載済み(依頼の「未掲載」は現状と不一致)。sitemap.tsはGUIDES全件を自動掲載、BF patchは適用済みでapply --check失敗が正常(根拠: https://par-gear.com/sitemap.xml 2026-11-10、frontend/app/sitemap.ts、2026-11-10_BFガイド公開確認とX投稿案.md)
 - 2026-11-08 [001] BFガイドは感謝祭slugを同URLで再利用しtitleをBF先頭に(11/1版は終了イベント名が先頭)。日程は2026未発表(楽天・Yahoo!・アルペン)、Amazonは11月中開催案内・詳細11/19ごろと報道(原文未確認)、アルペン2025は11/21〜12/1。WebFetchはjetstream.blog等が名前解決エラー(根拠: 2026-11-08_BFセールガイド.md、WebSearch 2026-11-08)
 - 2026-11-07 [001] sitemapはproducts429・brand24・category×brand34・guides14・compare0。ガイド14本のうち型落ち系・買い替え系に意図重複の恐れ(推測。SC別ページ数字は未取得)(根拠: https://par-gear.com/sitemap.xml、2026-11-07_週次レポートと棚卸し.md)
 - 2026-10-11 [001] プライム感謝祭2026は先行10/13(火)0:00〜10/15、本番10/16〜10/19 23:59。ポイントアップは「エントリー＋合計1万円(税込)以上」で上限1万pt・期間限定ポイント(根拠: https://press.aboutamazon.com/jp/2026/9/prime-appreciation-sale-2026 、2026-10-12確認)
