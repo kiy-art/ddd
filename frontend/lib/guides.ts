@@ -41,6 +41,7 @@ export const GUIDES: Guide[] = [
   // 2026-10-12 (marketing, audited): seasonal guide for Prime Big Deal Days 2026.
   // 2026-11-01 (marketing): rewritten for Black Friday prep (sale ended 10/19). Slug kept.
   // 2026-11-08 (marketing, P-005): BF-first rewrite (title/description/PR-first/schedule section). Slug kept (same URL reused).
+  // 2026-11-11 (meeting, audited): FAQ added + description aligned with body. Schedule section unchanged (Yahoo! dates not verified).
   // TODO before publish: re-check the schedule section against each company's OFFICIAL page; if an official date is
   // announced, replace ONLY the "ブラックフライデーの日程..." section with the official dates + source URL.
   // If the official pages cannot be opened, delete the past-examples paragraph rather than publish unverified dates.
@@ -48,7 +49,7 @@ export const GUIDES: Guide[] = [
     slug: "prime-appreciation-sale-2026-golf",
     title: "ブラックフライデー2026のゴルフ用品：セール前に価格を確かめる方法【PAR.】",
     description:
-      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。2026年の日程は公式発表前のため、過去の開催例と予想の目安を分けて載せています。",
+      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。2026年の日程は、各社の公式発表を確認できていないため断定せず、公式ページでの確認をお願いしています。",
     publishedAt: "2026-11-08",
     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
@@ -104,6 +105,14 @@ export const GUIDES: Guide[] = [
         paragraphs: [
           "PAR.の楽天市場の価格は1日1回の更新です（Yahoo!ショッピングは取得時点の価格）。セール中は価格が短い時間で変わることがあるため、表示の価格と購入時の価格が違う場合があります。購入前に、各ショップの商品ページで最新の価格・在庫・送料を確認してください。",
           "相場から大きく外れて安い価格は、並行輸入品や販売元の違いが理由のこともあります。価格だけで決めず、販売元の情報も確認することをおすすめします。",
+        ],
+      },
+      {
+        heading: "よくある質問",
+        paragraphs: [
+          "Q. ブラックフライデーまで待てば、ゴルフ用品は安くなりますか？ A. 値下がりを約束することはできません。商品ごとに、PAR.の商品ページで楽天市場の価格の推移を見て、セールの前にいくらだったかを控えておくと、比べやすくなります。",
+          "Q. PAR.でAmazonのセール価格もわかりますか？ A. PAR.はAmazonの価格を取得していません。Amazonの価格はAmazonの商品ページで確認し、PAR.の楽天市場の価格の記録と並べてください。",
+          "Q. 楽天市場とYahoo!ショッピングの価格はどのくらいの頻度で更新されますか？ A. 楽天市場の価格は1日1回の更新です。Yahoo!ショッピングは、取得できた時点の価格です。セール中は価格が短い時間で変わることがあるため、購入前に各ショップの商品ページで確認してください。",
         ],
       },
       {

@@ -36,6 +36,10 @@ export default async function BrandPage({ params }: { params: Promise<Params> })
   } catch {
     notFound();
   }
+  // The backend answers 200 with [] for an unknown brand. Without this the
+  // page renders as an empty, indexable "0 products" page (canonical set,
+  // no noindex) for any /brand/<anything> URL. notFound() adds noindex.
+  if (products.length === 0) notFound();
 
   let priceStats: BrandPriceStats | null = null;
   try {
