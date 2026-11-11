@@ -1,0 +1,48 @@
+--- a/frontend/lib/guides.ts
++++ b/frontend/lib/guides.ts
+@@ -41,6 +41,7 @@
+   // 2026-10-12 (marketing, audited): seasonal guide for Prime Big Deal Days 2026.
+   // 2026-11-01 (marketing): rewritten for Black Friday prep (sale ended 10/19). Slug kept.
+   // 2026-11-08 (marketing, P-005): BF-first rewrite (title/description/PR-first/schedule section). Slug kept (same URL reused).
++  // 2026-11-11 (marketing): schedule section now cites Yahoo! BF (11/22-11/29, press-based; verify the official page before applying) + FAQ section. Slug kept.
+   // TODO before publish: re-check the schedule section against each company's OFFICIAL page; if an official date is
+   // announced, replace ONLY the "ブラックフライデーの日程..." section with the official dates + source URL.
+   // If the official pages cannot be opened, delete the past-examples paragraph rather than publish unverified dates.
+@@ -48,7 +49,7 @@
+     slug: "prime-appreciation-sale-2026-golf",
+     title: "ブラックフライデー2026のゴルフ用品：セール前に価格を確かめる方法【PAR.】",
+     description:
+-      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。2026年の日程は公式発表前のため、過去の開催例と予想の目安を分けて載せています。",
++      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。日程は、公式に確認できたものと報道ベースのものを分けて載せています。",
+     publishedAt: "2026-11-08",
+     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
+     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
+@@ -62,10 +63,10 @@
+         ],
+       },
+       {
+-        heading: "ブラックフライデーの日程：2026年は公式発表前",
++        heading: "ブラックフライデーの日程：Yahoo!ショッピングは11月22日からと報じられています",
+         paragraphs: [
+-          "2026年のブラックフライデーの日程は、このページの更新時点（2026年11月8日）で、確認できた範囲では、楽天市場・Yahoo!ショッピング・アルペンの公式な日程の発表は確認できていません（Amazonについても詳細は公式ページでご確認ください）。日程は変わることがあるため、各社の公式ページで確認してください。",
+-          "例年11月下旬に始まる傾向はありますが、これは過去の例からの予想で、2026年の開始日・終了日は断定できません。楽天市場の終了日は、過去の記事の間でも表記が分かれる年があります。",
++          "Yahoo!ショッピングは、LINEヤフーが2026年11月2日に特設ページを公開し、11月22日（日）から11月29日（日）までの8日間で開催すると報じられています（報道ベース。終了時刻の表記は報道で分かれています。公式の特設ページでご確認ください）。",
++          "楽天市場・Amazon・アルペングループについては、2026年11月11日時点で、確認できた範囲では公式な日程の発表を確認できていません。日程は変わることがあるため、各社の公式ページで確認してください。",
+         ],
+       },
+       {
+@@ -107,6 +108,14 @@
+         ],
+       },
+       {
++        heading: "よくある質問",
++        paragraphs: [
++          "Q. ブラックフライデーまで待てば、ゴルフ用品は安くなりますか？ A. 値下がりを約束することはできません。商品ごとに、PAR.の商品ページで楽天市場の価格の推移を見て、セールの前にいくらだったかを控えておくと、比べやすくなります。",
++          "Q. PAR.でAmazonのセール価格もわかりますか？ A. PAR.はAmazonの価格を取得していません。Amazonの価格は商品ページで確認し、PAR.の楽天市場の価格の記録と並べてください。",
++          "Q. 楽天市場とYahoo!ショッピングの価格はどのくらいの頻度で更新されますか？ A. 楽天市場の価格は1日1回の更新です。Yahoo!ショッピングは、取得できた時点の価格です。セール中は価格が短い時間で変わることがあるため、購入前に各ショップの商品ページで確認してください。",
++        ],
++      },
++      {
+         heading: "参考：プライム感謝祭2026は10月19日に終了しています",
+         paragraphs: [
+           "Amazonのプライム感謝祭2026は10月19日（月）で終了しました。このページは、次の大型セールの前に価格をどう確かめるかをまとめた内容に更新しています。",
