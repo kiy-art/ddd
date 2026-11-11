@@ -1,0 +1,16 @@
+--- a/frontend/components/StickyBuyBar.tsx
++++ b/frontend/components/StickyBuyBar.tsx
+@@ -85,6 +85,13 @@
+                 : `${shortLabel}が最安（当サイト取得の価格）`
+               : `${shopLabel}の価格・在庫`}
+           </p>
++          {/* 比較したい人の入口。同じページ内の比較表へ移動するだけ(外部リンクではない)。 */}
++          <a
++            href="#store-comparison"
++            className="-my-1.5 inline-flex min-h-11 items-center py-1.5 text-xs font-semibold text-brand-dark underline underline-offset-2"
++          >
++            他の店の価格を比べる
++          </a>
+         </div>
+         <TrackedCta
+           href={href}
