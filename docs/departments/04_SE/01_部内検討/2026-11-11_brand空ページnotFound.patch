@@ -1,0 +1,24 @@
+# 確認手順(全体統括向け。patchは下の diff 部分のみ。`git apply` はこのファイル先頭のコメント行を無視しないので、diff行から適用すること)
+# 目的: /brand/<存在しない名前> が「200・canonicalあり・noindexなし(登録されうる空ページ)」になるのを、他の動的ルートと同じ「noindex」に揃える
+# 適用: sed -n '/^diff --git/,$p' docs/departments/04_SE/01_部内検討/2026-11-11_brand空ページnotFound.patch | git apply
+# 1) cd frontend && npx next typegen && npx tsc --noEmit  (既存エラーとの区別)
+# 2) npm run build が通る
+# 3) 本番反映後: curl -s https://par-gear.com/brand/zzz-nonexistent | grep -o '<meta name="robots"[^>]*>'  → noindex が出る
+#    実在ブランド(PING・Titleist)は noindex が出ない・商品が表示されることを確認
+# 4) 注意: ストリーミングのためHTTPステータスは200のまま(原因は app/loading.tsx)。本patchはステータスではなくnoindexを揃える
+# 戻し方: git revert(1ファイル4行)。本番データ・日次ジョブ(6:00)には触れない
+diff --git a/frontend/app/brand/[brand]/page.tsx b/frontend/app/brand/[brand]/page.tsx
+index b3b709e..ffa3c23 100644
+--- a/frontend/app/brand/[brand]/page.tsx
++++ b/frontend/app/brand/[brand]/page.tsx
+@@ -36,6 +36,10 @@ export default async function BrandPage({ params }: { params: Promise<Params> })
+   } catch {
+     notFound();
+   }
++  // The backend answers 200 with [] for an unknown brand. Without this the
++  // page renders as an empty, indexable "0 products" page (canonical set,
++  // no noindex) for any /brand/<anything> URL. notFound() adds noindex.
++  if (products.length === 0) notFound();
+ 
+   let priceStats: BrandPriceStats | null = null;
+   try {
