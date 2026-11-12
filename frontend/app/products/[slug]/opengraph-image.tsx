@@ -172,7 +172,10 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 
   const signalLabel =
     score !== null
-      ? `買い時スコア ${score}/100（${verdictInfo(product.buy_score).label}）`
+      ? // A low score ("待つのが無難") stays on the page, not on the share card.
+        score >= 50
+        ? `買い時スコア ${score}/100（${verdictInfo(product.buy_score).label}）`
+        : "値動きグラフ・ショップ別の値段をチェック"
       : fallback
         ? `定価からのお得度 ${fallback.score}/100`
         : cycleInsight
@@ -182,8 +185,9 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const savingsLine =
     facts.savingsYen !== null
       ? `定価より ${yen(facts.savingsYen)} 安い`
-      : facts.hasReliableTrend && product.price_change_percent !== null && product.price_change_percent !== 0
-        ? `30日平均比 ${product.price_change_percent > 0 ? "+" : ""}${product.price_change_percent}%`
+      : // Only when it is BELOW the average - "+4.6%" on a share card sells nothing.
+        facts.hasReliableTrend && product.price_change_percent !== null && product.price_change_percent < 0
+        ? `30日平均より ${Math.abs(product.price_change_percent)}% 安い`
         : null;
 
   // Red sticker only for a real discount: vs MSRP, else vs the 30-day average.
