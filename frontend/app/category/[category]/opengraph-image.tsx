@@ -7,6 +7,7 @@ import {
   OG_SIZE,
   THIN_DATA_DAYS,
   fetchImageDataUri,
+  ogFonts,
   withTimeout,
 } from "@/lib/og";
 
@@ -36,16 +37,23 @@ export default async function Image({ params }: { params: Promise<{ category: st
     (src): src is string => src !== null
   );
 
+  const title = `今日の${label}\nお買い得`;
+  const subtitle = products.length > 0 ? `${products.length}商品の値段を毎日チェック中` : "値段を毎日チェック中";
+  const cta = "買い時の商品を見る";
+  const footerRight = "価格推移・買い時判定";
+  const fonts = await ogFonts(["TODAY'S DEALS", title, subtitle, cta, footerRight]);
+
   return new ImageResponse(
     (
       <CollectionCard
         eyebrow="TODAY'S DEALS"
-        title={`今日の${label}\nお買い得`}
-        subtitle={products.length > 0 ? `${products.length}商品の価格を1日1回記録。今が買い時かをスコアで判定` : "価格推移と買い時判定を1日1回更新"}
+        title={title}
+        subtitle={subtitle}
+        cta={cta}
         photos={photos}
-        footerRight="相場推移・ショップ別価格・買い時判定"
+        footerRight={footerRight}
       />
     ),
-    { ...size }
+    { ...size, fonts }
   );
 }

@@ -6,15 +6,18 @@ import { getFallbackValueScore } from "@/lib/fallbackScore";
 import { getModelCycleInsight } from "@/lib/modelCycle";
 import {
   BrandMark,
+  CtaPill,
   Footer,
   HookChip,
   OG_API_TIMEOUT_MS,
-  OG_COLORS,
   OG_SIZE,
+  POP,
+  PercentBadge,
   PhotoTile,
-  dropHeadline,
+  dropWhen,
   fetchImageDataUri,
   findRecentDrop,
+  ogFonts,
   productShareFacts,
   truncate,
   withTimeout,
@@ -25,6 +28,32 @@ export const alt = "PAR. 価格推移と買い時判定";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
+// 2026-11-12 (社長指示): "値下がり速報" look for the card X shows under a
+// posted product link - one huge yellow number, a red percent sticker on
+// the photo and a button-shaped call to action. Every number is still a
+// recorded fact (see lib/og.tsx rule 2).
+
+const root = {
+  width: "100%",
+  height: "100%",
+  display: "flex",
+  background: POP.bg,
+  fontFamily: "PAR",
+} as const;
+
+// Big-number font size so "¥33,000" + "ダウン" fit the ~690px text column.
+function bigSize(text: string): number {
+  return text.length <= 6 ? 136 : text.length === 7 ? 118 : 100;
+}
+
+function Arrow() {
+  return (
+    <svg width="44" height="36" viewBox="0 0 44 36">
+      <path d="M2 18 H34 M22 5 L36 18 L22 31" stroke={POP.yellow} strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const product = await withTimeout(getProduct(slug, { signal: AbortSignal.timeout(OG_API_TIMEOUT_MS) }));
@@ -32,102 +61,97 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   if (!product) {
     // Backend asleep/unreachable or unknown slug: still a branded card,
     // never an error (an error is what X renders as a grey placeholder).
+    const cta = "いまの値段を見る";
+    const footerRight = "価格推移と買い時判定を毎日更新";
+    const fonts = await ogFonts(["買い時チェック", "そのギア、今が買い時？", cta, footerRight]);
     return new ImageResponse(
       (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            background: OG_COLORS.ink,
-            padding: "72px",
-          }}
-        >
-          <BrandMark />
-          <span style={{ display: "flex", fontSize: 60, fontWeight: 700, color: OG_COLORS.paper, lineHeight: 1.25 }}>
-            そのギア、今が買い時？
-          </span>
-          <Footer right="価格推移と買い時判定を毎日更新" />
+        <div style={{ ...root, flexDirection: "column", justifyContent: "space-between", padding: "48px 60px 40px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <BrandMark size={36} />
+            <HookChip text="買い時チェック" />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+            <span style={{ display: "flex", fontSize: 96, fontWeight: 900, color: POP.white, lineHeight: 1.15 }}>そのギア、</span>
+            <span style={{ display: "flex", fontSize: 96, fontWeight: 900, color: POP.yellow, lineHeight: 1.15, marginTop: -28 }}>
+              今が買い時？
+            </span>
+            <div style={{ display: "flex" }}>
+              <CtaPill text={cta} />
+            </div>
+          </div>
+          <Footer right={footerRight} />
         </div>
       ),
-      { ...size }
+      { ...size, fonts }
     );
   }
 
   const facts = productShareFacts(product);
   const photo = await fetchImageDataUri(product.image_url);
   const drop = findRecentDrop(product);
+  const name = truncate(`${product.brand} ${product.name}`, 30);
 
-  // 2026-11-08: a recent real price drop gets a hook-first card - the
-  // headline and the before→after prices are what make people tap it on X.
+  // A recent real price drop: the drop itself is the headline.
   if (drop) {
+    const big = yen(drop.yenDown);
+    const when = `${dropWhen(drop)}の記録`;
+    const tease = `${drop.stableDays}日間 ${yen(drop.before)} のままだったのに…`;
+    const cta = "値動きグラフを見る";
+    const fonts = await ogFonts(["値下がり速報", when, big, "ダウン", name, tease, cta, yen(drop.before), yen(drop.after)]);
     return new ImageResponse(
       (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            backgroundImage: "linear-gradient(135deg, #FFF1F2 0%, #FFF7ED 55%, #ECFDF5 100%)",
-            padding: "48px 60px",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <BrandMark size={34} />
-            <div
-              style={{
-                display: "flex",
-                background: "#E11D48",
-                color: "#FFFFFF",
-                fontSize: 30,
-                fontWeight: 700,
-                padding: "10px 28px",
-                borderRadius: 999,
-              }}
-            >
-              {`値下がり -${drop.percentDown}%`}
+        <div style={root}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              flex: 1,
+              padding: "42px 0 38px 56px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              <HookChip text="値下がり速報" />
+              <span style={{ display: "flex", fontSize: 28, fontWeight: 900, color: POP.white }}>{when}</span>
             </div>
-          </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-              <span style={{ display: "flex", fontSize: dropHeadline(drop).length > 11 ? (photo ? 50 : 60) : 64, fontWeight: 700, color: "#E11D48", lineHeight: 1.15 }}>
-                {dropHeadline(drop)}
-              </span>
-              <span style={{ display: "flex", fontSize: 28, color: OG_COLORS.paper, marginTop: 14, lineHeight: 1.3 }}>
-                {truncate(`${product.brand} ${product.name}`, photo ? 26 : 36)}
-              </span>
-              <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 22 }}>
-                <span
-                  style={{
-                    display: "flex",
-                    fontSize: 40,
-                    color: OG_COLORS.muted,
-                    textDecoration: "line-through",
-                  }}
-                >
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                <span style={{ display: "flex", fontSize: bigSize(big), fontWeight: 900, color: POP.yellow, lineHeight: 1.05 }}>
+                  {big}
+                </span>
+                <span style={{ display: "flex", fontSize: 56, fontWeight: 900, color: POP.white }}>ダウン</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 6 }}>
+                <span style={{ display: "flex", fontSize: 42, fontWeight: 500, color: POP.gray, textDecoration: "line-through" }}>
                   {yen(drop.before)}
                 </span>
-                <span style={{ display: "flex", fontSize: 40, color: OG_COLORS.muted }}>→</span>
-                <span style={{ display: "flex", fontSize: 84, fontWeight: 700, color: OG_COLORS.paper }}>
+                <Arrow />
+                <span style={{ display: "flex", fontSize: 70, fontWeight: 900, color: POP.white, lineHeight: 1.1 }}>
                   {yen(drop.after)}
                 </span>
               </div>
-              <span style={{ display: "flex", fontSize: 26, color: OG_COLORS.accent, marginTop: 14, fontWeight: 600 }}>
-                {`${drop.stableDays}日ずっと${yen(drop.before)}だったのに…`}
-              </span>
+              <span style={{ display: "flex", fontSize: 28, fontWeight: 900, color: POP.yellow, marginTop: 14 }}>{tease}</span>
+              <span style={{ display: "flex", fontSize: 24, fontWeight: 500, color: POP.gray, marginTop: 6 }}>{name}</span>
             </div>
-            {photo && <PhotoTile src={photo} size={360} />}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+              <CtaPill text={cta} />
+              <span style={{ display: "flex", fontSize: 22, fontWeight: 500, color: POP.gray }}>par-gear.com</span>
+            </div>
           </div>
 
-          <Footer right="毎日の楽天の価格記録より" />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 470 }}>
+            {photo ? (
+              <PhotoTile src={photo} size={370} badge={`-${drop.percentDown}%`} />
+            ) : (
+              <PercentBadge text={`-${drop.percentDown}%`} size={300} />
+            )}
+          </div>
         </div>
       ),
-      { ...size }
+      { ...size, fonts }
     );
   }
 
@@ -157,110 +181,68 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 
   const savingsLine =
     facts.savingsYen !== null
-      ? `定価より${yen(facts.savingsYen)}安い（-${facts.savingsPercent}%）`
+      ? `定価より ${yen(facts.savingsYen)} 安い`
       : facts.hasReliableTrend && product.price_change_percent !== null && product.price_change_percent !== 0
         ? `30日平均比 ${product.price_change_percent > 0 ? "+" : ""}${product.price_change_percent}%`
         : null;
 
+  // Red sticker only for a real discount: vs MSRP, else vs the 30-day average.
+  const badge =
+    facts.savingsPercent !== null && facts.savingsPercent >= 5
+      ? { text: `-${facts.savingsPercent}%`, caption: "定価比" }
+      : facts.hasReliableTrend && product.price_change_percent !== null && product.price_change_percent <= -5
+        ? { text: `${Math.round(product.price_change_percent)}%`, caption: "30日平均比" }
+        : null;
+
+  const chip = facts.hook ?? "買い時チェック";
+  const price = yen(product.current_price);
+  const cta = "今が買い時か見る";
+  const fonts = await ogFonts([chip, name, price, savingsLine, signalLabel, cta, "定価比30日平均比"]);
+
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: OG_COLORS.ink,
-          padding: "56px 64px",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <BrandMark size={36} />
-          {facts.hook && <HookChip text={facts.hook} />}
-        </div>
+      <div style={root}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            flex: 1,
+            padding: "42px 0 38px 56px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            <HookChip text={chip} />
+          </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 48 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-            <span style={{ display: "flex", fontSize: 28, color: OG_COLORS.accentLight }}>{product.brand}</span>
-            <span
-              style={{ display: "flex", fontSize: 50, fontWeight: 700, color: OG_COLORS.paper, lineHeight: 1.2 }}
-            >
-              {truncate(product.name, photo ? 30 : 40)}
-            </span>
-            <span style={{ display: "flex", fontSize: 88, fontWeight: 700, color: OG_COLORS.paper, marginTop: 8 }}>
-              {yen(product.current_price)}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ display: "flex", fontSize: 30, fontWeight: 900, color: POP.white, lineHeight: 1.3 }}>{name}</span>
+            <span style={{ display: "flex", fontSize: bigSize(price) + 8, fontWeight: 900, color: POP.yellow, lineHeight: 1.1, marginTop: 6 }}>
+              {price}
             </span>
             {savingsLine && (
-              <span style={{ display: "flex", fontSize: 32, fontWeight: 600, color: OG_COLORS.accentLight }}>
-                {savingsLine}
-              </span>
+              <span style={{ display: "flex", fontSize: 40, fontWeight: 900, color: POP.white, marginTop: 4 }}>{savingsLine}</span>
             )}
-            {photo && signalLabel && (
-              <span style={{ display: "flex", fontSize: 24, color: OG_COLORS.muted, marginTop: 4 }}>{signalLabel}</span>
+            {signalLabel && (
+              <span style={{ display: "flex", fontSize: 24, fontWeight: 500, color: POP.gray, marginTop: 10 }}>{signalLabel}</span>
             )}
           </div>
 
-          {photo ? (
-            <PhotoTile src={photo} size={380} />
-          ) : score !== null || fallback ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 240,
-                height: 240,
-                borderRadius: 120,
-                border: `10px ${score !== null ? "solid" : "dashed"} ${OG_COLORS.accent}`,
-              }}
-            >
-              <span style={{ display: "flex", fontSize: 80, fontWeight: 700, color: OG_COLORS.paper }}>
-                {score !== null ? score : fallback?.score}
-              </span>
-              <span style={{ display: "flex", fontSize: 18, color: OG_COLORS.accentLight, letterSpacing: 2 }}>
-                {score !== null ? verdictInfo(product.buy_score).label : "定価からのお得度"}
-              </span>
-            </div>
-          ) : (
-            cycleInsight && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 280,
-                  minHeight: 220,
-                  borderRadius: 32,
-                  border: `8px dashed ${OG_COLORS.accent}`,
-                  padding: "0 16px",
-                }}
-              >
-                <span
-                  style={{
-                    display: "flex",
-                    fontSize: 36,
-                    fontWeight: 700,
-                    color: OG_COLORS.paper,
-                    textAlign: "center",
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {cycleInsight.stageLabel}
-                </span>
-                <span style={{ display: "flex", fontSize: 18, color: OG_COLORS.accentLight, letterSpacing: 2, marginTop: 12 }}>
-                  {cycleInsight.tier === "fact" ? "FACT" : "AI推測"}
-                </span>
-              </div>
-            )
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+            <CtaPill text={cta} />
+            <span style={{ display: "flex", fontSize: 22, fontWeight: 500, color: POP.gray }}>par-gear.com</span>
+          </div>
         </div>
 
-        <Footer right="相場推移・ショップ別価格・買い時判定" />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 470 }}>
+          {photo ? (
+            <PhotoTile src={photo} size={370} badge={badge?.text} badgeCaption={badge?.caption} />
+          ) : badge ? (
+            <PercentBadge text={badge.text} size={300} caption={badge.caption} />
+          ) : null}
+        </div>
       </div>
     ),
-    { ...size }
+    { ...size, fonts }
   );
 }

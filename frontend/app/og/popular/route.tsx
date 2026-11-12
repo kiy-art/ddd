@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { CATEGORY_LABELS, getRakutenRanking } from "@/lib/api";
-import { BrandMark, OG_API_TIMEOUT_MS, OG_COLORS, OG_SIZE, fetchImageDataUri, truncate, withTimeout, yen } from "@/lib/og";
+import { BrandMark, CtaPill, HookChip, OG_API_TIMEOUT_MS, OG_SIZE, POP, fetchImageDataUri, ogFonts, truncate, withTimeout, yen } from "@/lib/og";
 
 // Share image for /popular (X posts link here as /popular?category=driver).
 // A file-based opengraph-image can't read the query string, so the page's
@@ -23,7 +23,9 @@ function cleanName(raw: string): string {
     .trim();
 }
 
-function fallback() {
+async function fallback() {
+  const title = "いま売れてるゴルフ用品ランキング";
+  const fonts = await ogFonts(["売れ筋ランキング", title, "1位を見る", "毎日更新"]);
   return new ImageResponse(
     (
       <div
@@ -33,18 +35,23 @@ function fallback() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: OG_COLORS.ink,
-          padding: "72px",
+          background: POP.bg,
+          padding: "48px 60px 40px",
+          fontFamily: "PAR",
         }}
       >
-        <BrandMark />
-        <span style={{ display: "flex", fontSize: 64, fontWeight: 700, color: OG_COLORS.paper, lineHeight: 1.25 }}>
-          楽天の売れ筋ゴルフ用品ランキング
-        </span>
-        <span style={{ display: "flex", fontSize: 26, color: OG_COLORS.muted }}>par-gear.com ・ 毎日更新</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <BrandMark size={36} />
+          <HookChip text="売れ筋ランキング" />
+        </div>
+        <span style={{ display: "flex", fontSize: 80, fontWeight: 900, color: POP.yellow, lineHeight: 1.2 }}>{title}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <CtaPill text="1位を見る" />
+          <span style={{ display: "flex", fontSize: 22, fontWeight: 500, color: POP.gray }}>par-gear.com ・ 毎日更新</span>
+        </div>
       </div>
     ),
-    { ...OG_SIZE }
+    { ...OG_SIZE, fonts }
   );
 }
 
@@ -62,6 +69,11 @@ export async function GET(request: Request) {
     month: "numeric",
     day: "numeric",
   });
+  const names = top.map((e) => truncate(cleanName(e.name), 14));
+  const title = `いま売れてる${label}`;
+  const stamp = `${date}時点・楽天市場`;
+  const cta = "値動きと買い時を見る";
+  const fonts = await ogFonts([title, "TOP3", stamp, cta, label, ...names, ...top.map((e) => yen(e.price))]);
 
   return new ImageResponse(
     (
@@ -71,18 +83,19 @@ export async function GET(request: Request) {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          background: OG_COLORS.ink,
-          padding: "40px 52px 36px",
+          background: POP.bg,
+          padding: "36px 48px 32px",
+          fontFamily: "PAR",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <BrandMark size={34} />
-          <span style={{ display: "flex", fontSize: 24, color: OG_COLORS.muted }}>{date}時点 ・ 楽天市場</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 18 }}>
+            <span style={{ display: "flex", fontSize: 60, fontWeight: 900, color: POP.white }}>{title}</span>
+            <span style={{ display: "flex", fontSize: 76, fontWeight: 900, color: POP.yellow }}>TOP3</span>
+          </div>
+          <BrandMark size={32} />
         </div>
-        <span style={{ display: "flex", marginTop: 14, fontSize: 52, fontWeight: 700, color: OG_COLORS.paper }}>
-          {`売れ筋${label} TOP3`}
-        </span>
-        <div style={{ display: "flex", gap: 24, marginTop: 22, flex: 1 }}>
+        <div style={{ display: "flex", gap: 22, marginTop: 14, flex: 1 }}>
           {top.map((e, i) => (
             <div
               key={e.rank}
@@ -91,53 +104,50 @@ export async function GET(request: Request) {
                 flexDirection: "column",
                 flex: 1,
                 background: "#FFFFFF",
-                border: "2px solid #D1FAE5",
-                borderRadius: 28,
-                padding: "16px 18px 18px",
+                borderRadius: 26,
+                padding: "14px 18px 14px",
                 position: "relative",
               }}
             >
-              <div style={{ display: "flex", height: 230, alignItems: "center", justifyContent: "center" }}>
+              <div style={{ display: "flex", height: 215, alignItems: "center", justifyContent: "center" }}>
                 {photos[i] ? (
                   // eslint-disable-next-line @next/next/no-img-element -- satori renders plain <img>
-                  <img src={photos[i] as string} width={230} height={230} style={{ objectFit: "contain" }} alt="" />
+                  <img src={photos[i] as string} width={215} height={215} style={{ objectFit: "contain" }} alt="" />
                 ) : (
-                  <span style={{ display: "flex", fontSize: 26, color: OG_COLORS.muted }}>{label}</span>
+                  <span style={{ display: "flex", fontSize: 26, color: "#5B6B64" }}>{label}</span>
                 )}
               </div>
               <div
                 style={{
                   display: "flex",
                   position: "absolute",
-                  top: 14,
-                  left: 14,
-                  width: 60,
-                  height: 60,
+                  top: -10,
+                  left: -10,
+                  width: 78,
+                  height: 78,
                   borderRadius: 999,
-                  background: MEDALS[i] ?? OG_COLORS.accent,
-                  color: i === 2 ? "#FFFFFF" : "#14201B",
-                  fontSize: 32,
-                  fontWeight: 700,
+                  background: i === 0 ? POP.red : MEDALS[i],
+                  border: `4px solid ${POP.white}`,
+                  color: i === 1 ? POP.black : POP.white,
+                  fontSize: 44,
+                  fontWeight: 900,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
                 {e.rank}
               </div>
-              <span style={{ display: "flex", marginTop: 10, fontSize: 24, fontWeight: 600, color: OG_COLORS.paper }}>
-                {truncate(cleanName(e.name), 15)}
-              </span>
-              <span style={{ display: "flex", marginTop: 6, fontSize: 38, fontWeight: 700, color: OG_COLORS.accent }}>
-                {yen(e.price)}
-              </span>
+              <span style={{ display: "flex", marginTop: 6, fontSize: 24, fontWeight: 900, color: POP.black }}>{names[i]}</span>
+              <span style={{ display: "flex", fontSize: 44, fontWeight: 900, color: POP.red, lineHeight: 1.15 }}>{yen(e.price)}</span>
             </div>
           ))}
         </div>
-        <span style={{ display: "flex", marginTop: 16, fontSize: 22, color: OG_COLORS.muted }}>
-          par-gear.com ・ 価格推移と買い時をチェック
-        </span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18 }}>
+          <CtaPill text={cta} />
+          <span style={{ display: "flex", fontSize: 22, fontWeight: 500, color: POP.gray }}>{`${stamp} ・ par-gear.com`}</span>
+        </div>
       </div>
     ),
-    { ...OG_SIZE, headers: { "Cache-Control": "public, max-age=3600, s-maxage=3600" } }
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": "public, max-age=3600, s-maxage=3600" } }
   );
 }
