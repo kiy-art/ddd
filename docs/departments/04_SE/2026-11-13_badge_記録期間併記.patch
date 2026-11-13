@@ -1,0 +1,56 @@
+diff --git a/frontend/app/products/[slug]/page.tsx b/frontend/app/products/[slug]/page.tsx
+--- a/frontend/app/products/[slug]/page.tsx
++++ b/frontend/app/products/[slug]/page.tsx
+@@ -346,6 +346,7 @@
+                     >
+                       {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}
+                       {badge.label}
++                      {badge.note && <span className="ml-1.5 font-normal normal-case tracking-normal opacity-80">（{badge.note}）</span>}
+                     </span>
+                   )}
+                 </div>
+diff --git a/frontend/app/ranking/page.tsx b/frontend/app/ranking/page.tsx
+--- a/frontend/app/ranking/page.tsx
++++ b/frontend/app/ranking/page.tsx
+@@ -75,6 +75,7 @@
+             >
+               {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}
+               {badge.label}
++              {badge.note && <span className="ml-1.5 font-normal normal-case tracking-normal opacity-80">（{badge.note}）</span>}
+             </span>
+           )}
+         </div>
+diff --git a/frontend/components/ProductCard.tsx b/frontend/components/ProductCard.tsx
+--- a/frontend/components/ProductCard.tsx
++++ b/frontend/components/ProductCard.tsx
+@@ -117,6 +117,7 @@
+             >
+               {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}
+               {badge.label}
++              {badge.note && <span className="ml-1.5 font-normal normal-case tracking-normal opacity-80">（{badge.note}）</span>}
+             </span>
+           )}
+         </div>
+diff --git a/frontend/lib/badges.ts b/frontend/lib/badges.ts
+--- a/frontend/lib/badges.ts
++++ b/frontend/lib/badges.ts
+@@ -16,6 +16,8 @@
+ export interface ProductBadge {
+   label: string;
+   tone: BadgeTone;
++  // Recording period for "過去最安値圏" so the claim is scoped to the data we hold.
++  note?: string;
+ }
+ 
+ /**
+@@ -36,7 +38,9 @@
+     product.current_price <= product.lowest_price * NEAR_LOW_RATIO;
+ 
+   if (product.buy_score === "strong_buy") {
+-    return nearAllTimeLow ? { label: "過去最安値圏", tone: "strong" } : { label: "今が買い時", tone: "strong" };
++    return nearAllTimeLow
++      ? { label: "過去最安値圏", tone: "strong", note: `記録${product.history_span_days}日間` }
++      : { label: "今が買い時", tone: "strong" };
+   }
+   if (product.buy_score === "buy") {
+     return { label: "コスパ良し", tone: "value" };
