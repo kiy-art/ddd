@@ -117,6 +117,7 @@ export default function ProductCard({
             >
               {badge.label === "過去最安値圏" && <span className="live-dot mr-1.5 align-middle" aria-hidden="true" />}
               {badge.label}
+              {badge.note && <span className="ml-1.5 font-normal normal-case tracking-normal opacity-80">（{badge.note}）</span>}
             </span>
           )}
         </div>

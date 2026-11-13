@@ -42,14 +42,14 @@ export const GUIDES: Guide[] = [
   // 2026-11-01 (marketing): rewritten for Black Friday prep (sale ended 10/19). Slug kept.
   // 2026-11-08 (marketing, P-005): BF-first rewrite (title/description/PR-first/schedule section). Slug kept (same URL reused).
   // 2026-11-11 (meeting, audited): FAQ added + description aligned with body. Schedule section unchanged (Yahoo! dates not verified).
-  // TODO before publish: re-check the schedule section against each company's OFFICIAL page; if an official date is
-  // announced, replace ONLY the "ブラックフライデーの日程..." section with the official dates + source URL.
-  // If the official pages cannot be opened, delete the past-examples paragraph rather than publish unverified dates.
+  // 2026-11-13 (marketing, audited): schedule section now states Yahoo! Shopping BF 11/22-11/29 (press reports;
+  // matches the LY Corp. press release 020947 found by search, original page not opened). Other shops: unverified.
+  // TODO 2026-11-30: rewrite the schedule section after the sale ends (slug kept).
   {
     slug: "prime-appreciation-sale-2026-golf",
     title: "ブラックフライデー2026のゴルフ用品：セール前に価格を確かめる方法【PAR.】",
     description:
-      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。2026年の日程は、各社の公式発表を確認できていないため断定せず、公式ページでの確認をお願いしています。",
+      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。Yahoo!ショッピングの開催予定（報道ベース）と、日程が未確認の各社は公式ページでの確認をお願いしています。",
     publishedAt: "2026-11-08",
     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
@@ -63,10 +63,11 @@ export const GUIDES: Guide[] = [
         ],
       },
       {
-        heading: "ブラックフライデーの日程：2026年は公式発表前",
+        heading: "ブラックフライデーの日程：Yahoo!ショッピングは11月22日から（報道ベース）",
         paragraphs: [
-          "2026年のブラックフライデーの日程は、このページの更新時点（2026年11月8日）で、確認できた範囲では、楽天市場・Yahoo!ショッピング・アルペンの公式な日程の発表は確認できていません（Amazonについても詳細は公式ページでご確認ください）。日程は変わることがあるため、各社の公式ページで確認してください。",
-          "例年11月下旬に始まる傾向はありますが、これは過去の例からの予想で、2026年の開始日・終了日は断定できません。楽天市場の終了日は、過去の記事の間でも表記が分かれる年があります。",
+          "Yahoo!ショッピングのブラックフライデー2026は、報道によると11月22日（日）0時から11月29日（日）までの開催予定です（11月13日時点の確認。出典：ネットショップ担当者フォーラム https://netshop.impress.co.jp/n/2026/11/05/16986 ほか。公式ページの原文は確認できていません）。PayPayポイントは条件付きで最大23%と報じられており、条件・上限は公式の特設ページで確認してください。",
+          "楽天市場・アルペン・Amazonについては、このページの更新時点（2026年11月13日）で、公式な日程の発表を確認できていません。日程は変わることがあるため、各社の公式ページで確認してください。",
+          "ポイントの付与率が高くても、実質の負担額は商品の価格と付与条件で変わります。セール前に控えた価格の範囲と並べて比べてください。",
         ],
       },
       {

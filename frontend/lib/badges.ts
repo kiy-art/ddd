@@ -16,6 +16,9 @@ export type BadgeTone = "strong" | "value";
 export interface ProductBadge {
   label: string;
   tone: BadgeTone;
+  // Recording period for "過去最安値圏" so the claim is scoped to the data we hold.
+  // N = history_span_days, counted within the 30-day analysis window (analysis.py LOOKBACK_DAYS), so N <= ~30.
+  note?: string;
 }
 
 /**
@@ -36,7 +39,9 @@ export function getProductBadge(product: Product): ProductBadge | null {
     product.current_price <= product.lowest_price * NEAR_LOW_RATIO;
 
   if (product.buy_score === "strong_buy") {
-    return nearAllTimeLow ? { label: "過去最安値圏", tone: "strong" } : { label: "今が買い時", tone: "strong" };
+    return nearAllTimeLow
+      ? { label: "過去最安値圏", tone: "strong", note: `記録${product.history_span_days}日間` }
+      : { label: "今が買い時", tone: "strong" };
   }
   if (product.buy_score === "buy") {
     return { label: "コスパ良し", tone: "value" };
