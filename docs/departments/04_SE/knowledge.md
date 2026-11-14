@@ -34,6 +34,8 @@
 - 2026-11-07 [001] sitemapは517URLで/compare/は0件(除外は反映済、依頼の629/1,143は古い数字)。トップHTMLはgzipで約45KB。kpi jsonは10/30〜11/4が無く、11/1・11/2の台帳行はjson無しの手動追記で、httpx不足だけでは全期間を説明できない(実行履歴なしのため未確定)。SCに表示がありインデックス自体は済み(根拠: curl par-gear.com 2026-11-07、git log docs/knowledge/kpi、04_SE/01_部内検討/2026-11-07_brand_canonical適用可否_と_kpi_json停止の原因.md)
 - 2026-11-10 [001] BFガイド(prime-appreciation-sale-2026-golf、11/8書き直し)は本番sitemapに掲載済み(lastmod 2026-11-08)で『未掲載』は再現せず。存在しないguide URLは200+noindexのソフト404形。10/21前後の変更でsitemap・canonical・noindexが原因の形跡なし(根拠: curl par-gear.com 2026-11-10、04_SE/01_部内検討/2026-11-10_BFガイドsitemap確認_と_P003原因切り分け.md)
 - 2026-11-13 [001] バッジ『過去最安値圏』は3か所(ProductCard・ranking・products/[slug])が同じlabel判定を持つため、labelは変えずbadges.tsのnoteで期間を足すのが最小。patch作成、git apply --check通過(根拠: 04_SE/2026-11-13_badge_記録期間併記.patch、frontend/lib/badges.ts)
+- 2026-11-14 [001] カテゴリ一覧「828KB」は圧縮前。gzipで/category/driverは約62KB・brで約58KB、ballは880KB→59KBで、全8カテゴリ gzip 20〜62KB。重さの主因は商品105件分のProduct全項目がRSCデータ(約279KB)として埋まること。修正不要と判断(根拠: 04_SE/01_部内検討/2026-11-14_カテゴリ一覧828KBのgzip実測.md、curl par-gear.com)
+- 2026-11-14 [001] 店別価格の取得時刻表示は商品ページのみ(楽天=価格履歴の最新recorded_at、Yahoo!=yahoo_updated_at。「11/14 10:38 時点」)。3日超は「N日前の価格」で最安比較から除外、7日超は金額非表示。一覧のProductCardには時刻表示なし(根拠: frontend/lib/shopRows.ts 67・89・220行、shopOffers.ts、products/[slug]/page.tsx 175-186行、本番ping-g440のHTML)
 
 ## 代表者会議から持ち帰ったこと
 - 2026-11-01 [001] 10/28会議: 比較657件のsitemap除外は条件付き実行(2週間・11/11まで悪化で戻す)、373件の算出はSE担当・期日10/31、reorder停止は『判定不能』を記録(根拠: 議事録 2026-10/2026-10-28.md 21・24・44行)
@@ -45,6 +47,7 @@
 - 2026-11-05 [001] 11/4会議: 日次kpi欠け(10/30〜11/3)の原因調査はSE、11/7に型落ちガイド・Yahoo!公開優先patchは基準値とデメリット付きで再提案、固定バーpatchは保留、最安値外しは実行(決裁A)(根拠: 議事録 2026-11/2026-11-04.md 27・48行)
 - 2026-11-11 [001] 11/7会議: SEは日次kpi欠測の原因を実行履歴で確認(宿題)。brand canonical適用・費用0の1日1回表記修正は多数意見で適用、固定バーは検証後(SEは今夜適用しない側)、SEスキル改訂は削る行をセットで再提出(根拠: 議事録 2026-11/2026-11-07.md 20・42・45行)
 - 2026-11-13 [001] 11/11会議: brand notFound化とBFガイドFAQは実行、バッジの記録期間併記は11/14までにSE、案CはSE次回、slug+301・冬ボールは11/18以降(根拠: 議事録 2026-11/2026-11-11.md 35・38行)
+- 2026-11-14 [001] 11/11会議: brand notFound化とBFガイドFAQ/description修正は実行済み(EXP-018・019)、バッジ記録期間併記はEXP-020で実行、案C(商品別・ページ別台帳)はSE次回、slug+301と冬ボールは11/18以降、巡回はボードに出す(根拠: 議事録 2026-11/2026-11-11.md 結論節)
 
 ## スキル改善メモ
 （専門スキル `.claude/skills/pro-se/SKILL.md` で足りなかった点。月1回、人事部が改訂案にまとめる）
@@ -73,3 +76,4 @@
 - 2026-11-11 [001] 存在しないURLが200になるのは guides/products/compare/category/brand 共通で、ルート直下 app/loading.tsx のストリーミングが原因とみられる(推測。公式記述は node_modules 無しで未確認)。noindex は付くため害は小さいが、/brand/[brand] だけはnoindexも無く空ページが登録されうる。patch作成(根拠: curl par-gear.com 2026-11-12、01_部内検討/2026-11-11_動的ルートのソフト404の切り分け.md)
 - 2026-11-11 [001] 今週(11/9〜)のerrorは3件(Yahoo!上限のみ)。logsは golf-deals-backend.onrender.com 側で取得し、par-gear.com 側の /api/admin は画面HTMLが返る(根拠: 同上)
 - 2026-11-11 [001] 点検項目に「動的ルート全て(/x/zzz-nonexistent)のHTTPステータスとrobots/canonicalの有無」が無い → 1章2に足す。またSkillツールが夜の環境で使えない場合の代替(SKILL.md直読み)が必要(根拠: 2026-11-11_動的ルートのソフト404の切り分け.md)
+- 2026-11-14 [001] 「速さ」点検に、サイズは必ずAccept-Encoding付き(gzip/br)と無し(identity)の両方で測る手順と、RSCデータ(self.__next_f)の量の見方が無い → 1章4に足す(根拠: 2026-11-14_カテゴリ一覧828KBのgzip実測.md、11/9・10/25にも同じ誤読)
