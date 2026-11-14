@@ -1,0 +1,40 @@
+--- a/frontend/app/products/[slug]/page.tsx
++++ b/frontend/app/products/[slug]/page.tsx
+@@ -406,10 +406,10 @@
+                   <span className="text-xs text-foreground/55">5〜6本セット価格（単品の価格ではありません）</span>
+                 )}
+                 {comparedOffers && lowestOffer && (
+-                  <span className="text-xs text-foreground/55">
++                  <span className="text-xs text-foreground/65">
+                     <span className="font-semibold text-brand dark:text-brand-light">{lowestOffer.label}</span>が最安{lowestAt ? `（${lowestAt}時点）` : "（当サイト取得の価格）"}
+                     {otherOffers.map((offer) => (
+-                      <span key={offer.shop} className="ml-2 text-foreground/40">
++                      <span key={offer.shop} className="ml-2 text-foreground/65">
+                         {offer.label} <span className="font-num">{yen(offer.price)}</span>
+                       </span>
+                     ))}
+@@ -446,7 +446,7 @@
+                 (lib/shopRows.ts). */}
+             <div id="buy-box" className="card-lux flex scroll-mt-24 flex-col gap-3 rounded-2xl p-5">
+               <div className="flex items-baseline justify-between gap-3">
+-                <span className="text-xs text-foreground/45">
++                <span className="text-xs text-foreground/65">
+                   {comparedOffers && lowestOffer
+                     ? `現在の最安値（${lowestOffer.label}${lowestAt ? `・${lowestAt}時点` : "・当サイト取得の価格"}）`
+                     : !lowestOffer && primaryShop?.stale
+@@ -531,9 +531,14 @@
+                       </span>
+                       {row.kind === "price" && row.price !== null && (
+                         <span className="flex shrink-0 flex-col items-end">
+-                          <span className={`font-num text-base font-semibold ${row.stale ? "text-foreground/65" : "text-foreground"}`}>
++                          <span className={`font-num font-semibold ${row.stale ? "text-sm text-foreground/65" : "text-base text-foreground"}`}>
+                             {yen(row.price)}
+                           </span>
++                          {row.stale && (
++                            <span className="font-num text-[11px] text-foreground/65">
++                              {row.ageDays !== null ? `${row.ageDays}日前の価格` : "取得日時不明"}
++                            </span>
++                          )}
+                           {!row.stale && comparedOffers && lowestOffer && row.price > lowestOffer.price && (
+                             <span className="font-num text-[11px] text-foreground/65">+{yen(row.price - lowestOffer.price)}</span>
+                           )}
