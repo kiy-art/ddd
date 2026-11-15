@@ -1,0 +1,183 @@
+diff --git a/frontend/lib/shopOffers.ts b/frontend/lib/shopOffers.ts
+--- a/frontend/lib/shopOffers.ts
++++ b/frontend/lib/shopOffers.ts
+@@ -19,6 +19,31 @@
+ export const OFFER_MAX_SHOWN_DAYS = 7;
+ const DAY_MS = 24 * 60 * 60 * 1000;
+ 
++// 2026-11-15 (代表者会議 11/14 議題3): during the Black Friday sales only
++// (2026-11-19 00:00 JST up to, not including, 2026-12-01 00:00 JST = through
++// all of 11/30), a price counts for "the winner" / "最安" only when it was
++// fetched within the last 24 hours. Yahoo! prices are refreshed for only a
++// small part of the catalogue per day, so a 2-3 day old Yahoo! price could
++// otherwise win against a sale-day Rakuten price. After the window the
++// normal OFFER_FRESH_DAYS rule applies again - nothing to switch back.
++export const BF_FRESH_START_MS = Date.parse("2026-11-19T00:00:00+09:00");
++export const BF_FRESH_END_MS = Date.parse("2026-12-01T00:00:00+09:00");
++export const BF_OFFER_FRESH_DAYS = 1;
++
++export function isBfWindow(now: number = Date.now()): boolean {
++  return now >= BF_FRESH_START_MS && now < BF_FRESH_END_MS;
++}
++
++// How many days a price may be old and still be compared right now.
++export function freshWindowDays(now: number = Date.now()): number {
++  return isBfWindow(now) ? BF_OFFER_FRESH_DAYS : OFFER_FRESH_DAYS;
++}
++
++// For on-page wording: "24時間" during the window, else "3日".
++export function freshWindowLabel(now: number = Date.now()): string {
++  return isBfWindow(now) ? "24時間" : `${OFFER_FRESH_DAYS}日`;
++}
++
+ export type ShopOffer = {
+   shop: "rakuten" | "yahoo";
+   label: string;
+@@ -36,7 +61,7 @@
+ export function isFresh(iso: string | null, now: number = Date.now()): boolean {
+   if (!iso) return false;
+   const t = parseUtc(iso);
+-  return !Number.isNaN(t) && now - t <= OFFER_FRESH_DAYS * DAY_MS;
++  return !Number.isNaN(t) && now - t <= freshWindowDays(now) * DAY_MS;
+ }
+ 
+ // Whole days since a fetch (0 = within the last 24h); null when unknown.
+diff --git a/frontend/components/StoreComparisonTable.tsx b/frontend/components/StoreComparisonTable.tsx
+--- a/frontend/components/StoreComparisonTable.tsx
++++ b/frontend/components/StoreComparisonTable.tsx
+@@ -1,6 +1,7 @@
+ import CtaArrow from "@/components/CtaArrow";
+ import TrackedCta from "@/components/TrackedCta";
+ import { Product } from "@/lib/api";
++import { isBfWindow, freshWindowLabel } from "@/lib/shopOffers";
+ import { SHOP_MARKS, ShopRow, buildShopBoard, formatUpdatedAt, staleLabel } from "@/lib/shopRows";
+ 
+ function yen(value: number | null): string {
+@@ -35,6 +36,9 @@
+   const pricedCount = rows.filter((row) => row.kind === "price" && row.price !== null && !row.stale).length;
+   const lowestRow = rows.find((row) => row.isLowest) ?? null;
+   const hasSponsoredRow = rows.some((row) => row.sponsored);
++  // 2026-11-15: the shops that were actually compared for the winner, each
++  // with the time its price was fetched (shown inside the winner banner).
++  const comparedRows = rows.filter((row) => row.kind === "price" && row.price !== null && !row.stale);
+ 
+   const track = (row: ShopRow, placement: string) => ({
+     event: "cta_click",
+@@ -62,7 +66,7 @@
+           <h2 className="mt-2 font-display text-2xl font-semibold text-foreground sm:text-3xl">販売価格を比較</h2>
+         </div>
+         <p className="text-xs text-foreground/65">
+-          {pricedCount >= 2 ? `${pricedCount}店舗の最新価格を比較` : "価格は1日1回取得"}・{rows.length}ショップを掲載
++          {pricedCount >= 2 ? `${pricedCount}店舗の取得済みの価格を比較` : "価格は1日1回取得"}・{rows.length}ショップを掲載
+         </p>
+       </div>
+ 
+@@ -82,9 +86,14 @@
+                   <span className="font-display text-lg font-semibold text-foreground">{lowestRow.label}</span>
+                   <span className="font-num text-3xl font-semibold text-brand sm:text-4xl">{yen(lowest.price)}</span>
+                 </div>
+-                {formatUpdatedAt(lowestRow.updatedAt) && (
+-                  <span className="block text-xs text-foreground/65">{formatUpdatedAt(lowestRow.updatedAt)} 時点の価格</span>
+-                )}
++                <div className="mt-1 flex flex-col gap-0.5 text-xs text-foreground/65">
++                  <span>比較した店の価格の取得時刻</span>
++                  {comparedRows.map((row) => (
++                    <span key={`${row.key}-${row.url}`} className="font-num">
++                      {row.label}　{formatUpdatedAt(row.updatedAt) ?? "取得時刻不明"} 取得
++                    </span>
++                  ))}
++                </div>
+                 {savings !== null && savings > 0 && (
+                   <span className="text-xs text-foreground/60">
+                     比較した他店との差は最大 <span className="font-num font-semibold text-foreground">{yen(savings)}</span>
+@@ -184,7 +193,7 @@
+         <details className="mt-2">
+           <summary className="cursor-pointer font-medium text-foreground/60">ℹ️ 価格の取り方（タップで開く）</summary>
+           <p className="mt-1.5">
+-            価格はPAR.が取得した各ショップの価格です（楽天市場は1日1回、Yahoo!ショッピングは取得できた時点）。取得から3日を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク、ゴルフ5・アルペンは価格未取得のためストアのトップへのリンク）。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
++            価格はPAR.が取得した各ショップの価格です（楽天市場は1日1回、Yahoo!ショッピングは取得できた時点）。{isBfWindow() && "ブラックフライデー期間（11/19〜11/30）は、勝者・最安の比較を取得から24時間以内の価格に限っています。"}取得から{freshWindowLabel()}を過ぎた価格は「◯日前の価格」と表示し、最安の比較には含めません（Amazonは価格未取得のため検索結果へのリンク、ゴルフ5・アルペンは価格未取得のためストアのトップへのリンク）。価格・在庫は変動するため、購入前に販売元サイトでご確認ください。
+           </p>
+         </details>
+       </div>
+diff --git a/frontend/lib/shopOffers.test.mjs b/frontend/lib/shopOffers.test.mjs
+new file mode 100644
+--- /dev/null
++++ b/frontend/lib/shopOffers.test.mjs
+@@ -0,0 +1,77 @@
++// Run: node --test frontend/lib/shopOffers.test.mjs   (Node 22.18+ strips the
++// types of shopOffers.ts itself; that file has only `import type`, so no
++// bundler/alias is needed). Not part of `next build` (.mjs is not in tsconfig include).
++import assert from "node:assert/strict";
++import test from "node:test";
++import {
++  freshWindowDays,
++  freshWindowLabel,
++  getShopOffers,
++  isBfWindow,
++  isFresh,
++} from "./shopOffers.ts";
++
++const H = 60 * 60 * 1000;
++const at = (iso) => Date.parse(iso);
++// Backend timestamps are naive UTC ("2026-11-19T01:00:00").
++const BF_NOON = at("2026-11-19T03:00:00Z"); // 11/19 12:00 JST
++const OUT_NOON = at("2026-11-10T03:00:00Z");
++
++test("BF window: 11/19 00:00 JST (inclusive) to 12/01 00:00 JST (exclusive)", () => {
++  assert.equal(isBfWindow(at("2026-11-18T14:59:59Z")), false);
++  assert.equal(isBfWindow(at("2026-11-18T15:00:00Z")), true);
++  assert.equal(isBfWindow(at("2026-11-30T14:59:59Z")), true); // 11/30 23:59:59 JST
++  assert.equal(isBfWindow(at("2026-11-30T15:00:00Z")), false); // 12/01 00:00 JST
++});
++
++test("window days and label switch with the window", () => {
++  assert.equal(freshWindowDays(BF_NOON), 1);
++  assert.equal(freshWindowLabel(BF_NOON), "24時間");
++  assert.equal(freshWindowDays(OUT_NOON), 3);
++  assert.equal(freshWindowLabel(OUT_NOON), "3日");
++});
++
++test("isFresh: 24h inside the window, 3 days outside", () => {
++  const fetched = (now, hoursAgo) => new Date(now - hoursAgo * H).toISOString().slice(0, 19);
++  assert.equal(isFresh(fetched(BF_NOON, 23), BF_NOON), true);
++  assert.equal(isFresh(fetched(BF_NOON, 24), BF_NOON), true);
++  assert.equal(isFresh(fetched(BF_NOON, 25), BF_NOON), false);
++  assert.equal(isFresh(fetched(OUT_NOON, 25), OUT_NOON), true);
++  assert.equal(isFresh(fetched(OUT_NOON, 71), OUT_NOON), true);
++  assert.equal(isFresh(fetched(OUT_NOON, 73), OUT_NOON), false);
++  assert.equal(isFresh(null, BF_NOON), false);
++});
++
++test("getShopOffers: a 30h-old Yahoo! price is dropped only inside the window", () => {
++  const fetched = (now, hoursAgo) => new Date(now - hoursAgo * H).toISOString().slice(0, 19);
++  const product = (now) => ({
++    current_price: 50000,
++    affiliate_url: "https://item.rakuten.co.jp/shop/item/",
++    yahoo_price: 48000,
++    yahoo_url: "https://store.shopping.yahoo.co.jp/shop/item.html",
++    yahoo_updated_at: fetched(now, 30),
++  });
++  const rakutenAt = (now) => fetched(now, 2);
++
++  const inBf = getShopOffers(product(BF_NOON), rakutenAt(BF_NOON), BF_NOON);
++  assert.deepEqual(inBf.map((o) => o.shop), ["rakuten"]); // no 2-shop comparison -> no winner
++
++  const outside = getShopOffers(product(OUT_NOON), rakutenAt(OUT_NOON), OUT_NOON);
++  assert.deepEqual(outside.map((o) => o.shop), ["yahoo", "rakuten"]); // cheapest first, as today
++});
++
++test("getShopOffers: two fresh prices still compare inside the window", () => {
++  const fetched = (hoursAgo) => new Date(BF_NOON - hoursAgo * H).toISOString().slice(0, 19);
++  const offers = getShopOffers(
++    {
++      current_price: 50000,
++      affiliate_url: "https://item.rakuten.co.jp/shop/item/",
++      yahoo_price: 48000,
++      yahoo_url: "https://store.shopping.yahoo.co.jp/shop/item.html",
++      yahoo_updated_at: fetched(5),
++    },
++    fetched(2),
++    BF_NOON
++  );
++  assert.deepEqual(offers.map((o) => o.shop), ["yahoo", "rakuten"]);
++});
