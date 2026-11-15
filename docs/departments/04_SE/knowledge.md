@@ -36,8 +36,11 @@
 - 2026-11-13 [001] バッジ『過去最安値圏』は3か所(ProductCard・ranking・products/[slug])が同じlabel判定を持つため、labelは変えずbadges.tsのnoteで期間を足すのが最小。patch作成、git apply --check通過(根拠: 04_SE/2026-11-13_badge_記録期間併記.patch、frontend/lib/badges.ts)
 - 2026-11-14 [001] カテゴリ一覧「828KB」は圧縮前。gzipで/category/driverは約62KB・brで約58KB、ballは880KB→59KBで、全8カテゴリ gzip 20〜62KB。重さの主因は商品105件分のProduct全項目がRSCデータ(約279KB)として埋まること。修正不要と判断(根拠: 04_SE/01_部内検討/2026-11-14_カテゴリ一覧828KBのgzip実測.md、curl par-gear.com)
 - 2026-11-14 [001] 店別価格の取得時刻表示は商品ページのみ(楽天=価格履歴の最新recorded_at、Yahoo!=yahoo_updated_at。「11/14 10:38 時点」)。3日超は「N日前の価格」で最安比較から除外、7日超は金額非表示。一覧のProductCardには時刻表示なし(根拠: frontend/lib/shopRows.ts 67・89・220行、shopOffers.ts、products/[slug]/page.tsx 175-186行、本番ping-g440のHTML)
+- 2026-11-15 [001] BF期間24h限定は shopOffers.ts の isFresh を期間で切り替える1か所の変更で、勝者・主ボタン・stale表示・JSON-LDが連動する(商品ページは revalidate=0 で時刻判定が毎回動く)。frontend にテスト基盤が無く、`import type` のみの lib は .mjs の node --test で試せる(根拠: 01_部内検討/2026-11-15_BF24h限定.md、frontend/package.json、products/[slug]/page.tsx 41行)
+- 2026-11-15 [001] コード上、インデックスを妨げる設定なし(robots Allow /、トップnoindexなし、canonicalあり、sitemap本番530URL)。site:で出ない原因は遮断ではなく登録の進み方の可能性(推測)(根拠: app/robots.ts、curl par-gear.com 2026-11-15)
 
 ## 代表者会議から持ち帰ったこと
+- 2026-11-15 [001] 11/14会議: 議題3は総務案A+B(BF期間11/19〜11/30だけ勝者を24時間以内の価格に限り、取得時刻を併記)。SEがpatchを11/18夜より前に監査へ(tsc・build・375px)、Webデザインpatchと順に当てて衝突確認、不一致が1件でも出たら戻す、11/30に戻す(根拠: 議事録 2026-11/2026-11-14.md 72〜78行)
 - 2026-11-01 [001] 10/28会議: 比較657件のsitemap除外は条件付き実行(2週間・11/11まで悪化で戻す)、373件の算出はSE担当・期日10/31、reorder停止は『判定不能』を記録(根拠: 議事録 2026-10/2026-10-28.md 21・24・44行)
 - 2026-10-24 [001] 10/23臨時会議の結論は議事録(2026-10-23_臨時.md)参照。SE分は未精読のため次回追記(根拠: 本日は成果物優先)
 - 2026-10-21 [001] 10/17会議: canonical差分はbuild確認と/ranking?categoryの扱い決定が条件、営業の373件の内訳(クリック数順)をSEに依頼、比較ページのSCクリック取得(根拠: 議事録 2026-10/2026-10-17.md 43・90-92行)
