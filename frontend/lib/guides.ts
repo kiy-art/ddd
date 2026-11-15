@@ -44,12 +44,15 @@ export const GUIDES: Guide[] = [
   // 2026-11-11 (meeting, audited): FAQ added + description aligned with body. Schedule section unchanged (Yahoo! dates not verified).
   // 2026-11-13 (marketing, audited): schedule section now states Yahoo! Shopping BF 11/22-11/29 (press reports;
   // matches the LY Corp. press release 020947 found by search, original page not opened). Other shops: unverified.
+  // 2026-11-15 (marketing, EXP-022 v2): Rakuten Ichiba stated as "not announced as of 11/15" (NO dates: the 11/19 20:00 date came only from a
+  // prediction article). Amazon paragraph now cites its source. Yahoo! end time stated as 11/30 (Mon) 1:59 (= official "11/29 25:59").
+  // Once Rakuten's official page or an independent report confirms the dates, add them (sales dept re-check 11/16-18) before re-auditing.
   // TODO 2026-11-30: rewrite the schedule section after the sale ends (slug kept).
   {
     slug: "prime-appreciation-sale-2026-golf",
     title: "ブラックフライデー2026のゴルフ用品：セール前に価格を確かめる方法【PAR.】",
     description:
-      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。Yahoo!ショッピングの開催予定（報道ベース）と、日程が未確認の各社は公式ページでの確認をお願いしています。",
+      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。Yahoo!ショッピングの開催予定（報道ベース）と、日程が未発表の楽天市場・Amazonなどは公式ページでの確認をお願いしています。",
     publishedAt: "2026-11-08",
     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
@@ -65,8 +68,9 @@ export const GUIDES: Guide[] = [
       {
         heading: "ブラックフライデーの日程：Yahoo!ショッピングは11月22日から（報道ベース）",
         paragraphs: [
-          "Yahoo!ショッピングのブラックフライデー2026は、報道によると11月22日（日）0時から11月29日（日）までの開催予定です（11月13日時点の確認。出典：ネットショップ担当者フォーラム https://netshop.impress.co.jp/n/2026/11/05/16986 ほか。公式ページの原文は確認できていません）。PayPayポイントは条件付きで最大23%と報じられており、条件・上限は公式の特設ページで確認してください。",
-          "楽天市場・アルペン・Amazonについては、このページの更新時点（2026年11月13日）で、公式な日程の発表を確認できていません。日程は変わることがあるため、各社の公式ページで確認してください。",
+          "Yahoo!ショッピングのブラックフライデー2026は、報道によると11月22日（日）0時から11月30日（月）1時59分まで（11月29日の25時59分と同じ時刻）の開催予定です（11月15日時点の確認。出典：ネットショップ担当者フォーラム https://netshop.impress.co.jp/n/2026/11/05/16986 ほか。公式ページの原文は確認できていません）。PayPayポイントは条件付きで最大23%と報じられており、条件・上限は公式の特設ページで確認してください。",
+          "楽天市場のブラックフライデー2026は、11月15日時点で日程が発表されていることを確認できていません。日程が載っている記事はありますが、発表前の予測のため、このページには日付を書いていません。発表され次第、公式ページで確認のうえ更新します。PAR.が価格を記録しているのは楽天市場なので、開始前の今のうちに、気になる商品の価格の動きを控えておくと比べやすくなります。",
+          "Amazonは2026年11月中のブラックフライデー開催を11月5日に発表したと報じられており、開催期間などの詳細は11月19日（木）午前に発表予定とされています（出典：ジェットストリーム https://jetstream.blog/?p=228384 、11月15日時点。公式ページの原文は確認できていません）。詳細は未発表のため、このページでは日程を書いていません。アルペンなどその他の店舗も、公式な日程を確認できていません。日程は変わることがあるため、各社の公式ページで確認してください。",
           "ポイントの付与率が高くても、実質の負担額は商品の価格と付与条件で変わります。セール前に控えた価格の範囲と並べて比べてください。",
         ],
       },
