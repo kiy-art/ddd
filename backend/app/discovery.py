@@ -101,7 +101,14 @@ CATEGORY_SEARCH_KEYWORDS = {
         "テーラーメイド アイアン セット 新品",
     ],
     "wedge": ["ゴルフ ウェッジ 新品"],
-    "putter": ["ゴルフ パター 新品"],
+    "putter": [
+        # 2026-11-16 (社長指示): TaylorMade's zero-torque Spider (Spider ZT /
+        # Spider 5K-ZT, 2025) - listed first so it is found before the
+        # generic search fills MAX_NEW_PER_CATEGORY.
+        "テーラーメイド Spider ZT パター",
+        "スパイダー ゼロトルク パター",
+        "ゴルフ パター 新品",
+    ],
     "ball": [
         "ゴルフボール 1ダース 新品",
         "Titleist Pro V1 ゴルフボール",
