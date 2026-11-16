@@ -78,6 +78,24 @@ CATEGORY_SEARCH_KEYWORDS = {
         "ブリヂストン ドライバー 新品",
     ],
     "iron": [
+        # 2026-11-16 (社長指示): the irons on golfscale.jp's 名器ランキング
+        # (https://golfscale.jp/ranking/iron/classic, Top10 as of 2026-10)
+        # that the catalog didn't carry yet - i230 / G440 / ゼクシオ13 /
+        # KING were already listed. Model-specific on purpose (unlike the
+        # brand-level searches below): these are named long-sellers, several
+        # of them past models, that a generic "新品" search never reaches.
+        # Listed FIRST so MAX_NEW_PER_CATEGORY is spent on them before the
+        # generic searches. A 中古 listing still isn't shown: it is added
+        # as pending review (AUTO_PUBLISH_NG_KEYWORDS), because a one-off used
+        # set sells out and has no price to track day by day.
+        "スリクソン ZX5 アイアン セット",
+        "スリクソン ZX7 アイアン セット",
+        "スリクソン ZX4 アイアン セット",
+        "ミズノ JPX923 アイアン セット",
+        "ブリヂストン 213HF アイアン セット",
+        "タイトリスト VG3 アイアン セット",
+        "タイトリスト 716 アイアン セット",
+        "PING G25 アイアン セット",
         "ゴルフ アイアン セット 新品",
         "PING アイアン セット 新品",
         "テーラーメイド アイアン セット 新品",
