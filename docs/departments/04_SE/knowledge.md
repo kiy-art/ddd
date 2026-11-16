@@ -38,6 +38,7 @@
 - 2026-11-14 [001] 店別価格の取得時刻表示は商品ページのみ(楽天=価格履歴の最新recorded_at、Yahoo!=yahoo_updated_at。「11/14 10:38 時点」)。3日超は「N日前の価格」で最安比較から除外、7日超は金額非表示。一覧のProductCardには時刻表示なし(根拠: frontend/lib/shopRows.ts 67・89・220行、shopOffers.ts、products/[slug]/page.tsx 175-186行、本番ping-g440のHTML)
 - 2026-11-15 [001] BF期間24h限定は shopOffers.ts の isFresh を期間で切り替える1か所の変更で、勝者・主ボタン・stale表示・JSON-LDが連動する(商品ページは revalidate=0 で時刻判定が毎回動く)。frontend にテスト基盤が無く、`import type` のみの lib は .mjs の node --test で試せる(根拠: 01_部内検討/2026-11-15_BF24h限定.md、frontend/package.json、products/[slug]/page.tsx 41行)
 - 2026-11-15 [001] コード上、インデックスを妨げる設定なし(robots Allow /、トップnoindexなし、canonicalあり、sitemap本番530URL)。site:で出ない原因は遮断ではなく登録の進み方の可能性(推測)(根拠: app/robots.ts、curl par-gear.com 2026-11-15)
+- 2026-11-16 [001] BF限定を24h→30hに直したpatchを作成(2026-11-16_BF30h限定.patch)。Yahoo!価格が24時間以内は446件中19件のみ(30hも19、48h28、72h42。11/17 00:07 JST時点、Yahoo!価格あり332件)。楽天の最終書き込みは標本120件中110件が11/16 00:52〜01:12 UTCの20分に集中し、実行の開始時刻は日ごとにずれうる(ずれ幅は1日分しか見ておらず未取得)(根拠: curl golf-deals-backend /api/products・/api/products/{slug} 2026-11-17、04_SE/01_部内検討/2026-11-16_BF30h限定.md)
 
 ## 代表者会議から持ち帰ったこと
 - 2026-11-15 [001] 11/14会議: 議題3は総務案A+B(BF期間11/19〜11/30だけ勝者を24時間以内の価格に限り、取得時刻を併記)。SEがpatchを11/18夜より前に監査へ(tsc・build・375px)、Webデザインpatchと順に当てて衝突確認、不一致が1件でも出たら戻す、11/30に戻す(根拠: 議事録 2026-11/2026-11-14.md 72〜78行)
@@ -80,3 +81,4 @@
 - 2026-11-11 [001] 今週(11/9〜)のerrorは3件(Yahoo!上限のみ)。logsは golf-deals-backend.onrender.com 側で取得し、par-gear.com 側の /api/admin は画面HTMLが返る(根拠: 同上)
 - 2026-11-11 [001] 点検項目に「動的ルート全て(/x/zzz-nonexistent)のHTTPステータスとrobots/canonicalの有無」が無い → 1章2に足す。またSkillツールが夜の環境で使えない場合の代替(SKILL.md直読み)が必要(根拠: 2026-11-11_動的ルートのソフト404の切り分け.md)
 - 2026-11-14 [001] 「速さ」点検に、サイズは必ずAccept-Encoding付き(gzip/br)と無し(identity)の両方で測る手順と、RSCデータ(self.__next_f)の量の見方が無い → 1章4に足す(根拠: 2026-11-14_カテゴリ一覧828KBのgzip実測.md、11/9・10/25にも同じ誤読)
+- 2026-11-16 [001] 「価格の鮮度」を扱う提案の点検に、日次ジョブの書き込み時刻の日ごとのずれ(余裕時間)と、条件を満たす商品数の実測が無い → 工数見積もり(3章)に「時間しきい値の提案は、書き込み時刻の分布と該当商品数を本番で数える」を足す(根拠: 2026-11-16_BF30h限定.md、監査条件)
