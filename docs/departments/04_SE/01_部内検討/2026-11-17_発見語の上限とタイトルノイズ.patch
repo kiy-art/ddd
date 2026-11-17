@@ -1,0 +1,170 @@
+--- a/backend/app/title_cleaner.py
++++ b/backend/app/title_cleaner.py
+@@ -163,6 +163,10 @@
+     "在庫処分",
+     "在庫限り",
+     "特価",
++    # Price-claim shop copy ("業界最安値に挑戦", "最安値挑戦中"). Pure ad
++    # copy, and an unverifiable superlative that must not sit in a product
++    # name on this site (景品表示法). "業界" is optional so both forms go.
++    r"(?:業界)?最安値?(?:に)?挑戦(?:中)?",
+     "セール",
+     "SALE",
+     "sale",
+@@ -259,6 +263,14 @@
+ # real content (STEP19).
+ _EMPTY_BRACKET_PATTERN = re.compile(r"[［\[（(]\s*[］\]）)]")
+ 
++# A lone "可" / "ー" / "-" token (e.g. "名入れ可", "ー" left from a spec
++# table) - what is left once the phrase around it is stripped. Only a
++# whitespace-delimited single character is removed, so a model name that
++# contains these characters (e.g. "ー" inside a katakana word, "T-1") is
++# never touched. Run after the promo/shaft passes, which replace what they
++# remove with a space and so leave the token isolated.
++_STANDALONE_NOISE_PATTERN = re.compile(r"(?:(?<=\s)|^)(?:可|ー|ｰ|－|―|-)(?=\s|$)")
++
+ _WHITESPACE_PATTERN = re.compile(r"[\s　]+")
+ 
+ 
+@@ -313,6 +325,7 @@
+         text = _dedupe_brand_name_repeats(text, brand)
+         if "golf" not in brand.lower():
+             text = _STANDALONE_GOLF_PATTERN.sub(" ", text)
++    text = _STANDALONE_NOISE_PATTERN.sub(" ", text)
+     # Run after content-stripping (which can itself empty out a bracket
+     # pair) and after brand dedup, so anything either pass hollowed out
+     # gets swept up too.
+--- a/backend/app/discovery.py
++++ b/backend/app/discovery.py
+@@ -183,6 +183,31 @@
+ # longer sits in the pending-review queue (see _is_safe_to_auto_publish).
+ MAX_NEW_PER_CATEGORY = 20
+ 
++# 2026-11-17: a model-specific search ("テーラーメイド Spider ZT パター",
++# "スリクソン ZX5 アイアン セット") returns the SAME model from many shops /
++# shaft options, each a different listing URL, and on 11/17 two such
++# keywords used up a whole category's cap (Spider ZT 20 putters, Srixon ZX
++# 20 irons) - one model filling the catalog. Cap each of these keywords to
++# a few new products per run; the category cap above still applies on top.
++# Generic/brand-level keywords are NOT in this set and keep using the
++# category cap alone. Keep this set in step with CATEGORY_SEARCH_KEYWORDS:
++# add any new model-specific keyword here.
++MODEL_SPECIFIC_KEYWORDS = frozenset(
++    {
++        "スリクソン ZX5 アイアン セット",
++        "スリクソン ZX7 アイアン セット",
++        "スリクソン ZX4 アイアン セット",
++        "ミズノ JPX923 アイアン セット",
++        "ブリヂストン 213HF アイアン セット",
++        "タイトリスト VG3 アイアン セット",
++        "タイトリスト 716 アイアン セット",
++        "PING G25 アイアン セット",
++        "テーラーメイド Spider ZT パター",
++        "スパイダー ゼロトルク パター",
++    }
++)
++MAX_NEW_PER_MODEL_KEYWORD = 2
++
+ 
+ # Item-name substrings that make a candidate too likely to be a used item,
+ # a bare accessory, or a listing described relative to another product
+@@ -282,6 +307,8 @@
+             # skipped entirely (no request made) - but still counted
+             # toward on_progress's total, so a live progress bar built
+             # from (request_index, total_keywords) always reaches 100%.
++            added_this_keyword = 0
++            keyword_cap = MAX_NEW_PER_MODEL_KEYWORD if keyword in MODEL_SPECIFIC_KEYWORDS else MAX_NEW_PER_CATEGORY
+             if added_this_category < MAX_NEW_PER_CATEGORY:
+                 if request_index > 0:
+                     time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
+@@ -292,7 +319,7 @@
+                     items = []
+ 
+                 for item in items:
+-                    if added_this_category >= MAX_NEW_PER_CATEGORY:
++                    if added_this_category >= MAX_NEW_PER_CATEGORY or added_this_keyword >= keyword_cap:
+                         break
+                     considered += 1
+ 
+@@ -358,6 +385,7 @@
+                     existing_names.add(name_key)
+                     discovered += 1
+                     added_this_category += 1
++                    added_this_keyword += 1
+ 
+             request_index += 1
+             if on_progress is not None:
+--- a/backend/tests/test_discovery.py
++++ b/backend/tests/test_discovery.py
+@@ -312,3 +312,39 @@
+     assert (pin.category, pin.brand, pin.pending_review) == ("other", "LITE", False)  # "練習用" isn't the "用" NG word here
+     putter = next(p for p in products.values() if "パター" in p.name)
+     assert (putter.category, putter.brand) == ("putter", "Odyssey")
++
++
++# --- 2026-11-17: model-specific keywords are capped per keyword ---------------
++
++
++def test_every_model_specific_keyword_is_a_real_search_keyword():
++    all_keywords = {k for keywords in discovery.CATEGORY_SEARCH_KEYWORDS.values() for k in keywords}
++    assert discovery.MODEL_SPECIFIC_KEYWORDS <= all_keywords
++
++
++def test_a_model_specific_keyword_adds_at_most_the_per_keyword_cap(db_session, monkeypatch):
++    """Real incident (2026-11-17): the "Spider ZT" search registered 20
++    putters of one model. Now one model keyword adds only a few, and the
++    generic search after it still gets its share of the category cap."""
++    putter_keywords = discovery.CATEGORY_SEARCH_KEYWORDS["putter"]
++    model_keyword = "テーラーメイド Spider ZT パター"
++    assert model_keyword in discovery.MODEL_SPECIFIC_KEYWORDS
++    model_items = [
++        _FakeItem(f"テーラーメイド Spider ZT-{i} パター", 40000 + i, f"https://item.rakuten.co.jp/example/zt{i}/")
++        for i in range(discovery.MAX_NEW_PER_MODEL_KEYWORD + 4)
++    ]
++    generic_items = [
++        _FakeItem("テーラーメイド TP Collection パター", 30000, "https://item.rakuten.co.jp/example/tp/")
++    ]
++    monkeypatch.setattr(
++        rakuten,
++        "search_items",
++        _fixed_results({model_keyword: model_items, putter_keywords[-1]: generic_items}),
++    )
++
++    discovered, _ = discovery.discover_new_products(db_session)
++
++    names = [p.name for p in db_session.execute(select(models.Product)).scalars().all()]
++    assert len([n for n in names if "Spider ZT" in n]) == discovery.MAX_NEW_PER_MODEL_KEYWORD
++    assert any("TP Collection" in n for n in names)
++    assert discovered == discovery.MAX_NEW_PER_MODEL_KEYWORD + 1
+--- a/backend/tests/test_title_cleaner.py
++++ b/backend/tests/test_title_cleaner.py
+@@ -412,3 +412,29 @@
+     assert f("タイトリスト 10/4 20:00 10/09 01:59 グローブ", "タイトリスト") == "タイトリスト グローブ"
+     # a lone fraction (not a sale period) is untouched
+     assert "1/12" in f("スリクソン Z-STAR XV 1/12", "スリクソン")
++
++
++# --- 2026-11-17: price-claim copy and lone "可"/"ー" tokens ---------------------
++
++
++def test_strip_promotional_noise_removes_price_claim_copy_and_lone_marks():
++    assert (
++        title_cleaner.strip_promotional_noise("テーラーメイド Spider ZT パター 可 業界最安値に挑戦 ー", brand="TaylorMade")
++        == "テーラーメイド Spider ZT パター"
++    )
++    assert (
++        title_cleaner.strip_promotional_noise("PING G440 ドライバー 業界最安値に挑戦!!", brand="PING")
++        == "PING G440 ドライバー"
++    )
++    assert (
++        title_cleaner.strip_promotional_noise("【送料無料】スリクソン ZX5 Mk II アイアン 6本セット 最安値に挑戦中", brand="Srixon")
++        == "スリクソン ZX5 Mk II アイアン 6本セット"
++    )
++
++
++def test_strip_promotional_noise_keeps_hyphens_and_long_vowel_marks_inside_model_names():
++    # Only a whole-token "可"/"ー"/"-" goes; "ZT-3" and "ー" inside a word stay.
++    assert (
++        title_cleaner.strip_promotional_noise("テーラーメイド Spider ZT-3 パター", brand="TaylorMade")
++        == "テーラーメイド Spider ZT-3 パター"
++    )
