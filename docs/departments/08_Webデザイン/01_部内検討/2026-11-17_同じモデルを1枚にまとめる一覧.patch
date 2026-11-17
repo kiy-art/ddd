@@ -1,0 +1,131 @@
+diff --git a/frontend/app/category/[category]/[brand]/page.tsx b/frontend/app/category/[category]/[brand]/page.tsx
+index 0e3bb1c..72e95b5 100644
+--- a/frontend/app/category/[category]/[brand]/page.tsx
++++ b/frontend/app/category/[category]/[brand]/page.tsx
+@@ -7,6 +7,8 @@ import CategoryGuide from "@/components/CategoryGuide";
+ import FadeIn from "@/components/FadeIn";
+ import PageHeader from "@/components/PageHeader";
+ import ProductCard from "@/components/ProductCard";
++import SameModelListings from "@/components/SameModelListings";
++import { groupSameModel } from "@/lib/groupSameModel";
+ import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
+ import { BRAND_PAGE_MIN_PRODUCTS, brandCategoryHref, brandCounts, brandSlug } from "@/lib/brandFilter";
+ import { pairHref } from "@/lib/comparePairs";
+@@ -192,9 +194,10 @@ export default async function BrandCategoryPage({
+ 
+           <PrNotice className="mt-6" />
+           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+-            {sorted.map((product, i) => (
+-              <FadeIn key={product.id} delay={(i % 6) * 60}>
+-                <ProductCard product={product} listSource="brand_category" />
++            {groupSameModel(sorted).map(({ lead, others }, i) => (
++              <FadeIn key={lead.id} delay={(i % 6) * 60}>
++                <ProductCard product={lead} listSource="brand_category" />
++                <SameModelListings others={others} />
+               </FadeIn>
+             ))}
+           </div>
+diff --git a/frontend/app/category/[category]/page.tsx b/frontend/app/category/[category]/page.tsx
+index 27e3a8a..773c9a3 100644
+--- a/frontend/app/category/[category]/page.tsx
++++ b/frontend/app/category/[category]/page.tsx
+@@ -9,10 +9,12 @@ import CuratedPickCard from "@/components/CuratedPickCard";
+ import FadeIn from "@/components/FadeIn";
+ import PageHeader from "@/components/PageHeader";
+ import ProductCard from "@/components/ProductCard";
++import SameModelListings from "@/components/SameModelListings";
+ import { CATEGORIES, CATEGORY_LABELS, Product, getCategoryProducts } from "@/lib/api";
+ import { brandCategoryHref, brandCounts, categoryHref, selectedBrand } from "@/lib/brandFilter";
+ import { curateTodaysPicks } from "@/lib/curatePicks";
+ import { GUIDES } from "@/lib/guides";
++import { groupSameModel } from "@/lib/groupSameModel";
+ import { SORT_LABELS, SORT_OPTIONS, type SortOption, isSortOption, sortProducts } from "@/lib/productSort";
+ import { SITE_URL } from "@/lib/siteUrl";
+ import PrNotice from "@/components/PrNotice";
+@@ -188,9 +190,10 @@ export default async function CategoryPage({
+ 
+               <PrNotice className="mt-6" />
+               <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+-                {sortedProducts.map((product, i) => (
+-                  <FadeIn key={product.id} delay={(i % 6) * 60}>
+-                    <ProductCard product={product} listSource="category" />
++                {groupSameModel(sortedProducts).map(({ lead, others }, i) => (
++                  <FadeIn key={lead.id} delay={(i % 6) * 60}>
++                    <ProductCard product={lead} listSource="category" />
++                    <SameModelListings others={others} />
+                   </FadeIn>
+                 ))}
+               </div>
+diff --git a/frontend/components/SameModelListings.tsx b/frontend/components/SameModelListings.tsx
+new file mode 100644
+index 0000000..ecc673f
+--- /dev/null
++++ b/frontend/components/SameModelListings.tsx
+@@ -0,0 +1,34 @@
++import Link from "next/link";
++
++import type { Product } from "@/lib/api";
++import { shopOf } from "@/lib/shopRows";
++
++// 一覧のカード直下に置く「同じモデルの他の出品」。折りたたみ(details)で既定は閉じる。
++// 行き先は各商品ページ(内部リンク)だけ。価格は時点つきで商品ページに出るので、ここには書かない。
++export default function SameModelListings({ others }: { others: Product[] }) {
++  if (others.length === 0) return null;
++  return (
++    <details className="mt-2 rounded-xl border border-border bg-card text-sm">
++      <summary className="flex min-h-11 cursor-pointer items-center px-4 font-semibold text-foreground/80">
++        同じモデルの他の出品 {others.length}件（店・シャフト違い）
++      </summary>
++      <ul className="divide-y divide-border border-t border-border">
++        {others.map((p) => {
++          const shop = shopOf(p.affiliate_url ?? p.product_url ?? "").label;
++          const shaft = p.specs?.shaft;
++          return (
++            <li key={p.id}>
++              <Link
++                href={`/products/${p.slug}`}
++                className="flex min-h-11 flex-col justify-center px-4 py-2 text-foreground/70 hover:text-brand"
++              >
++                <span className="font-medium">{shop}</span>
++                {shaft && <span className="text-xs text-foreground/65">シャフト: {shaft}</span>}
++              </Link>
++            </li>
++          );
++        })}
++      </ul>
++    </details>
++  );
++}
+diff --git a/frontend/lib/groupSameModel.ts b/frontend/lib/groupSameModel.ts
+new file mode 100644
+index 0000000..432aa49
+--- /dev/null
++++ b/frontend/lib/groupSameModel.ts
+@@ -0,0 +1,27 @@
++// 2026-11-17 (Webデザイン): 一覧の見せ方だけの統合。DB・URL・構造化データは変えない。
++// 同じ displayName(ブランド+型番)の商品を、並び順で最初の1件を代表にして束ねる。
++// 束ねるのは2件以上のときだけ。displayName が元の商品名のまま(型番を取れなかった)ものは
++// 商品名が一意なので束ならない=誤統合しない側に倒している。
++import type { Product } from "@/lib/api";
++import { displayName } from "@/lib/displayName";
++
++export type ModelGroup = { lead: Product; others: Product[] };
++
++const keyOf = (p: Product) => displayName(p).toLowerCase().replace(/\s+/g, "");
++
++export function groupSameModel(sorted: Product[]): ModelGroup[] {
++  const byKey = new Map<string, ModelGroup>();
++  const out: ModelGroup[] = [];
++  for (const p of sorted) {
++    const key = keyOf(p);
++    const hit = byKey.get(key);
++    if (hit) {
++      hit.others.push(p);
++    } else {
++      const g = { lead: p, others: [] as Product[] };
++      byKey.set(key, g);
++      out.push(g);
++    }
++  }
++  return out;
++}
