@@ -183,6 +183,31 @@ DISCOVERY_SEARCH_HITS = 30
 # longer sits in the pending-review queue (see _is_safe_to_auto_publish).
 MAX_NEW_PER_CATEGORY = 20
 
+# 2026-11-17: a model-specific search ("テーラーメイド Spider ZT パター",
+# "スリクソン ZX5 アイアン セット") returns the SAME model from many shops /
+# shaft options, each a different listing URL, and on 11/17 two such
+# keywords used up a whole category's cap (Spider ZT 20 putters, Srixon ZX
+# 20 irons) - one model filling the catalog. Cap each of these keywords to
+# a few new products per run; the category cap above still applies on top.
+# Generic/brand-level keywords are NOT in this set and keep using the
+# category cap alone. Keep this set in step with CATEGORY_SEARCH_KEYWORDS:
+# add any new model-specific keyword here.
+MODEL_SPECIFIC_KEYWORDS = frozenset(
+    {
+        "スリクソン ZX5 アイアン セット",
+        "スリクソン ZX7 アイアン セット",
+        "スリクソン ZX4 アイアン セット",
+        "ミズノ JPX923 アイアン セット",
+        "ブリヂストン 213HF アイアン セット",
+        "タイトリスト VG3 アイアン セット",
+        "タイトリスト 716 アイアン セット",
+        "PING G25 アイアン セット",
+        "テーラーメイド Spider ZT パター",
+        "スパイダー ゼロトルク パター",
+    }
+)
+MAX_NEW_PER_MODEL_KEYWORD = 2
+
 
 # Item-name substrings that make a candidate too likely to be a used item,
 # a bare accessory, or a listing described relative to another product
@@ -282,6 +307,8 @@ def discover_new_products(
             # skipped entirely (no request made) - but still counted
             # toward on_progress's total, so a live progress bar built
             # from (request_index, total_keywords) always reaches 100%.
+            added_this_keyword = 0
+            keyword_cap = MAX_NEW_PER_MODEL_KEYWORD if keyword in MODEL_SPECIFIC_KEYWORDS else MAX_NEW_PER_CATEGORY
             if added_this_category < MAX_NEW_PER_CATEGORY:
                 if request_index > 0:
                     time.sleep(RAKUTEN_REQUEST_INTERVAL_SECONDS)
@@ -292,7 +319,7 @@ def discover_new_products(
                     items = []
 
                 for item in items:
-                    if added_this_category >= MAX_NEW_PER_CATEGORY:
+                    if added_this_category >= MAX_NEW_PER_CATEGORY or added_this_keyword >= keyword_cap:
                         break
                     considered += 1
 
@@ -358,6 +385,7 @@ def discover_new_products(
                     existing_names.add(name_key)
                     discovered += 1
                     added_this_category += 1
+                    added_this_keyword += 1
 
             request_index += 1
             if on_progress is not None:

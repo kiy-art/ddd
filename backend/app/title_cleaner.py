@@ -163,6 +163,10 @@ _PROMO_PHRASES = [
     "在庫処分",
     "在庫限り",
     "特価",
+    # Price-claim shop copy ("業界最安値に挑戦", "最安値挑戦中"). Pure ad
+    # copy, and an unverifiable superlative that must not sit in a product
+    # name on this site (景品表示法). "業界" is optional so both forms go.
+    r"(?:業界)?最安値?(?:に)?挑戦(?:中)?",
     "セール",
     "SALE",
     "sale",
@@ -259,6 +263,14 @@ _DECORATION_PATTERN = re.compile(r"[!!！★☆◆■□▼▲♪♫~〜×]+")
 # real content (STEP19).
 _EMPTY_BRACKET_PATTERN = re.compile(r"[［\[（(]\s*[］\]）)]")
 
+# A lone "可" / "ー" / "-" token (e.g. "名入れ可", "ー" left from a spec
+# table) - what is left once the phrase around it is stripped. Only a
+# whitespace-delimited single character is removed, so a model name that
+# contains these characters (e.g. "ー" inside a katakana word, "T-1") is
+# never touched. Run after the promo/shaft passes, which replace what they
+# remove with a space and so leave the token isolated.
+_STANDALONE_NOISE_PATTERN = re.compile(r"(?:(?<=\s)|^)(?:可|ー|ｰ|－|―|-)(?=\s|$)")
+
 _WHITESPACE_PATTERN = re.compile(r"[\s　]+")
 
 
@@ -313,6 +325,7 @@ def strip_promotional_noise(raw_title: str, brand: str | None = None) -> str:
         text = _dedupe_brand_name_repeats(text, brand)
         if "golf" not in brand.lower():
             text = _STANDALONE_GOLF_PATTERN.sub(" ", text)
+    text = _STANDALONE_NOISE_PATTERN.sub(" ", text)
     # Run after content-stripping (which can itself empty out a bracket
     # pair) and after brand dedup, so anything either pass hollowed out
     # gets swept up too.

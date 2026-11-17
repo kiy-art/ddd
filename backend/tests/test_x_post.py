@@ -317,7 +317,8 @@ def test_post_leads_with_recorded_lowest_only_on_enough_history(db_session):
         history_span_days=14, buy_score="strong_buy", buy_signal_score=82,
     )
     text = _text_for(db_session, at_low)
-    assert text.split("\n")[0] == "📉 注目のドライバーが過去14日間の最安値に"
+    assert text.split("\n")[0] == "【PR】"
+    assert text.split("\n")[1] == "📉 注目のドライバーが過去14日間の最安値に"
     assert "💰 ¥99,000（定価より¥59,400安い／-38%）" in text
     assert "📊 PAR.買い時スコア 82/100（今が買い時）" in text
 
@@ -341,7 +342,7 @@ def test_half_price_hooks_use_the_exact_ratio_not_the_rounded_percent(db_session
 
 def test_large_discount_hook_states_the_real_yen_amount(db_session):
     product = _make_product(db_session, name="big", current_price=64800, msrp=97900)  # 33.8% off
-    assert _text_for(db_session, product).split("\n")[0] == "💥 注目のドライバーが定価から33,100円引き"
+    assert _text_for(db_session, product).split("\n")[1] == "💥 注目のドライバーが定価から33,100円引き"
 
 
 def test_average_drop_hook_quotes_the_real_average_price(db_session):
@@ -350,7 +351,7 @@ def test_average_drop_hook_quotes_the_real_average_price(db_session):
         average_price=128500, history_span_days=21, buy_score="buy", buy_signal_score=70, price_change_percent=-8.2,
     )
     text = _text_for(db_session, product)
-    assert text.split("\n")[0] == "📉 注目のアイアンが30日平均より8.2%ダウン"
+    assert text.split("\n")[1] == "📉 注目のアイアンが30日平均より8.2%ダウン"
     assert "💰 ¥118,000（30日平均 ¥128,500）" in text
 
 
@@ -394,7 +395,7 @@ def test_post_always_fits_x_limit_and_keeps_hook_price_and_cta(db_session):
 
     url = _url_line(text)
     assert x_post._post_weighted_length(text.replace(url, "")) <= x_post.X_MAX_WEIGHTED_LENGTH
-    assert "最安値" in text.split("\n")[0]
+    assert "最安値" in text.split("\n")[1]
     assert "¥64,800" in text
     assert x_post.CTA_LINE in text
 
@@ -429,3 +430,17 @@ def test_tracked_url_joins_existing_query_and_encodes():
         "utm_campaign": "evening",
         "utm_content": "post",
     }
+
+
+def test_every_draft_starts_with_the_pr_line(db_session):
+    # ステマ規制: the first line of every X draft is 【PR】, in all three slots and
+    # the plain fallback, and the length check still holds with it counted.
+    lead = _make_product(db_session, name="lead", current_price=46800, msrp=88000)
+    text = _text_for(db_session, lead)
+    assert text.split("\n")[0] == x_post.PR_LINE == "【PR】"
+    url = _url_line(text)
+    assert x_post._post_weighted_length(text.replace(url, "")) <= x_post.X_MAX_WEIGHTED_LENGTH
+    for draft in x_post.build_daily_manual_posts(db_session):
+        if draft.text:
+            assert draft.text.split("\n")[0] == "【PR】"
+            assert draft.weighted_length <= x_post.X_MAX_WEIGHTED_LENGTH

@@ -412,3 +412,29 @@ def test_strip_promotional_noise_removes_bare_discount_and_period_copy():
     assert f("タイトリスト 10/4 20:00 10/09 01:59 グローブ", "タイトリスト") == "タイトリスト グローブ"
     # a lone fraction (not a sale period) is untouched
     assert "1/12" in f("スリクソン Z-STAR XV 1/12", "スリクソン")
+
+
+# --- 2026-11-17: price-claim copy and lone "可"/"ー" tokens ---------------------
+
+
+def test_strip_promotional_noise_removes_price_claim_copy_and_lone_marks():
+    assert (
+        title_cleaner.strip_promotional_noise("テーラーメイド Spider ZT パター 可 業界最安値に挑戦 ー", brand="TaylorMade")
+        == "テーラーメイド Spider ZT パター"
+    )
+    assert (
+        title_cleaner.strip_promotional_noise("PING G440 ドライバー 業界最安値に挑戦!!", brand="PING")
+        == "PING G440 ドライバー"
+    )
+    assert (
+        title_cleaner.strip_promotional_noise("【送料無料】スリクソン ZX5 Mk II アイアン 6本セット 最安値に挑戦中", brand="Srixon")
+        == "スリクソン ZX5 Mk II アイアン 6本セット"
+    )
+
+
+def test_strip_promotional_noise_keeps_hyphens_and_long_vowel_marks_inside_model_names():
+    # Only a whole-token "可"/"ー"/"-" goes; "ZT-3" and "ー" inside a word stay.
+    assert (
+        title_cleaner.strip_promotional_noise("テーラーメイド Spider ZT-3 パター", brand="TaylorMade")
+        == "テーラーメイド Spider ZT-3 パター"
+    )
