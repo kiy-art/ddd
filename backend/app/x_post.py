@@ -71,6 +71,12 @@ AVERAGE_DROP_HOOK_PCT = -5.0
 
 CTA_LINE = "相場推移と取扱店舗はここからチェック👇"
 
+# Stealth-marketing rule (ステマ規制): every draft/post opens with this line,
+# so the ad disclosure is the first thing a reader sees even when the text is
+# pasted by hand. Counted in the weighted-length checks below (7 weighted
+# chars: 【】 = 4, "PR" = 2, newline = 1). Never remove without the owner's OK.
+PR_LINE = "【PR】"
+
 # Same wording as the site (frontend lib/buySignal.ts VERDICTS).
 VERDICT_LABELS = {"strong_buy": "今が買い時", "buy": "買い時", "neutral": "様子見", "not_buy": "待つのが無難"}
 
@@ -338,7 +344,7 @@ def _compose(
 ) -> tuple[str, int]:
     name = _shorten(f"{lead.brand} {lead.name}", name_max)
 
-    blocks = [_hook(lead, lead_facts), "", name, _price_line(lead, lead_facts)]
+    blocks = [PR_LINE, _hook(lead, lead_facts), "", name, _price_line(lead, lead_facts)]
     if include_signal and lead_facts.buy_signal_score is not None:
         # Verdict next to the number (STEP49) - "82/100" alone means nothing.
         verdict = VERDICT_LABELS.get(lead.buy_score)
@@ -423,7 +429,7 @@ def _build_tweet_text(db: Session, products: list[models.Product]) -> str:
         crud.create_error_log(db, source="x_post", level="warning", message=f"X post text failed compliance check: {exc}")
         lead = products[0]
         price = f"¥{lead.current_price:,}" if lead.current_price is not None else ""
-        text = f"⛳️ {lead.brand} {lead.name} {price}\n{CTA_LINE}\n{url}\n\n#ゴルフ"
+        text = f"{PR_LINE}\n⛳️ {lead.brand} {lead.name} {price}\n{CTA_LINE}\n{url}\n\n#ゴルフ"
     return text
 
 
@@ -544,6 +550,7 @@ def _noon_draft(db: Session, exclude_ids: set[int]) -> tuple[str | None, str]:
     facts = _post_facts(lead)
     for name_max in (None, 30, 20):
         blocks = [
+            PR_LINE,
             f"📉 値下がり速報｜{label}",
             "",
             _shorten(f"{lead.brand} {lead.name}", name_max),
@@ -577,7 +584,7 @@ def _evening_draft(db: Session, today: datetime.date) -> tuple[str | None, str]:
     entries = group["entries"][:3]
     allowed = {e["price"] for e in entries if e["price"] is not None}
     for name_max in (28, 22, 16):
-        lines = [f"🏆 楽天の売れ筋{label}ランキング TOP3（{fetched.month}/{fetched.day}時点）", ""]
+        lines = [PR_LINE, f"🏆 楽天の売れ筋{label}ランキング TOP3（{fetched.month}/{fetched.day}時点）", ""]
         for medal, entry in zip(medals, entries):
             price = f" ¥{entry['price']:,}" if entry["price"] is not None else ""
             lines.append(f"{medal} {_shorten(entry['name'], name_max)}{price}")

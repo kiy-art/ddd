@@ -312,3 +312,39 @@ def test_a_putter_search_files_practice_pins_under_other(db_session, monkeypatch
     assert (pin.category, pin.brand, pin.pending_review) == ("other", "LITE", False)  # "練習用" isn't the "用" NG word here
     putter = next(p for p in products.values() if "パター" in p.name)
     assert (putter.category, putter.brand) == ("putter", "Odyssey")
+
+
+# --- 2026-11-17: model-specific keywords are capped per keyword ---------------
+
+
+def test_every_model_specific_keyword_is_a_real_search_keyword():
+    all_keywords = {k for keywords in discovery.CATEGORY_SEARCH_KEYWORDS.values() for k in keywords}
+    assert discovery.MODEL_SPECIFIC_KEYWORDS <= all_keywords
+
+
+def test_a_model_specific_keyword_adds_at_most_the_per_keyword_cap(db_session, monkeypatch):
+    """Real incident (2026-11-17): the "Spider ZT" search registered 20
+    putters of one model. Now one model keyword adds only a few, and the
+    generic search after it still gets its share of the category cap."""
+    putter_keywords = discovery.CATEGORY_SEARCH_KEYWORDS["putter"]
+    model_keyword = "テーラーメイド Spider ZT パター"
+    assert model_keyword in discovery.MODEL_SPECIFIC_KEYWORDS
+    model_items = [
+        _FakeItem(f"テーラーメイド Spider ZT-{i} パター", 40000 + i, f"https://item.rakuten.co.jp/example/zt{i}/")
+        for i in range(discovery.MAX_NEW_PER_MODEL_KEYWORD + 4)
+    ]
+    generic_items = [
+        _FakeItem("テーラーメイド TP Collection パター", 30000, "https://item.rakuten.co.jp/example/tp/")
+    ]
+    monkeypatch.setattr(
+        rakuten,
+        "search_items",
+        _fixed_results({model_keyword: model_items, putter_keywords[-1]: generic_items}),
+    )
+
+    discovered, _ = discovery.discover_new_products(db_session)
+
+    names = [p.name for p in db_session.execute(select(models.Product)).scalars().all()]
+    assert len([n for n in names if "Spider ZT" in n]) == discovery.MAX_NEW_PER_MODEL_KEYWORD
+    assert any("TP Collection" in n for n in names)
+    assert discovered == discovery.MAX_NEW_PER_MODEL_KEYWORD + 1
