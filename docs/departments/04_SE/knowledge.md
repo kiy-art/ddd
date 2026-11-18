@@ -40,6 +40,8 @@
 - 2026-11-15 [001] コード上、インデックスを妨げる設定なし(robots Allow /、トップnoindexなし、canonicalあり、sitemap本番530URL)。site:で出ない原因は遮断ではなく登録の進み方の可能性(推測)(根拠: app/robots.ts、curl par-gear.com 2026-11-15)
 - 2026-11-16 [001] BF限定を24h→30hに直したpatchを作成(2026-11-16_BF30h限定.patch)。Yahoo!価格が24時間以内は446件中19件のみ(30hも19、48h28、72h42。11/17 00:07 JST時点、Yahoo!価格あり332件)。楽天の最終書き込みは標本120件中110件が11/16 00:52〜01:12 UTCの20分に集中し、実行の開始時刻は日ごとにずれうる(ずれ幅は1日分しか見ておらず未取得)(根拠: curl golf-deals-backend /api/products・/api/products/{slug} 2026-11-17、04_SE/01_部内検討/2026-11-16_BF30h限定.md)
 - 2026-11-17 [001] モデル指定の検索語は1語でカテゴリ上限20を使い切る(MAX_NEW_PER_CATEGORYはカテゴリ合計)。語単位の上限MODEL_SPECIFIC_KEYWORDS(2件)と「業界最安値に挑戦」・単独の可/ーの除去をpatch化(根拠: backend/app/discovery.py、04_SE/01_部内検討/2026-11-17_発見語の上限とタイトルノイズ.md)
+- 2026-11-18 [001] 公開ページの技術点検は正常:sitemap564URL(商品473=掲載473と一致・重複0)、標本40URLは全て200・canonical一致・noindexなし、category/brand/guides全83URLが200、robotsはGooglebotを塞がない。「site:」で出ないのはサイト側の不具合では説明できない(根拠: 04_SE/01_部内検討/2026-11-18_公開ページのインデックス可否点検.md、curl par-gear.com 11/19 00時JST)
+- 2026-11-18 [001] 確認手段は、巡回の「site:」検索より、管理APIのSearch Consoleページ別表示(search_console.py に dimensions=page 実装済み)の方が確度が高い(根拠: backend/app/search_console.py 90行)
 
 ## 代表者会議から持ち帰ったこと
 - 2026-11-17 [001] 11/14会議: SEは総務案A+B(BF期間の勝者を24時間以内の価格に)のpatchを11/18夜より前に監査へ、Webデザインpatchと順に当て、不一致1件で戻す。楽天日程patchは差戻し(根拠: 議事録 2026-11/2026-11-14.md 52・75・98行)
