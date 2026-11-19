@@ -49,13 +49,15 @@ export const GUIDES: Guide[] = [
   // Once Rakuten's official page or an independent report confirms the dates, add them (sales dept re-check 11/16-18) before re-auditing.
   // 2026-11-18 (marketing v3 + chair, audited): Rakuten Ichiba BF 11/19 (Thu) 20:00 - 11/25 (Wed) 1:59 added, citing Rakuten Group's
   // official news release of 2026-11-12 (corp.rakuten.co.jp/news/update/2026/1112_01.html; confirmed via search summary). EXP-026.
-  // TODO 2026-11-19: update the Amazon paragraph after Amazon's announcement. TODO 2026-11-25: Rakuten paragraph becomes past tense.
+  // 2026-11-19 (marketing v4): Amazon paragraph now states Amazon Black Friday 2026 dates (pre-sale 11/27 0:00-11/29 23:59, main sale 11/30 0:00-12/7 23:59),
+  // citing Amazon Japan's official news (aboutamazon.jp/news/retail/amazon-black-friday-2026; confirmed via search listing on 2026-11-19, original page not opened).
+  // TODO 2026-11-25: Rakuten paragraph becomes past tense.
   // TODO 2026-11-30: rewrite the schedule section after the sale ends (slug kept).
   {
     slug: "prime-appreciation-sale-2026-golf",
     title: "ブラックフライデー2026のゴルフ用品：セール前に価格を確かめる方法【PAR.】",
     description:
-      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。楽天市場（公式発表）・Yahoo!ショッピング（報道ベース）の開催予定と、詳細が未発表のAmazonなどは公式ページでの確認をお願いしています。",
+      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。楽天市場・Amazon（いずれも公式発表）とYahoo!ショッピング（報道ベース）の開催日程を、確認日つきで載せています。ポイントや割引の条件は各社の公式ページで確認してください。",
     publishedAt: "2026-11-08",
     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
@@ -69,11 +71,11 @@ export const GUIDES: Guide[] = [
         ],
       },
       {
-        heading: "ブラックフライデーの日程：楽天市場は11月19日20時から（公式発表）、Yahoo!ショッピングは11月22日から（報道ベース）",
+        heading: "ブラックフライデーの日程：楽天市場は11月19日20時から、Amazonは11月30日0時から（先行は27日から）（いずれも公式発表）、Yahoo!ショッピングは11月22日から（報道ベース）",
         paragraphs: [
           "Yahoo!ショッピングのブラックフライデー2026は、報道によると11月22日（日）0時から11月30日（月）1時59分まで（11月29日の25時59分と同じ時刻）の開催予定です（11月15日時点の確認。出典：ネットショップ担当者フォーラム https://netshop.impress.co.jp/n/2026/11/05/16986 ほか。公式ページの原文は確認できていません）。PayPayポイントは条件付きで最大23%と報じられており、条件・上限は公式の特設ページで確認してください。",
           "楽天市場のブラックフライデー2026は、楽天グループが2026年11月12日に開催を発表しており、楽天市場は11月19日（木）20時から11月25日（水）1時59分までの開催予定です（11月19日時点の確認。出典：楽天グループのニュースリリース https://corp.rakuten.co.jp/news/update/2026/1112_01.html ）。ポイントアップの対象になるにはエントリーが必要です。条件・上限は楽天市場の特設ページで確認してください。PAR.が価格を記録しているのは楽天市場なので、開催中に表示される価格は、セール前に控えた価格の範囲と並べて比べてください（PAR.の楽天市場の価格は1日1回の更新で、セール中の表示価格と違う場合があります）。",
-          "Amazonは2026年11月中のブラックフライデー開催を11月5日に発表したと報じられており、開催期間などの詳細は11月19日（木）午前に発表予定とされています（出典：ジェットストリーム https://jetstream.blog/?p=228384 、11月15日時点。公式ページの原文は確認できていません）。詳細は未発表のため、このページでは日程を書いていません。アルペンなどその他の店舗も、公式な日程を確認できていません。日程は変わることがあるため、各社の公式ページで確認してください。",
+          "Amazonのブラックフライデー2026は、アマゾンジャパンの公式ニュースによると、先行セールが11月27日（金）0時から11月29日（日）23時59分まで、本セールが11月30日（月）0時から12月7日（月）23時59分までの8日間の開催予定です（11月19日時点の確認。出典：About Amazon Japan https://www.aboutamazon.jp/news/retail/amazon-black-friday-2026 ）。楽天市場のセール終了後に始まるため、先に楽天市場、そのあとにAmazonの順で価格を見る使い方もできます。ポイントなどのキャンペーンには条件がある場合があるため、公式ページで確認してください。PAR.はAmazonの価格を取得していないので、Amazonの価格はAmazonの商品ページで確認してください。アルペンなどその他の店舗は、公式な日程を確認できていません。日程は変わることがあるため、各社の公式ページで確認してください。",
           "ポイントの付与率が高くても、実質の負担額は商品の価格と付与条件で変わります。セール前に控えた価格の範囲と並べて比べてください。",
         ],
       },

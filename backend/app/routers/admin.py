@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import brand_migration, category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, kpi, models, pipeline, popularity, product_facts, progress, retention, schemas, self_heal, title_migration, x_post
+from app import brand_migration, category_migration, consumables_merchandiser, content_optimizer, crud, daily_report, discovery, image_backfill, kpi, model_grouping, models, pipeline, popularity, product_facts, progress, retention, schemas, self_heal, title_migration, x_post
 from app.auth import require_admin
 from app.database import SessionLocal, get_db
 
@@ -735,6 +735,22 @@ def discover_products(db: Session = Depends(get_db)):
     finally:
         progress.finish_run()
     return {"products_discovered": discovered, "candidates_considered": considered}
+
+
+@router.get("/model-grouping-preview")
+def model_grouping_preview(db: Session = Depends(get_db)):
+    """Read-only dry-run list of products that look like the same model
+    and spec (app/model_grouping.py). Writes nothing - there is no apply
+    counterpart yet."""
+    products = list(db.execute(select(models.Product)).scalars().all())
+    plan = model_grouping.plan_model_grouping(products)
+    return {
+        "products_checked": plan.products_checked,
+        "keyed": plan.keyed,
+        "groups": len(plan.groups),
+        "auto_groups": len(plan.auto_groups),
+        "plan_lines": plan.plan_lines,
+    }
 
 
 @router.post("/run-migration-clean-titles")
