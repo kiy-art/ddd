@@ -141,7 +141,7 @@ function RankingRow({ entry, category, fetchedAt }: { entry: RakutenRankingEntry
             category={category}
             placement="popular_rakuten_ranking"
           >
-            楽天市場で見る
+            楽天で見る
             <CtaArrow className="h-3.5 w-3.5" />
           </TrackedCta>
           {entry.product_slug && (
