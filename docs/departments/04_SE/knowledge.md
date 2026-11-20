@@ -60,6 +60,8 @@
 - 2026-11-19 [001] 既存の統合キーは(brand, 整形後name)の完全一致だけで、シャフト名・店の言い回し違いの重複は残る。公開482件で、Spider ZT standard 4行・ZXi5 3行など自動候補5グループ(9件減)を読み取りで確認(根拠: 01_部内検討/2026-11-19_同一モデル統合の設計とdry-run案.md、/api/products 11/19)
 - 2026-11-19 [001] model_numberは系列の値(Z-STAR全行が同値)で統合キーに使えない。title_cleanerは左右・レディースを名前から消すため、整形後の名前では左右の判別ができない行がある(根拠: /api/products 11/19、backend/app/title_cleaner.py 231〜237行)
 - 2026-11-19 [001] 今週(11/16〜)level=errorは4件(Yahoo 429のみ、毎日1件)。logs?limit=200は1日分弱しか届かず週の数には不足で、limit=1000で11/15まで届く。週末の見込み7件前後(推測)(根拠: 管理API /api/admin/logs 2026-11-19)
+- 2026-11-20 [001] BFガイドは11/8公開後に11/18・11/19に本文を更新したが、Guide型に更新日が無く JSON-LD dateModified と sitemap lastmod が11/8のまま。updatedAt任意項目の追加patchを作成(根拠: frontend/lib/guides.ts 61行・frontend/app/guides/[slug]/page.tsx 87行・frontend/app/sitemap.ts 101行、01_部内検討/2026-11-20_BFガイドdateModified_lastmod.md)
+- 2026-11-20 [001] 今週のerrorは11/20時点でも4件(Yahoo 429のみ、毎日1件・866件スキップ)で目標20に対し余裕。error件数を下げる施策より、更新件数・集客側の技術SEOに時間を使う(根拠: 共通依頼 2026-11-20_事実.md)
 
 ## スキル改善メモ
 （専門スキル `.claude/skills/pro-se/SKILL.md` で足りなかった点。月1回、人事部が改訂案にまとめる）
