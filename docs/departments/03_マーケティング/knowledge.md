@@ -3,6 +3,7 @@
 1行1件。`- YYYY-MM-DD [事業番号] 内容(根拠: 出典)`。推測は「推測」と書く。古くなった行は消さずに打ち消し線を引く。
 
 ## 部署の学び
+- 2026-11-20 [001] サイトの title は layout の template で「| PAR.」が付き、h1 も guide.title と同一出力。title 末尾の【PAR.】はブランド二重になる(根拠: frontend/app/layout.tsx 49行、frontend/app/guides/[slug]/page.tsx、01_部内検討/2026-11-20_P-010_セールガイドのタイトル説明文.md)
 - 2026-11-19 [001] Amazon BF2026は公式(aboutamazon.jp)で本セール11/30 0:00〜12/7 23:59、先行11/27 0:00〜11/29 23:59(検索結果で確認、原文は環境の制限で未取得)。patch適用前に目視(根拠: 2026-11-19_BFガイドAmazon日程とX投稿案.md)
 - 2026-11-19 [001] 11/30に30の必要数は窓落ちを引いて11/20時点あと約22件(約2.0件/日、直近7日4件の約3.5倍)。「30日値15からの差15」は誤り(根拠: kpi.py 141-143行、kpi_ledger.csv 10/29・11/1・11/20行)
 - 2026-11-16 [001] ゴルフギフト(グローブ・ボール別)ガイドのpatchを作成。グローブ59商品中央値約1,980円、ボール117商品約6,660円(公開API 11/16)。効果は未測定・推測(根拠: 2026-11-16_ゴルフギフトガイドとX投稿案.md、公開API products?category=glove/ball)
@@ -111,3 +112,4 @@
 - 2026-11-16 [001] marketing:content-creationはファイルで読めた(ブログ構成・title60字・description160字・内部リンク2〜3の基準)。rampstack-seoは今夜未使用。Skillツールが無い問題は、ファイル参照で代替できる → pro-marketingに「外部スキルはplugins配下のSKILL.mdをReadで読む」を足す(根拠: 本記録)
 - 2026-11-17 [001] rampstack-seo:seo-onpage と marketing:content-creation はplugins配下のSKILL.mdをReadで読めた(Skillツールは無し)。有料ツール前提なしで使える8項目の点検(title・description・見出し・本文・内部リンク)が有用 → pro-marketingに「外部スキルはplugins配下をReadで読む」を足す(11/16メモを補強)(根拠: 本記録)
 - 2026-11-18 [001] 日程の二次情報は「発表主体・発表日・複数媒体」の確認と予測記事の区別、原文が開けないセッションでの手順(報道ベース明記+公式目視を適用条件)が基準に無い → 公開前チェックに足す(根拠: 2026-11-18_BFガイド楽天日程v3とX投稿案.md)
+- 2026-11-20 [001] seo-onpage は英語向けの字数基準(title50〜60字・description150〜160字)で、日本語の表示幅(title約30〜35字・description約80〜120字)と合わない → pro-marketingに日本語の字数基準と「h1とtitleを同一にしない」点検を足す(根拠: 2026-11-20_P-010記録、seo-onpage SKILL.md)
