@@ -98,7 +98,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     ...allGuides.map((guide) => ({
       url: sitemapUrl(`/guides/${guide.slug}`),
-      lastModified: toLastModified(guide.publishedAt),
+      lastModified: toLastModified(guide.updatedAt ?? guide.publishedAt),
       changeFrequency: "monthly" as const,
       priority: 0.5,
     })),
