@@ -1,0 +1,49 @@
+diff --git a/frontend/app/guides/[slug]/page.tsx b/frontend/app/guides/[slug]/page.tsx
+index 71093c7..9c34a96 100644
+--- a/frontend/app/guides/[slug]/page.tsx
++++ b/frontend/app/guides/[slug]/page.tsx
+@@ -84,7 +84,7 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
+     headline: guide.title,
+     description: guide.description,
+     datePublished: guide.publishedAt,
+-    dateModified: guide.publishedAt,
++    dateModified: guide.updatedAt ?? guide.publishedAt,
+     author: { "@type": "Organization", name: "PAR." },
+     publisher: { "@type": "Organization", name: "PAR." },
+     mainEntityOfPage: url,
+diff --git a/frontend/app/sitemap.ts b/frontend/app/sitemap.ts
+index 796444e..ae2d540 100644
+--- a/frontend/app/sitemap.ts
++++ b/frontend/app/sitemap.ts
+@@ -98,7 +98,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+     })),
+     ...allGuides.map((guide) => ({
+       url: sitemapUrl(`/guides/${guide.slug}`),
+-      lastModified: toLastModified(guide.publishedAt),
++      lastModified: toLastModified(guide.updatedAt ?? guide.publishedAt),
+       changeFrequency: "monthly" as const,
+       priority: 0.5,
+     })),
+diff --git a/frontend/lib/guides.ts b/frontend/lib/guides.ts
+index 494bb56..842af26 100644
+--- a/frontend/lib/guides.ts
++++ b/frontend/lib/guides.ts
+@@ -20,6 +20,10 @@ export interface Guide {
+   title: string;
+   description: string;
+   publishedAt: string; // ISO date, static (hand-authored content, not DB-backed)
++  // ISO date of the last substantive content edit. Optional: omit = never edited since publishedAt.
++  // Feeds JSON-LD dateModified and the sitemap <lastmod> (app/guides/[slug]/page.tsx, app/sitemap.ts).
++  // Bump it whenever the schedule/body of a guide is rewritten (slug-kept guides such as the sale guide).
++  updatedAt?: string;
+   relatedCategories?: string[];
+   featured?: GuideFeatured;
+   // True = also show on the homepage "注目の特集ガイド" even without a `featured` data block (hand-picked entry point).
+@@ -59,6 +63,7 @@ export const GUIDES: Guide[] = [
+     description:
+       "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。楽天市場・Amazon（いずれも公式発表）とYahoo!ショッピング（報道ベース）の開催日程を、確認日つきで載せています。ポイントや割引の条件は各社の公式ページで確認してください。",
+     publishedAt: "2026-11-08",
++    updatedAt: "2026-11-19", // EXP-026 (11/18 Rakuten official dates) and EXP-028 (11/19 Amazon official dates) edited the body
+     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
+     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
+     sections: [
