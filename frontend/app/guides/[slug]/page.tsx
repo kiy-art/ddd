@@ -84,7 +84,7 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
     headline: guide.title,
     description: guide.description,
     datePublished: guide.publishedAt,
-    dateModified: guide.publishedAt,
+    dateModified: guide.updatedAt ?? guide.publishedAt,
     author: { "@type": "Organization", name: "PAR." },
     publisher: { "@type": "Organization", name: "PAR." },
     mainEntityOfPage: url,

@@ -20,6 +20,10 @@ export interface Guide {
   title: string;
   description: string;
   publishedAt: string; // ISO date, static (hand-authored content, not DB-backed)
+  // ISO date of the last substantive content edit. Optional: omit = never edited since publishedAt.
+  // Feeds JSON-LD dateModified and the sitemap <lastmod> (app/guides/[slug]/page.tsx, app/sitemap.ts).
+  // Bump it whenever the schedule/body of a guide is rewritten (slug-kept guides such as the sale guide).
+  updatedAt?: string;
   relatedCategories?: string[];
   featured?: GuideFeatured;
   // True = also show on the homepage "注目の特集ガイド" even without a `featured` data block (hand-picked entry point).
@@ -51,14 +55,16 @@ export const GUIDES: Guide[] = [
   // official news release of 2026-11-12 (corp.rakuten.co.jp/news/update/2026/1112_01.html; confirmed via search summary). EXP-026.
   // 2026-11-19 (marketing v4): Amazon paragraph now states Amazon Black Friday 2026 dates (pre-sale 11/27 0:00-11/29 23:59, main sale 11/30 0:00-12/7 23:59),
   // citing Amazon Japan's official news (aboutamazon.jp/news/retail/amazon-black-friday-2026; confirmed via search listing on 2026-11-19, original page not opened).
-  // TODO 2026-11-25: Rakuten paragraph becomes past tense.
+  // TODO 2026-11-25: Rakuten paragraph becomes past tense; also rewrite title/description (Rakuten dates become past) and bump updatedAt.
+  // TODO by 2026-11-25: open the Rakuten/Amazon originals and record the check date, or soften 「公式発表」 (audit 11/20).
   // TODO 2026-11-30: rewrite the schedule section after the sale ends (slug kept).
   {
     slug: "prime-appreciation-sale-2026-golf",
-    title: "ブラックフライデー2026のゴルフ用品：セール前に価格を確かめる方法【PAR.】",
+    title: "ゴルフ用品のブラックフライデー2026｜楽天11/19・Amazon11/27〜の日程",
     description:
-      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。楽天市場・Amazon（いずれも公式発表）とYahoo!ショッピング（報道ベース）の開催日程を、確認日つきで載せています。ポイントや割引の条件は各社の公式ページで確認してください。",
+      "楽天市場は11/19 20時〜11/25 1:59、Amazonは先行11/27・本セール11/30〜12/7の予定です（出典と確認日は本文）。PAR.が毎日記録する楽天市場の値下がり商品と、買う前に価格を確かめる方法を載せています。",
     publishedAt: "2026-11-08",
+    updatedAt: "2026-11-21", // P-010 (11/21 title/description) and EXP-026 (11/18 Rakuten official dates) and EXP-028 (11/19 Amazon official dates) edited the body
     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
     sections: [
