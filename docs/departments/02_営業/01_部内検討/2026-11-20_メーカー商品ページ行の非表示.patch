@@ -1,0 +1,38 @@
+diff --git a/frontend/lib/shopRows.ts b/frontend/lib/shopRows.ts
+--- a/frontend/lib/shopRows.ts
++++ b/frontend/lib/shopRows.ts
+@@ -64,6 +64,25 @@
+   return { key: "other", label: "販売ページ" };
+ }
+ 
++// 2026-11-20 (営業): the "メーカー商品ページ" row is useless - and earns nothing -
++// when product_url is just the plain Rakuten item page (discovery.py stores
++// item_url there) while affiliate_url already wraps that same item and is shown
++// as the first, rewarded row; likewise an example.com dummy. Hide those two.
++export function isRedundantPlainLink(product: Pick<Product, "product_url" | "affiliate_url">): boolean {
++  const url = product.product_url;
++  if (!url) return false;
++  try {
++    const host = new URL(url).hostname;
++    if (host === "example.com" || host.endsWith(".example.com")) return true;
++    if (host.endsWith("rakuten.co.jp") && !!product.affiliate_url && product.affiliate_url.includes("rakuten.co.jp")) {
++      return true;
++    }
++  } catch {
++    // unparseable URL - keep the row as before
++  }
++  return false;
++}
++
+ export function formatUpdatedAt(iso: string | null): string | null {
+   if (!iso) return null;
+   const t = parseUtc(iso);
+@@ -181,7 +200,7 @@
+     cta: "ゴルフ5・アルペンで探す",
+     ctaType: "affiliate_search",
+   });
+-  if (product.product_url && product.product_url !== product.affiliate_url) {
++  if (product.product_url && product.product_url !== product.affiliate_url && !isRedundantPlainLink(product)) {
+     links.push({
+       key: "official",
+       label: "メーカー公式サイト",
