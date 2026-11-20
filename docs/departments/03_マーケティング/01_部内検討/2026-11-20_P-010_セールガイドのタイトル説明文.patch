@@ -1,0 +1,15 @@
+diff --git a/frontend/lib/guides.ts b/frontend/lib/guides.ts
+--- a/frontend/lib/guides.ts
++++ b/frontend/lib/guides.ts
+@@ -55,9 +55,9 @@
+   // TODO 2026-11-30: rewrite the schedule section after the sale ends (slug kept).
+   {
+     slug: "prime-appreciation-sale-2026-golf",
+-    title: "ブラックフライデー2026のゴルフ用品：セール前に価格を確かめる方法【PAR.】",
++    title: "ゴルフ用品BF2026｜楽天11/19〜・Amazon11/27〜の日程",
+     description:
+-      "ブラックフライデー前に、気になるゴルフ用品の価格を、PAR.が記録している楽天市場の値動きと並べて確かめる手順をまとめました。楽天市場・Amazon（いずれも公式発表）とYahoo!ショッピング（報道ベース）の開催日程を、確認日つきで載せています。ポイントや割引の条件は各社の公式ページで確認してください。",
++      "楽天は11/19 20時〜25日、Amazonは先行11/27・本セール11/30〜12/7（公式発表）。Yahoo!は報道ベース。PAR.が毎日記録する楽天の値下がり商品と、セール前の価格の確かめ方を載せています。",
+     publishedAt: "2026-11-08",
+     relatedCategories: ["ball", "glove", "rangefinder", "driver"],
+     featured: { kind: "price_drops", heading: "楽天市場の価格（PAR.の記録）で直近に値下がりした商品（Amazonの価格ではありません）" },
