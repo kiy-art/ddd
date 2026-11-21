@@ -1,0 +1,30 @@
+diff --git a/frontend/app/guides/[slug]/page.tsx b/frontend/app/guides/[slug]/page.tsx
+--- a/frontend/app/guides/[slug]/page.tsx
++++ b/frontend/app/guides/[slug]/page.tsx
+@@ -5,7 +5,7 @@
+ import FadeIn from "@/components/FadeIn";
+ import ProductCard from "@/components/ProductCard";
+ import { CATEGORY_LABELS, Product, getCategoryProducts, getProducts } from "@/lib/api";
+-import { computeDeals, dropLabel } from "@/lib/deals";
++import { DROP_VERIFY_PERCENT, computeDeals, dropLabel } from "@/lib/deals";
+ import { GUIDES, Guide, getGuideBySlug } from "@/lib/guides";
+ import { SITE_URL } from "@/lib/siteUrl";
+ import PrNotice from "@/components/PrNotice";
+@@ -34,7 +34,16 @@
+       const products = featured.category
+         ? await getCategoryProducts(featured.category)
+         : await getProducts();
+-      return computeDeals(products)
++      // Guide only: show drops small enough to read as a real markdown first
++      // (under DROP_VERIFY_PERCENT). The biggest gaps are usually a different
++      // seller/set, and their caption is a caveat, not a reason to click
++      // (11/21 design review). They stay on /deals and fill any remaining slots.
++      const deals = computeDeals(products);
++      const ordered = [
++        ...deals.filter((d) => d.dropPercent < DROP_VERIFY_PERCENT),
++        ...deals.filter((d) => d.dropPercent >= DROP_VERIFY_PERCENT),
++      ];
++      return ordered
+         .slice(0, limit)
+         .map((deal) => ({ product: deal.product, caption: dropLabel(deal) }));
+     }
