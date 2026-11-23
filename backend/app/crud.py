@@ -94,12 +94,41 @@ def count_published_products(db: Session) -> int:
     return db.execute(_published(select(func.count(models.Product.id)))).scalar_one()
 
 
-def list_published_slugs(db: Session) -> list[models.Product]:
+def list_published_slugs(db: Session) -> list[schemas.SitemapProduct]:
     """Every published product, for the sitemap - which also builds the
     brand x category pages and comparison pairs from them (STEP69), so it
-    needs brand/category/price, not one page of full ProductOut rows."""
+    needs brand/category/price, not one page of full ProductOut rows.
+
+    price_changed_at = when today's price was first recorded after the last
+    history row with a different price (the day the change was observed).
+    Never changed -> None. Two grouped queries, no per-product lookups."""
     query = _published(select(models.Product)).order_by(models.Product.id)
-    return list(db.execute(query).scalars().all())
+    products = list(db.execute(query).scalars().all())
+    last_other = (
+        select(
+            models.PriceHistory.product_id.label("product_id"),
+            func.max(models.PriceHistory.recorded_at).label("at"),
+        )
+        .join(models.Product, models.Product.id == models.PriceHistory.product_id)
+        .where(models.Product.current_price.is_not(None))
+        .where(models.PriceHistory.price != models.Product.current_price)
+        .group_by(models.PriceHistory.product_id)
+        .subquery()
+    )
+    changed = dict(
+        db.execute(
+            select(models.PriceHistory.product_id, func.min(models.PriceHistory.recorded_at))
+            .join(last_other, last_other.c.product_id == models.PriceHistory.product_id)
+            .where(models.PriceHistory.recorded_at > last_other.c.at)
+            .group_by(models.PriceHistory.product_id)
+        ).all()
+    )
+    rows = []
+    for p in products:
+        row = schemas.SitemapProduct.model_validate(p)
+        row.price_changed_at = changed.get(p.id)
+        rows.append(row)
+    return rows
 
 
 # Same bar the frontend uses (THIN_DATA_DAYS in ProductCard.tsx/product

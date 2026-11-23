@@ -119,7 +119,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((product) => Boolean(product.slug))
     .map((product) => ({
       url: sitemapUrl(`/products/${product.slug}`),
-      lastModified: toLastModified(product.updated_at),
+      // updated_at is touched by the daily checks on ~99% of products (489 of 494
+      // were "today" on 2026-11-22), so it says nothing about real change.
+      // Only a real price change is reported; no change -> no <lastmod>.
+      lastModified: toLastModified(product.price_changed_at),
       changeFrequency: "daily",
       priority: 0.8,
     }));

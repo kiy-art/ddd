@@ -1,3 +1,5 @@
+import datetime
+
 from app import crud, schemas
 
 
@@ -33,6 +35,40 @@ def test_sitemap_products_lists_all_published_slugs(client, db_session):
     assert len(slugs) == 60
     assert hidden.slug not in slugs
     assert all(r["updated_at"] for r in rows)
+    assert all(r["price_changed_at"] is None for r in rows)  # no price change recorded yet
+
+
+def test_sitemap_products_price_changed_at_is_first_row_after_last_other_price(client, db_session):
+    base = datetime.datetime(2026, 11, 1, 1, 0, 0)
+    day = datetime.timedelta(days=1)
+    changed = _published(db_session, 1)  # initial row is 50001 (recorded "now")
+    unchanged = _published(db_session, 2)
+    db_session.commit()
+    # Explicit history (oldest first): 50001 -> 40000 on day 2, then the same price again.
+    for row in list(changed.price_history) + list(unchanged.price_history):
+        row.recorded_at = base
+    db_session.commit()
+    crud.add_price(db_session, changed, 40000, recorded_at=base + day)
+    crud.add_price(db_session, changed, 40000, recorded_at=base + 2 * day)  # same price: must not move the date
+    crud.add_price(db_session, unchanged, 50002, recorded_at=base + day)  # same as its current price
+
+    rows = {r["slug"]: r for r in client.get("/api/sitemap/products").json()}
+    assert rows[changed.slug]["price_changed_at"].startswith("2026-11-02T01:00:00")
+    assert rows[unchanged.slug]["price_changed_at"] is None
+
+
+def test_sitemap_products_price_changed_at_after_price_returns(client, db_session):
+    base = datetime.datetime(2026, 11, 1, 1, 0, 0)
+    day = datetime.timedelta(days=1)
+    product = _published(db_session, 3)  # 50003
+    db_session.commit()
+    product.price_history[0].recorded_at = base
+    db_session.commit()
+    crud.add_price(db_session, product, 45000, recorded_at=base + day)
+    crud.add_price(db_session, product, 50003, recorded_at=base + 2 * day)  # back to the old price
+
+    rows = {r["slug"]: r for r in client.get("/api/sitemap/products").json()}
+    assert rows[product.slug]["price_changed_at"].startswith("2026-11-03T01:00:00")
 
 
 def test_accessory_category_pages_list_approved_products_without_a_score_yet(client, db_session):

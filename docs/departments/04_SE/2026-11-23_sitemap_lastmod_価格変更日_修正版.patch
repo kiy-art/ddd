@@ -1,0 +1,140 @@
+diff --git a/backend/app/crud.py b/backend/app/crud.py
+--- a/backend/app/crud.py
++++ b/backend/app/crud.py
+@@ -94,12 +94,41 @@
+     return db.execute(_published(select(func.count(models.Product.id)))).scalar_one()
+ 
+ 
+-def list_published_slugs(db: Session) -> list[models.Product]:
++def list_published_slugs(db: Session) -> list[schemas.SitemapProduct]:
+     """Every published product, for the sitemap - which also builds the
+     brand x category pages and comparison pairs from them (STEP69), so it
+-    needs brand/category/price, not one page of full ProductOut rows."""
++    needs brand/category/price, not one page of full ProductOut rows.
++
++    price_changed_at = when today's price was first recorded after the last
++    history row with a different price (the day the change was observed).
++    Never changed -> None. Two grouped queries, no per-product lookups."""
+     query = _published(select(models.Product)).order_by(models.Product.id)
+-    return list(db.execute(query).scalars().all())
++    products = list(db.execute(query).scalars().all())
++    last_other = (
++        select(
++            models.PriceHistory.product_id.label("product_id"),
++            func.max(models.PriceHistory.recorded_at).label("at"),
++        )
++        .join(models.Product, models.Product.id == models.PriceHistory.product_id)
++        .where(models.Product.current_price.is_not(None))
++        .where(models.PriceHistory.price != models.Product.current_price)
++        .group_by(models.PriceHistory.product_id)
++        .subquery()
++    )
++    changed = dict(
++        db.execute(
++            select(models.PriceHistory.product_id, func.min(models.PriceHistory.recorded_at))
++            .join(last_other, last_other.c.product_id == models.PriceHistory.product_id)
++            .where(models.PriceHistory.recorded_at > last_other.c.at)
++            .group_by(models.PriceHistory.product_id)
++        ).all()
++    )
++    rows = []
++    for p in products:
++        row = schemas.SitemapProduct.model_validate(p)
++        row.price_changed_at = changed.get(p.id)
++        rows.append(row)
++    return rows
+ 
+ 
+ # Same bar the frontend uses (THIN_DATA_DAYS in ProductCard.tsx/product
+diff --git a/backend/app/schemas.py b/backend/app/schemas.py
+--- a/backend/app/schemas.py
++++ b/backend/app/schemas.py
+@@ -147,6 +147,10 @@
+     brand: str
+     category: str
+     current_price: int | None = None
++    # Last time a recorded price differed from today's price (None = never
++    # changed). Feeds the sitemap <lastmod>: updated_at is touched by the
++    # daily checks (yahoo_checked_at etc.) even when nothing visible changed.
++    price_changed_at: datetime.datetime | None = None
+ 
+ 
+ class BrandPriceMover(BaseModel):
+diff --git a/backend/tests/test_site_stats.py b/backend/tests/test_site_stats.py
+--- a/backend/tests/test_site_stats.py
++++ b/backend/tests/test_site_stats.py
+@@ -1,3 +1,5 @@
++import datetime
++
+ from app import crud, schemas
+ 
+ 
+@@ -33,6 +35,40 @@
+     assert len(slugs) == 60
+     assert hidden.slug not in slugs
+     assert all(r["updated_at"] for r in rows)
++    assert all(r["price_changed_at"] is None for r in rows)  # no price change recorded yet
++
++
++def test_sitemap_products_price_changed_at_is_first_row_after_last_other_price(client, db_session):
++    base = datetime.datetime(2026, 11, 1, 1, 0, 0)
++    day = datetime.timedelta(days=1)
++    changed = _published(db_session, 1)  # initial row is 50001 (recorded "now")
++    unchanged = _published(db_session, 2)
++    db_session.commit()
++    # Explicit history (oldest first): 50001 -> 40000 on day 2, then the same price again.
++    for row in list(changed.price_history) + list(unchanged.price_history):
++        row.recorded_at = base
++    db_session.commit()
++    crud.add_price(db_session, changed, 40000, recorded_at=base + day)
++    crud.add_price(db_session, changed, 40000, recorded_at=base + 2 * day)  # same price: must not move the date
++    crud.add_price(db_session, unchanged, 50002, recorded_at=base + day)  # same as its current price
++
++    rows = {r["slug"]: r for r in client.get("/api/sitemap/products").json()}
++    assert rows[changed.slug]["price_changed_at"].startswith("2026-11-02T01:00:00")
++    assert rows[unchanged.slug]["price_changed_at"] is None
++
++
++def test_sitemap_products_price_changed_at_after_price_returns(client, db_session):
++    base = datetime.datetime(2026, 11, 1, 1, 0, 0)
++    day = datetime.timedelta(days=1)
++    product = _published(db_session, 3)  # 50003
++    db_session.commit()
++    product.price_history[0].recorded_at = base
++    db_session.commit()
++    crud.add_price(db_session, product, 45000, recorded_at=base + day)
++    crud.add_price(db_session, product, 50003, recorded_at=base + 2 * day)  # back to the old price
++
++    rows = {r["slug"]: r for r in client.get("/api/sitemap/products").json()}
++    assert rows[product.slug]["price_changed_at"].startswith("2026-11-03T01:00:00")
+ 
+ 
+ def test_accessory_category_pages_list_approved_products_without_a_score_yet(client, db_session):
+diff --git a/frontend/app/sitemap.ts b/frontend/app/sitemap.ts
+--- a/frontend/app/sitemap.ts
++++ b/frontend/app/sitemap.ts
+@@ -119,7 +119,10 @@
+     .filter((product) => Boolean(product.slug))
+     .map((product) => ({
+       url: sitemapUrl(`/products/${product.slug}`),
+-      lastModified: toLastModified(product.updated_at),
++      // updated_at is touched by the daily checks on ~99% of products (489 of 494
++      // were "today" on 2026-11-22), so it says nothing about real change.
++      // Only a real price change is reported; no change -> no <lastmod>.
++      lastModified: toLastModified(product.price_changed_at),
+       changeFrequency: "daily",
+       priority: 0.8,
+     }));
+diff --git a/frontend/lib/api.ts b/frontend/lib/api.ts
+--- a/frontend/lib/api.ts
++++ b/frontend/lib/api.ts
+@@ -210,6 +210,9 @@
+   brand: string;
+   category: string;
+   current_price: number | null;
++  // Last price change (naive UTC), null if never changed. Optional so an
++  // older backend deploy still type-checks.
++  price_changed_at?: string | null;
+ }
+ 
+ export function getSitemapProducts() {

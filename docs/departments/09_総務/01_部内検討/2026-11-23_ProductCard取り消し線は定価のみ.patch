@@ -1,0 +1,25 @@
+diff --git a/frontend/components/ProductCard.tsx b/frontend/components/ProductCard.tsx
+--- a/frontend/components/ProductCard.tsx
++++ b/frontend/components/ProductCard.tsx
+@@ -72,7 +72,8 @@
+       : hasReliableTrend && product.average_price !== null && product.current_price !== null
+         ? comparePrice(product.current_price, product.average_price, "30日平均")
+         : null;
+-  const referencePrice = product.msrp !== null ? product.msrp : product.average_price;
++  // 総務 2026-11-23: 取り消し線は出典のある定価(メーカー希望小売価格)だけ。30日平均には線を引かない。
++  const referencePrice = product.msrp;
+   // STEP65 (CRO): the shop the card's price came from, one tap away - a
+   // list visitor no longer has to open the product page first to reach it.
+   const shop = product.affiliate_url ? shopOf(product.affiliate_url) : null;
+@@ -184,7 +185,10 @@
+           <div className="flex items-end justify-between gap-3">
+             <div>
+               {comparison && comparison.direction === "down" && referencePrice !== null && (
+-                <div className="text-xs text-foreground/35 line-through">{yen(referencePrice)}</div>
++                <div className="text-xs text-foreground/50">
++                  <span className="line-through">{yen(referencePrice)}</span>
++                  <span className="ml-1">定価（メーカー希望小売価格）</span>
++                </div>
+               )}
+               <div className="font-num text-xl font-semibold text-foreground sm:text-2xl">
+                 {yen(product.current_price)}

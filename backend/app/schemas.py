@@ -147,6 +147,10 @@ class SitemapProduct(BaseModel):
     brand: str
     category: str
     current_price: int | None = None
+    # Last time a recorded price differed from today's price (None = never
+    # changed). Feeds the sitemap <lastmod>: updated_at is touched by the
+    # daily checks (yahoo_checked_at etc.) even when nothing visible changed.
+    price_changed_at: datetime.datetime | None = None
 
 
 class BrandPriceMover(BaseModel):

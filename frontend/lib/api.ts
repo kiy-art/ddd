@@ -210,6 +210,9 @@ export interface SitemapProduct {
   brand: string;
   category: string;
   current_price: number | null;
+  // Last price change (naive UTC), null if never changed. Optional so an
+  // older backend deploy still type-checks.
+  price_changed_at?: string | null;
 }
 
 export function getSitemapProducts() {
