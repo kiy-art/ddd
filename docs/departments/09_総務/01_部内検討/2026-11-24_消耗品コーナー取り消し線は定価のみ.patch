@@ -1,0 +1,23 @@
+--- a/frontend/components/ConsumablesCorner.tsx
++++ b/frontend/components/ConsumablesCorner.tsx
+@@ -90,7 +90,10 @@
+         <div className="flex flex-col gap-1">
+           {pick.reference_price !== null && pick.discount_badge && (
+             <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-foreground/45">
+-              <span className="font-num line-through">{yen(pick.reference_price)}</span>
++              {/* 取り消し線は「メーカー希望小売価格」のときだけ。PAR.の記録(直近30日の中央値)には線を引かない。 */}
++              <span className={`font-num ${pick.reference_label === "メーカー希望小売価格" ? "line-through" : ""}`}>
++                {yen(pick.reference_price)}
++              </span>
+               {pick.reference_label && <span>（{pick.reference_label}）</span>}
+             </div>
+           )}
+@@ -206,7 +209,7 @@
+           {title}
+         </h2>
+         <p className="max-w-2xl text-sm leading-relaxed text-foreground/55">
+-          PAR.が毎日記録している価格から、季節に合う消耗品をルールに基づいて選んでいます。
++          PAR.が1日1回記録している価格から、季節に合う消耗品をルールに基づいて選んでいます。
+           「% OFF」は確認済みのメーカー希望小売価格、またはPAR.が記録した直近30日の中央値との比較です。
+         </p>
+       </div>
