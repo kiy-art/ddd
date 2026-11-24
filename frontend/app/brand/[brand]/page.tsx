@@ -7,6 +7,7 @@ import PageHeader from "@/components/PageHeader";
 import ProductCard from "@/components/ProductCard";
 import { BrandPriceStats, getBrandPriceStats, getBrandProducts } from "@/lib/api";
 import PrNotice from "@/components/PrNotice";
+import { SITE_URL } from "@/lib/siteUrl";
 
 export const revalidate = 0;
 
@@ -90,8 +91,33 @@ export default async function BrandPage({ params }: { params: Promise<Params> })
         ]
       : [];
 
+  const pageUrl = `${SITE_URL}/brand/${encodeURIComponent(name)}`;
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "ホーム", item: SITE_URL },
+        { "@type": "ListItem", position: 2, name, item: pageUrl },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: products.map((p, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${SITE_URL}/products/${p.slug}`,
+        name: p.name,
+      })),
+    },
+  ];
+
   return (
     <div>
+      {jsonLd.map((block, i) => (
+        <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(block) }} />
+      ))}
       <PageHeader
         eyebrow="ブランド"
         title={name}
