@@ -1,0 +1,124 @@
+diff --git a/frontend/app/compare/[pair]/page.tsx b/frontend/app/compare/[pair]/page.tsx
+index 8a76db5..517adda 100644
+--- a/frontend/app/compare/[pair]/page.tsx
++++ b/frontend/app/compare/[pair]/page.tsx
+@@ -3,6 +3,7 @@ import Link from "next/link";
+ import { notFound, permanentRedirect } from "next/navigation";
+ 
+ import CompareTable from "@/components/CompareTable";
++import ComparePairPrices from "@/components/ComparePairPrices";
+ import PageHeader from "@/components/PageHeader";
+ import { BUY_SCORE_LABELS, CATEGORY_LABELS, ProductDetail, getCategoryProducts, getProduct } from "@/lib/api";
+ import { PERFORMANCE_TYPE_LABELS, SKILL_LEVEL_LABELS } from "@/lib/badges";
+@@ -184,6 +185,9 @@ export default async function ComparePairPage({ params }: { params: Promise<Para
+ 
+       <section className="px-6 py-12 sm:py-16">
+         <div className="mx-auto max-w-7xl">
++          <PrNotice className="mb-4" />
++          <ComparePairPrices products={[first, second]} />
++
+           {points.length > 0 && (
+             <div className="card-lux mb-10 rounded-3xl p-6 sm:p-8">
+               <span className="text-xs font-medium uppercase tracking-[0.3em] text-accent">Key Differences</span>
+@@ -202,7 +206,6 @@ export default async function ComparePairPage({ params }: { params: Promise<Para
+             </div>
+           )}
+ 
+-          <PrNotice className="mt-6" />
+           <CompareTable products={[first, second]} placement="compare_pair" />
+ 
+           <div className="mt-10 grid gap-3 sm:grid-cols-2">
+diff --git a/frontend/components/ComparePairPrices.tsx b/frontend/components/ComparePairPrices.tsx
+new file mode 100644
+index 0000000..fe29f96
+--- /dev/null
++++ b/frontend/components/ComparePairPrices.tsx
+@@ -0,0 +1,88 @@
++import Link from "next/link";
++
++import TrackedCta from "@/components/TrackedCta";
++import type { ProductDetail } from "@/lib/api";
++import { displayName } from "@/lib/displayName";
++import { getShopOffers, parseUtc } from "@/lib/shopOffers";
++
++// P-014: the two products' current Rakuten price and shop button, shown ABOVE
++// the comparison table (on /compare/[pair] the table's buy buttons sit in its
++// last row, beside a 640px-wide scrolling table - out of sight on a phone).
++// Rakuten only: Yahoo! has no confirmed affiliate programme yet and Amazon has
++// no price. A price is shown only when it was fetched within OFFER_FRESH_DAYS
++// (same rule as the product page, lib/shopOffers.ts); otherwise the card says
++// to check the shop - never a stale number. No "最安" wording.
++
++const PLACEMENT = "compare_pair_top";
++
++function mdJst(iso: string | null): string | null {
++  if (!iso) return null;
++  const t = parseUtc(iso);
++  if (Number.isNaN(t)) return null;
++  const d = new Date(t + 9 * 60 * 60 * 1000);
++  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
++}
++
++export default function ComparePairPrices({ products }: { products: ProductDetail[] }) {
++  const cards = products.map((p) => {
++    const lastAt = p.price_history.length > 0 ? p.price_history[p.price_history.length - 1].recorded_at : null;
++    const offer = getShopOffers(p, lastAt).find((o) => o.shop === "rakuten") ?? null;
++    const rakutenUrl = p.affiliate_url && p.affiliate_url.includes("rakuten.co.jp") ? p.affiliate_url : null;
++    return { p, offer, rakutenUrl, lastDay: mdJst(lastAt) };
++  });
++  if (cards.every((c) => !c.rakutenUrl)) return null;
++
++  return (
++    <section aria-labelledby="pair-price-heading" className="mb-8">
++      <h2 id="pair-price-heading" className="text-sm font-semibold text-foreground">
++        いまの楽天市場の価格
++      </h2>
++      <div className="mt-3 grid grid-cols-2 gap-3">
++        {cards.map(({ p, offer, rakutenUrl, lastDay }) => (
++          <div key={p.id} className="card-lux flex flex-col gap-2 rounded-2xl p-4">
++            <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{displayName(p)}</p>
++            {offer ? (
++              <div>
++                <p className="font-num text-2xl font-semibold text-foreground">¥{offer.price.toLocaleString("ja-JP")}</p>
++                <p className="mt-0.5 text-xs text-foreground/65">楽天市場・{mdJst(offer.updatedAt)}取得</p>
++              </div>
++            ) : (
++              <div>
++                <p className="text-sm font-medium text-foreground/80">価格は販売ページで確認</p>
++                <p className="mt-0.5 text-xs text-foreground/65">
++                  {lastDay ? `最後に取得した日：${lastDay}` : "価格を取得できていません"}
++                </p>
++              </div>
++            )}
++            {rakutenUrl ? (
++              <TrackedCta
++                href={rakutenUrl}
++                target="_blank"
++                rel="noopener noreferrer sponsored"
++                className="tap mt-auto flex min-h-[44px] items-center justify-center rounded-full bg-brand px-3 text-center text-sm font-semibold text-on-brand"
++                event="cta_click"
++                params={{ product_id: p.id, product_slug: p.slug, cta_type: "affiliate_compare" }}
++                productId={p.id}
++                category={p.category}
++                placement={PLACEMENT}
++              >
++                <span aria-hidden="true">楽天市場で見る ↗</span>
++                <span className="sr-only">{`楽天市場で${displayName(p)}を見る（広告・別タブで開く）`}</span>
++              </TrackedCta>
++            ) : (
++              <Link
++                href={`/products/${p.slug}`}
++                className="tap mt-auto flex min-h-[44px] items-center justify-center rounded-full border border-border px-3 text-center text-sm font-semibold text-foreground/70"
++              >
++                価格推移を見る
++              </Link>
++            )}
++          </div>
++        ))}
++      </div>
++      <p className="mt-2 text-xs leading-relaxed text-foreground/65">
++        PAR.が楽天市場から取得した価格です（1日1回更新）。送料・ポイント・在庫は含みません。購入前に販売ページでご確認ください。取得から3日を過ぎた価格は表示しません。
++      </p>
++    </section>
++  );
++}
