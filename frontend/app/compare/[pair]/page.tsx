@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import CompareTable from "@/components/CompareTable";
+import CompareTopOffers from "@/components/CompareTopOffers";
 import PageHeader from "@/components/PageHeader";
 import { BUY_SCORE_LABELS, CATEGORY_LABELS, ProductDetail, getCategoryProducts, getProduct } from "@/lib/api";
 import { PERFORMANCE_TYPE_LABELS, SKILL_LEVEL_LABELS } from "@/lib/badges";
@@ -197,12 +198,13 @@ export default async function ComparePairPage({ params }: { params: Promise<Para
                 ))}
               </ul>
               <p className="mt-4 text-[11px] text-foreground/40">
-                価格はPAR.が毎日取得した楽天市場の価格です。購入前に販売ページで最新の価格・在庫をご確認ください。
+                価格はPAR.が1日1回取得した楽天市場の価格です。購入前に販売ページで最新の価格・在庫をご確認ください。
               </p>
             </div>
           )}
 
-          <PrNotice className="mt-6" />
+          <PrNotice className="mt-6 mb-4" />
+          <CompareTopOffers products={[first, second]} />
           <CompareTable products={[first, second]} placement="compare_pair" />
 
           <div className="mt-10 grid gap-3 sm:grid-cols-2">
