@@ -348,3 +348,41 @@ def test_a_model_specific_keyword_adds_at_most_the_per_keyword_cap(db_session, m
     assert len([n for n in names if "Spider ZT" in n]) == discovery.MAX_NEW_PER_MODEL_KEYWORD
     assert any("TP Collection" in n for n in names)
     assert discovered == discovery.MAX_NEW_PER_MODEL_KEYWORD + 1
+
+
+def test_discovered_product_with_affiliate_id_has_no_plain_product_url_and_is_not_rediscovered(
+    db_session, monkeypatch
+):
+    monkeypatch.setenv("RAKUTEN_AFFILIATE_ID", "test-affiliate-id")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        items = [_FakeItem("PING G440 ドライバー", 68000, "https://item.rakuten.co.jp/example/g440/")]
+        monkeypatch.setattr(
+            rakuten, "search_items", _fixed_results({discovery.CATEGORY_SEARCH_KEYWORDS["driver"][0]: items})
+        )
+
+        first, _ = discovery.discover_new_products(db_session)
+        product = crud.find_product_by_identity(db_session, "PING G440 ドライバー", "PING", None)
+        assert first == 1
+        assert product.product_url is None
+        assert product.affiliate_url.startswith(rakuten.AFFILIATE_LINK_BASE)
+
+        # A second run sees the same listing URL under a different title, so
+        # only the URL check (via the affiliate link's pc=) can skip it.
+        same_url = [_FakeItem("PING G430 ドライバー", 68000, "https://item.rakuten.co.jp/example/g440/")]
+        monkeypatch.setattr(
+            rakuten, "search_items", _fixed_results({discovery.CATEGORY_SEARCH_KEYWORDS["driver"][0]: same_url})
+        )
+        second, _ = discovery.discover_new_products(db_session)
+        assert second == 0
+    finally:
+        get_settings.cache_clear()
+
+
+def test_plain_url_of_reads_the_wrapped_url_and_ignores_other_links():
+    wrapped = rakuten.AFFILIATE_LINK_BASE + "/id/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fx%2Fy%2F&link_type=hybrid_url"
+    assert discovery._plain_url_of(wrapped) == "https://item.rakuten.co.jp/x/y/"
+    assert discovery._plain_url_of("https://item.rakuten.co.jp/x/y/") is None
+    assert discovery._plain_url_of(None) is None

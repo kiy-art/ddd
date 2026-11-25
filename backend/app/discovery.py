@@ -31,6 +31,7 @@ registering as a separate row.
 
 import json
 import time
+import urllib.parse
 from typing import Callable
 
 from sqlalchemy import select
@@ -265,6 +266,17 @@ def _is_safe_to_auto_publish(item_name: str, category: str, price: int) -> bool:
     threshold = AUTO_PUBLISH_MIN_PRICE_BY_CATEGORY.get(category, AUTO_PUBLISH_MIN_PRICE_CLUB)
     return price >= threshold
 
+def _plain_url_of(affiliate_url: str | None) -> str | None:
+    """The plain Rakuten item URL wrapped inside an affiliate link's
+    `pc=` parameter (see rakuten.to_affiliate_url), or None when the URL
+    isn't such a wrapped link. New products no longer store that plain URL
+    in product_url (it earned nothing and only duplicated the affiliate
+    row), so the duplicate check must read it back out of affiliate_url."""
+    if not affiliate_url or not rakuten.is_affiliate_link(affiliate_url):
+        return None
+    values = urllib.parse.parse_qs(urllib.parse.urlparse(affiliate_url).query).get("pc")
+    return values[0] if values else None
+
 
 def discover_new_products(
     db: Session, on_progress: Callable[[int, int], None] | None = None
@@ -287,6 +299,7 @@ def discover_new_products(
     existing_products = list(db.execute(select(models.Product)).scalars().all())
     existing_urls = {p.affiliate_url for p in existing_products if p.affiliate_url}
     existing_urls |= {p.product_url for p in existing_products if p.product_url}
+    existing_urls |= {u for u in (_plain_url_of(p.affiliate_url) for p in existing_products) if u}
     # Keyed by the product's own (already-clean) stored name, since every
     # candidate below is compared against this by its OWN cleaned name too
     # (see title_cleaner.clean_product_title) - this is what actually makes
@@ -361,6 +374,12 @@ def discover_new_products(
                     # cause the NG-word check below to miss "中古" and
                     # auto-publish a used item.
                     pending_review = not _is_safe_to_auto_publish(item.item_name, target, item.price)
+                    # When the link is wrapped with the affiliate ID, the plain
+                    # URL earns nothing and only shows up as a duplicate
+                    # "official site" row - don't store it (the wrapped link's
+                    # pc= keeps the duplicate check working, see _plain_url_of).
+                    # Without an ID, affiliate_url IS the plain URL, so keep both.
+                    wrapped_url = rakuten.to_affiliate_url(item.item_url)
                     product = crud.create_product(
                         db,
                         schemas.ProductCreate(
@@ -368,8 +387,8 @@ def discover_new_products(
                             brand=brand,
                             category=target,
                             image_url=image_urls.normalize_image_url(item.image_url),
-                            product_url=item.item_url,
-                            affiliate_url=rakuten.to_affiliate_url(item.item_url) or item.item_url,
+                            product_url=None if wrapped_url else item.item_url,
+                            affiliate_url=wrapped_url or item.item_url,
                             initial_price=item.price,
                         ),
                         pending_review=pending_review,
