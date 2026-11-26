@@ -59,6 +59,9 @@ export const GUIDES: Guide[] = [
   // Amazon (pre-sale 11/27-11/29, main sale 11/30-12/7; search results on 2026-11-24 agreed, original page not opened); Yahoo! ends 11/30 1:59;
   // Rakuten Ichiba past tense (ended 11/25 1:59). Apply only AFTER 2026-11-25 1:59 JST. FAQ: Amazon dates added. updatedAt 2026-11-25.
   // 2026-11-22 (11/21 meeting, audit C-1): 「公式発表」 softened to 「各社の発表による」; all three paragraphs say 「検索結果で確認し、原文ページは開いていません」. Yahoo! dates per LINE Yahoo release 020947 (no point-rate figures). description 「毎日」→「1日1回」.
+  // 2026-11-26 (marketing, 11/25 meeting slot): Amazon check date 11/24 -> 11/26 (schedule paragraph and FAQ). The About Amazon original
+  // (aboutamazon.jp / press.aboutamazon.com) could not be opened again (DNS / proxy 403), so 「原文ページは開いていません」 is kept; search results
+  // on 2026-11-26 still show pre-sale 11/27 0:00-11/29 23:59 and main sale 11/30 0:00-12/7 23:59. No point-campaign figures added. updatedAt unchanged.
   // TODO: if the Rakuten/Amazon/Yahoo! originals are opened, record the check date and drop 「原文ページは開いていません」.
   // TODO 2026-11-30 (after Yahoo! ends 11/30 1:59): Yahoo! paragraph/heading/description to past tense (one guide change per day).
   // TODO 2026-12-08 (after Amazon ends 12/7 23:59): retitle to the year-end / New Year sale guide (same URL, slug kept); do not state dates not yet announced.
@@ -84,7 +87,7 @@ export const GUIDES: Guide[] = [
       {
         heading: "ブラックフライデーの日程：Amazonは11月27日から12月7日まで、Yahoo!ショッピングは11月30日1時59分まで、楽天市場は11月25日に終了（各社の発表による。検索結果で確認）",
         paragraphs: [
-          "Amazonのブラックフライデー2026は、アマゾンジャパンのニュース（About Amazon）によると、先行セールが11月27日（金）0時から11月29日（日）23時59分まで、本セールが11月30日（月）0時から12月7日（月）23時59分までの8日間の開催予定です（11月24日時点の確認。検索結果で確認し、複数の報道も同じ日程でしたが、原文ページは開いていません。出典：About Amazon Japan https://www.aboutamazon.jp/news/retail/amazon-black-friday-2026 ）。楽天市場のセールは終了しているため、楽天市場の今の価格を、セール前に控えた価格の範囲と並べてから、Amazonの表示価格を見る使い方ができます。ポイントなどのキャンペーンには条件がある場合があるため、公式ページで確認してください。PAR.はAmazonの価格を取得していないので、Amazonの価格はAmazonの商品ページで確認してください。アルペンなどその他の店舗は、公式な日程を確認できていません。日程は変わることがあるため、各社の公式ページで確認してください。",
+          "Amazonのブラックフライデー2026は、アマゾンジャパンのニュース（About Amazon）によると、先行セールが11月27日（金）0時から11月29日（日）23時59分まで、本セールが11月30日（月）0時から12月7日（月）23時59分までの8日間の開催予定です（11月26日時点の確認。検索結果で確認し、複数の報道も同じ日程でしたが、原文ページは開いていません。出典：About Amazon Japan https://www.aboutamazon.jp/news/retail/amazon-black-friday-2026 ）。楽天市場のセールは終了しているため、楽天市場の今の価格を、セール前に控えた価格の範囲と並べてから、Amazonの表示価格を見る使い方ができます。ポイントなどのキャンペーンには条件がある場合があるため、公式ページで確認してください。PAR.はAmazonの価格を取得していないので、Amazonの価格はAmazonの商品ページで確認してください。アルペンなどその他の店舗は、公式な日程を確認できていません。日程は変わることがあるため、各社の公式ページで確認してください。",
           "Yahoo!ショッピングのブラックフライデー2026は、LINEヤフーの発表によると11月22日（日）0時から11月29日（日）25時59分（11月30日（月）1時59分と同じ時刻）までの開催です（11月21日時点の確認。出典：LINEヤフーのニュースリリース https://www.lycorp.co.jp/ja/news/release/020947/ 。検索結果の要約で確認し、原文ページは開いていません）。PayPayポイントは条件付きで最大23%と報じられており、条件・上限は公式の特設ページで確認してください。",
           "楽天市場のブラックフライデー2026は、楽天グループが2026年11月12日に開催を発表しており、楽天市場は11月19日（木）20時から11月25日（水）1時59分までの開催で、終了しました（11月19日時点の発表に基づく。検索結果で確認し、原文ページは開いていません。出典：楽天グループのニュースリリース https://corp.rakuten.co.jp/news/update/2026/1112_01.html ）。PAR.が価格を記録しているのは楽天市場なので、終了後の価格は、セール前に控えた価格の範囲と並べて、元の水準に戻ったかを見てください（PAR.の楽天市場の価格は1日1回の更新で、セール中の表示価格と違う場合があります）。",
           "ポイントの付与率が高くても、実質の負担額は商品の価格と付与条件で変わります。セール前に控えた価格の範囲と並べて比べてください。",
@@ -132,7 +135,7 @@ export const GUIDES: Guide[] = [
         heading: "よくある質問",
         paragraphs: [
           "Q. ブラックフライデーまで待てば、ゴルフ用品は安くなりますか？ A. 値下がりを約束することはできません。商品ごとに、PAR.の商品ページで楽天市場の価格の推移を見て、セールの前にいくらだったかを控えておくと、比べやすくなります。",
-          "Q. Amazonのブラックフライデー2026はいつからいつまでですか？ A. 先行セールが11月27日（金）0時から11月29日（日）23時59分まで、本セールが11月30日（月）0時から12月7日（月）23時59分までの予定です（検索結果で確認。日程は変わることがあるため、Amazonの公式ページで確認してください）。",
+          "Q. Amazonのブラックフライデー2026はいつからいつまでですか？ A. 先行セールが11月27日（金）0時から11月29日（日）23時59分まで、本セールが11月30日（月）0時から12月7日（月）23時59分までの予定です（11月26日時点、検索結果で確認。日程は変わることがあるため、Amazonの公式ページで確認してください）。",
           "Q. PAR.でAmazonのセール価格もわかりますか？ A. PAR.はAmazonの価格を取得していません。Amazonの価格はAmazonの商品ページで確認し、PAR.の楽天市場の価格の記録と並べてください。",
           "Q. 楽天市場とYahoo!ショッピングの価格はどのくらいの頻度で更新されますか？ A. 楽天市場の価格は1日1回の更新です。Yahoo!ショッピングは、取得できた時点の価格です。セール中は価格が短い時間で変わることがあるため、購入前に各ショップの商品ページで確認してください。",
         ],

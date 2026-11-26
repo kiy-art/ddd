@@ -136,6 +136,18 @@ def market_price_trend(db: Session, now: datetime.datetime) -> dict:
     }
 
 
+# Pages whose GA4 pageviews are tracked one by one in the daily KPI record
+# (/popular is where most shop clicks come from; the sale guide is the P-011 target).
+KEY_PAGES = ("/popular", "/deals", "/guides/prime-appreciation-sale-2026-golf")
+
+
+def _key_page_views(rows) -> dict[str, int | None]:
+    """Pageviews per key page from the newest GA4 snapshot. A page missing from
+    the snapshot (it keeps only the top pages) is None = not measured, never 0."""
+    by_path = {r.path: r.pageviews for r in rows}
+    return {path: by_path.get(path) for path in KEY_PAGES}
+
+
 def kpi_summary(db: Session, now: datetime.datetime | None = None) -> dict:
     now = now or datetime.datetime.utcnow()
     d7 = now - datetime.timedelta(days=7)
@@ -173,6 +185,7 @@ def kpi_summary(db: Session, now: datetime.datetime | None = None) -> dict:
             "window_days": content_metrics.GA4_WINDOW_DAYS,
             "pages_counted": len(ga4["rows"]),
             "pageviews": sum(r.pageviews or 0 for r in ga4["rows"]),
+            "key_pages": _key_page_views(ga4["rows"]),
         }
 
     error_rows = db.execute(
