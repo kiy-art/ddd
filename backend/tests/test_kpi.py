@@ -118,3 +118,16 @@ def test_daily_job_counts_are_parsed_and_blank_when_missing():
     assert mod.daily_job_counts(None) == {"rakuten_updated": "", "rakuten_total": "", "yahoo_updated": "", "yahoo_total": ""}
     row = mod.ledger_row({"errors_last_7d": {"error": 5, "warning": 2, "info": 9}}, datetime.date(2026, 10, 5))
     assert (row["errors_7d"], row["errors_7d_error"], row["errors_7d_warning"]) == (16, 5, 2)
+
+
+def test_ga4_key_pages_are_none_when_not_in_snapshot(db_session):
+    day = datetime.date(2026, 10, 4)
+    db_session.add(models.PageMetricsSnapshot(snapshot_date=day, path="/popular", pageviews=7))
+    db_session.add(models.PageMetricsSnapshot(snapshot_date=day, path="/deals", pageviews=0))
+    db_session.commit()
+
+    ga4 = kpi.kpi_summary(db_session, now=NOW)["ga4"]
+
+    assert ga4["key_pages"]["/popular"] == 7
+    assert ga4["key_pages"]["/deals"] == 0  # measured, zero views
+    assert ga4["key_pages"]["/guides/prime-appreciation-sale-2026-golf"] is None  # not in the snapshot = unmeasured
