@@ -1,0 +1,30 @@
+diff --git a/frontend/app/products/[slug]/page.tsx b/frontend/app/products/[slug]/page.tsx
+--- a/frontend/app/products/[slug]/page.tsx
++++ b/frontend/app/products/[slug]/page.tsx
+@@ -461,7 +461,7 @@
+                   href={primaryShop.url}
+                   target="_blank"
+                   rel={primaryShop.sponsored ? "noopener noreferrer sponsored" : "noopener noreferrer"}
+-                  className="btn-shop tap whitespace-nowrap rounded-full px-5 py-4 text-center text-sm font-semibold sm:px-6 sm:text-base"
++                  className="btn-shop tap rounded-full px-5 py-3.5 text-center text-sm font-semibold sm:px-6 sm:text-base"
+                   event="cta_click"
+                   params={{
+                     product_id: product.id,
+@@ -475,7 +475,16 @@
+                   category={product.category}
+                   placement="product_detail_cta"
+                 >
+-                  {primaryShop.isLowest && comparedOffers ? `${primaryShop.label}で見る（比較中の最安）` : `${primaryShop.label}で価格を見る`}
++                  {/* 2026-11-26: the "(比較中の最安)" tag used to share one nowrap line
++                      with the shop name; at 375px "Yahoo!ショッピングで見る（比較中の最安）"
++                      is wider than the button (overflow hidden clips it). Shop name +
++                      verb stay on line 1, the tag drops to line 2 (same wording). */}
++                  <span className="flex min-w-0 flex-col items-center leading-snug">
++                    <span>{primaryShop.isLowest && comparedOffers ? `${primaryShop.label}で見る` : `${primaryShop.label}で価格を見る`}</span>
++                    {primaryShop.isLowest && comparedOffers && (
++                      <span className="text-[11px] font-medium">（比較中の最安）</span>
++                    )}
++                  </span>
+                   <CtaArrow />
+                 </TrackedCta>
+               )}
