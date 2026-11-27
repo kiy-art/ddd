@@ -1,0 +1,104 @@
+diff --git a/frontend/app/guides/[slug]/page.tsx b/frontend/app/guides/[slug]/page.tsx
+index 9c34a96..1cd163c 100644
+--- a/frontend/app/guides/[slug]/page.tsx
++++ b/frontend/app/guides/[slug]/page.tsx
+@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
+ import FadeIn from "@/components/FadeIn";
+ import ProductCard from "@/components/ProductCard";
+ import { CATEGORY_LABELS, Product, getCategoryProducts, getProducts } from "@/lib/api";
+-import { computeDeals, dropLabel } from "@/lib/deals";
++import { computeDeals, computeStableDeals, dropLabel } from "@/lib/deals";
+ import { GUIDES, Guide, getGuideBySlug } from "@/lib/guides";
+ import { SITE_URL } from "@/lib/siteUrl";
+ import PrNotice from "@/components/PrNotice";
+@@ -31,12 +31,14 @@ async function loadFeaturedProducts(
+     }
+ 
+     if (featured.kind === "price_drops") {
+-      const products = featured.category
+-        ? await getCategoryProducts(featured.category)
+-        : await getProducts();
+-      return computeDeals(products)
+-        .slice(0, limit)
+-        .map((deal) => ({ product: deal.product, caption: dropLabel(deal) }));
++      // Category-less guides (the sale guide) use the steady-then-dropped
++      // selection over every published product (getProducts() alone returns
++      // only the first 50, sorted by lowest-vs-average, which is mostly ball).
++      // Category guides keep computeDeals unchanged.
++      const deals = featured.category
++        ? computeDeals(await getCategoryProducts(featured.category)).slice(0, limit)
++        : computeStableDeals(await getProducts({ limit: 300 }), limit);
++      return deals.map((deal) => ({ product: deal.product, caption: dropLabel(deal) }));
+     }
+   } catch {
+     return [];
+diff --git a/frontend/lib/deals.ts b/frontend/lib/deals.ts
+index 03f2968..6205ead 100644
+--- a/frontend/lib/deals.ts
++++ b/frontend/lib/deals.ts
+@@ -33,3 +33,65 @@ export function dropLabel({ product, dropPercent }: Deal): string {
+     ? `${span}（記録上の差。販売店・条件の違いの可能性あり）`
+     : `${span}（${dropPercent}% 値下がり）`;
+ }
++
++// --- Guide-only selection (PAR. P-015, 2026-11-27) ---------------------------
++// The sale guide's "値下がり" slot should show products whose price was steady
++// and then fell, not listing swaps. The product list only carries
++// current/previous/average (30-day, includes current)/lowest, not the history,
++// so the checks below are approximations (a permanent swap to another listing
++// that then stays put cannot be told apart from a real markdown here).
++
++/** Needs this many days of history before a "steady, then fell" claim. */
++export const STABLE_MIN_SPAN_DAYS = 7;
++/** The previous price must sit within this percent of the 30-day average
++ * (a price flipping between two listings lands far from the average). */
++export const STABLE_PREV_BAND_PERCENT = 5;
++/** The current price must be at least this percent under the 30-day average. */
++export const STABLE_MIN_DROP_PERCENT = 3;
++/** Max items per category, so one category (ball) cannot fill the slot. */
++export const STABLE_MAX_PER_CATEGORY = 2;
++/** Below this many strict matches, top up with the looser rule. */
++export const STABLE_MIN_ITEMS = 3;
++
++function spreadByCategory(deals: Deal[], limit: number, cap: number): Deal[] {
++  const groups = new Map<string, Deal[]>();
++  for (const d of deals) {
++    const list = groups.get(d.product.category);
++    if (list) list.push(d);
++    else groups.set(d.product.category, [d]);
++  }
++  const out: Deal[] = [];
++  for (let round = 0; round < cap && out.length < limit; round++) {
++    for (const list of groups.values()) {
++      if (list[round] && out.length < limit) out.push(list[round]);
++    }
++  }
++  return out;
++}
++
++/** Drops for the guide slot: steady before, a real step down now, spread over
++ * categories. May return fewer than `limit` (or none) - never padded with
++ * unverified drops beyond STABLE_MIN_ITEMS, and never >= DROP_VERIFY_PERCENT. */
++export function computeStableDeals(products: Product[], limit: number): Deal[] {
++  const loose = computeDeals(products).filter(
++    (d) => d.dropPercent >= STABLE_MIN_DROP_PERCENT && d.dropPercent < DROP_VERIFY_PERCENT
++  );
++  const strict = loose.filter(({ product: p }) => {
++    if (p.average_price === null || p.average_price <= 0 || p.current_price === null || p.previous_price === null) {
++      return false;
++    }
++    if (p.history_span_days < STABLE_MIN_SPAN_DAYS) return false;
++    const prevGap = (Math.abs(p.previous_price - p.average_price) / p.average_price) * 100;
++    const belowAvg = (1 - p.current_price / p.average_price) * 100;
++    return prevGap <= STABLE_PREV_BAND_PERCENT && belowAvg >= STABLE_MIN_DROP_PERCENT;
++  });
++  const picked = spreadByCategory(strict, limit, STABLE_MAX_PER_CATEGORY);
++  if (picked.length >= STABLE_MIN_ITEMS) return picked;
++  const have = new Set(picked.map((d) => d.product.id));
++  const rest = spreadByCategory(
++    loose.filter((d) => !have.has(d.product.id)),
++    STABLE_MIN_ITEMS - picked.length,
++    STABLE_MAX_PER_CATEGORY
++  );
++  return [...picked, ...rest];
++}
