@@ -8,7 +8,6 @@ import FadeIn from "@/components/FadeIn";
 import ForecastPreviewCard from "@/components/ForecastPreviewCard";
 import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
-import Newsletter from "@/components/Newsletter";
 import ProductCard from "@/components/ProductCard";
 import { BUY_SCORE_LABELS, CATEGORIES, CATEGORY_LABELS, Product, TrendingProducts, getProducts, getSiteStats, getTrendingProducts } from "@/lib/api";
 import { computeDeals, dropLabel } from "@/lib/deals";
@@ -453,7 +452,7 @@ export default async function Home({
       <ConsumablesCorner variant="home" />
 
       <HowItWorks />
-      <Newsletter />
+      {/* 2026-11-28: Newsletter hidden (audit/general affairs) - it said "we will notify you" but stores/sends nothing; Amazon policy 6(y) price-alert question pending. Component file kept. */}
     </div>
   );
 }

@@ -4,8 +4,8 @@ import { notFound } from "next/navigation";
 
 import FadeIn from "@/components/FadeIn";
 import ProductCard from "@/components/ProductCard";
-import { CATEGORY_LABELS, Product, getCategoryProducts, getProducts } from "@/lib/api";
-import { computeDeals, dropLabel } from "@/lib/deals";
+import { CATEGORY_LABELS, Product, getCategoryProducts, getProduct, getProducts } from "@/lib/api";
+import { computeDeals, dropLabel, heldThenDropped, spreadByCategory, stableDealCandidates } from "@/lib/deals";
 import { GUIDES, Guide, getGuideBySlug } from "@/lib/guides";
 import { SITE_URL } from "@/lib/siteUrl";
 import PrNotice from "@/components/PrNotice";
@@ -31,12 +31,32 @@ async function loadFeaturedProducts(
     }
 
     if (featured.kind === "price_drops") {
-      const products = featured.category
-        ? await getCategoryProducts(featured.category)
-        : await getProducts();
-      return computeDeals(products)
-        .slice(0, limit)
-        .map((deal) => ({ product: deal.product, caption: dropLabel(deal) }));
+      // Category-less guides (the sale guide, P-015): only products whose
+      // previous price held for several records and then fell, checked against
+      // each candidate's real price history (audit 2026-11-27). getProducts()
+      // alone returns only the first 50 (mostly ball), so ask for 300.
+      // Category guides keep computeDeals unchanged.
+      let deals;
+      if (featured.category) {
+        deals = computeDeals(await getCategoryProducts(featured.category)).slice(0, limit);
+      } else {
+        const candidates = stableDealCandidates(await getProducts({ limit: 300 }));
+        const checked = await Promise.all(
+          candidates.map(async (deal) => {
+            try {
+              const detail = await getProduct(deal.product.slug);
+              return heldThenDropped(detail.price_history) ? deal : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        deals = spreadByCategory(
+          checked.filter((d): d is NonNullable<typeof d> => d !== null),
+          limit
+        );
+      }
+      return deals.map((deal) => ({ product: deal.product, caption: dropLabel(deal) }));
     }
   } catch {
     return [];
@@ -130,6 +150,11 @@ export default async function GuidePage({ params }: { params: Promise<Params> })
             </p>
           ) : (
             <>
+            {guide.featured.kind === "price_drops" && (
+              <p className="mt-3 text-xs text-foreground/60">
+                PAR.が記録した前回の価格との比較です。今後の値下がりや、ほかの店舗より安いことを保証するものではありません。
+              </p>
+            )}
             <PrNotice className="mt-6" />
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
               {featuredProducts.map(({ product, caption }, i) => (
