@@ -1,0 +1,58 @@
+diff --git a/frontend/components/GuideEndShops.tsx b/frontend/components/GuideEndShops.tsx
+--- a/frontend/components/GuideEndShops.tsx
++++ b/frontend/components/GuideEndShops.tsx
+@@ -10,15 +10,28 @@
+  * (11/9 design review). Compact rows, 44px buttons, PR notice right before the
+  * first shop link. placement "guide_end" keeps it separable in by_placement.
+  * No superlatives; price changes are stated, not hidden.
++ * 11/28: the rows had no reason to press (the card above says "前回記録 ¥→¥",
++ * this block only said "掲載時点"). `captions` (product id -> the same
++ * dropLabel text the card shows) is printed under the name, and the heading
++ * says what the rows are when captions exist. No captions = unchanged.
+  */
+-export default function GuideEndShops({ products, listSource }: { products: Product[]; listSource: string }) {
++export default function GuideEndShops({
++  products,
++  listSource,
++  captions,
++}: {
++  products: Product[];
++  listSource: string;
++  captions?: Record<number, string>;
++}) {
+   const rows = products.filter((p) => p.affiliate_url && p.current_price !== null).slice(0, 3);
+   if (rows.length === 0) return null;
++  const hasCaptions = rows.some((p) => captions?.[p.id]);
+ 
+   return (
+     <section className="mt-12 rounded-2xl border border-border bg-card p-4 sm:p-6" aria-labelledby="guide-end-shops">
+       <h2 id="guide-end-shops" className="font-display text-base font-semibold text-foreground">
+-        記事の商品を店で確かめる
++        {hasCaptions ? "値下がりを記録した商品を店で確かめる" : "記事の商品を店で確かめる"}
+       </h2>
+       <PrNotice className="mt-3" />
+       <ul className="mt-4 flex flex-col gap-3">
+@@ -28,6 +41,7 @@
+             <li key={p.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+               <div className="min-w-0">
+                 <p className="line-clamp-2 text-sm font-semibold text-foreground">{displayName(p)}</p>
++                {captions?.[p.id] && <p className="text-xs font-semibold text-brand dark:text-brand-light">{captions[p.id]}</p>}
+                 <p className="font-num text-sm text-foreground/80">
+                   ¥{(p.current_price as number).toLocaleString("ja-JP")}
+                   <span className="ml-2 text-xs text-foreground/70">掲載時点・価格は変わります</span>
+diff --git a/frontend/app/guides/[slug]/page.tsx b/frontend/app/guides/[slug]/page.tsx
+--- a/frontend/app/guides/[slug]/page.tsx
++++ b/frontend/app/guides/[slug]/page.tsx
+@@ -186,7 +186,11 @@
+         ))}
+       </div>
+ 
+-      <GuideEndShops products={featuredProducts.map((f) => f.product)} listSource={`guide:${guide.slug}`} />
++      <GuideEndShops
++        products={featuredProducts.map((f) => f.product)}
++        listSource={`guide:${guide.slug}`}
++        captions={Object.fromEntries(featuredProducts.filter((f) => f.caption).map((f) => [f.product.id, f.caption as string]))}
++      />
+ 
+       {guide.relatedCategories && guide.relatedCategories.length > 0 && (
+         <div className="mt-14 rounded-2xl border border-border bg-card p-6 sm:p-8">
