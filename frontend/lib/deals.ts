@@ -1,4 +1,4 @@
-import { PriceHistoryItem, Product } from "@/lib/api";
+import type { PriceHistoryItem, Product } from "@/lib/api";
 
 export interface Deal {
   product: Product;
