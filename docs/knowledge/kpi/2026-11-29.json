@@ -1,0 +1,142 @@
+{
+  "generated_at": "2026-11-28T15:03:00Z",
+  "catalog": {
+    "published_products": 504,
+    "products_total": 964,
+    "pending_review": 345,
+    "published_by_category": {
+      "glove": 60,
+      "ball": 124,
+      "rangefinder": 71,
+      "other": 8,
+      "putter": 41,
+      "wedge": 8,
+      "driver": 111,
+      "iron": 81
+    },
+    "with_image": 502
+  },
+  "shop_clicks": {
+    "total": 42,
+    "last_7d": 2,
+    "prev_7d": 3,
+    "last_30d": 11,
+    "last_7d_by_shop": {
+      "rakuten": 2
+    },
+    "last_7d_by_placement": {
+      "popular_rakuten_ranking": 2
+    }
+  },
+  "partner_clicks": {
+    "total": 0,
+    "last_7d": 0,
+    "last_30d": 0,
+    "last_7d_by_placement": {}
+  },
+  "search_console": {
+    "snapshot_date": "2026-11-28",
+    "window_days": 3,
+    "pages_counted": 20,
+    "impressions": 50,
+    "clicks": 2,
+    "ctr": 0.04,
+    "avg_position": 6.1
+  },
+  "ga4": {
+    "snapshot_date": "2026-11-28",
+    "window_days": 1,
+    "pages_counted": 2,
+    "pageviews": 5,
+    "key_pages": {
+      "/popular": null,
+      "/deals": null,
+      "/guides/prime-appreciation-sale-2026-golf": 4
+    }
+  },
+  "snapshot_page_limit": 100,
+  "price_alerts": {
+    "total": 3,
+    "notified": 2,
+    "visitor_email_enabled": false
+  },
+  "errors_last_7d": {
+    "info": 1331,
+    "error": 8,
+    "warning": 307
+  },
+  "last_daily_job": {
+    "at": "2026-11-28T03:38:08Z",
+    "summary": "日次更新ジョブ完了: 楽天更新729件/スキップ230件, Yahoo更新19件/スキップ940件, 新商品発見5件, 人気ランキング反映69件, 分析964件中AI再生成204件, 値下がり通知送信0件/スキップ0件, X投稿0件/スキップ1件"
+  },
+  "market": {
+    "basis": "newest price in the last 7 days vs the newest price 23-37 days ago (published products only)",
+    "by_category": {
+      "ball": {
+        "compared": 93,
+        "down": 14,
+        "up": 9,
+        "flat": 70,
+        "median_change_pct": 0.0
+      },
+      "driver": {
+        "compared": 95,
+        "down": 12,
+        "up": 4,
+        "flat": 79,
+        "median_change_pct": 0.0
+      },
+      "glove": {
+        "compared": 56,
+        "down": 10,
+        "up": 0,
+        "flat": 46,
+        "median_change_pct": 0.0
+      },
+      "iron": {
+        "compared": 51,
+        "down": 15,
+        "up": 3,
+        "flat": 33,
+        "median_change_pct": 0.0
+      },
+      "other": {
+        "compared": 7,
+        "down": 0,
+        "up": 0,
+        "flat": 7,
+        "median_change_pct": 0.0
+      },
+      "putter": {
+        "compared": 18,
+        "down": 2,
+        "up": 1,
+        "flat": 15,
+        "median_change_pct": 0.0
+      },
+      "rangefinder": {
+        "compared": 59,
+        "down": 7,
+        "up": 2,
+        "flat": 50,
+        "median_change_pct": 0.0
+      },
+      "wedge": {
+        "compared": 8,
+        "down": 1,
+        "up": 0,
+        "flat": 7,
+        "median_change_pct": 0.0
+      }
+    },
+    "new_products_30d": {
+      "glove": 5,
+      "rangefinder": 13,
+      "putter": 22,
+      "driver": 13,
+      "iron": 24,
+      "ball": 24
+    }
+  },
+  "optimization_actions_last_30d": []
+}
