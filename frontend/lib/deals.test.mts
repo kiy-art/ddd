@@ -1,0 +1,99 @@
+// P-015 の値下がり選定(frontend/lib/deals.ts)の単体テスト。
+// 実行: cd frontend && node --test lib/deals.test.mts   (Node 22.18以上。追加パッケージ不要)
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  heldThenDropped,
+  stableDealCandidates,
+  spreadByCategory,
+  computeDeals,
+  STABLE_MAX_CANDIDATES,
+} from "./deals.ts";
+
+type H = { id: number; price: number; recorded_at: string };
+const day = (n: number) => new Date(Date.UTC(2026, 10, 1 + n)).toISOString();
+const hist = (prices: number[], startDay = 0): H[] =>
+  prices.map((price, i) => ({ id: i + 1, price, recorded_at: day(startDay + i) }));
+
+const prod = (id: number, name: string, category: string, current: number | null, previous: number | null) =>
+  ({ id, name, category, current_price: current, previous_price: previous }) as never;
+
+test("heldThenDropped: 3回以上続いた価格から下がったら true", () => {
+  assert.equal(heldThenDropped(hist([15000, 15000, 15000, 14000])), true);
+});
+
+test("heldThenDropped: 前回値が2回しか続いていなければ false", () => {
+  assert.equal(heldThenDropped(hist([16000, 15000, 15000, 14000])), false);
+});
+
+test("heldThenDropped: 履歴が4件未満は false", () => {
+  assert.equal(heldThenDropped(hist([15000, 15000, 14000])), false);
+});
+
+test("heldThenDropped: 最新が下がっていなければ(同値・値上がり) false", () => {
+  assert.equal(heldThenDropped(hist([15000, 15000, 15000, 15000])), false);
+  assert.equal(heldThenDropped(hist([15000, 15000, 15000, 16000])), false);
+});
+
+test("heldThenDropped: 監査例 13,860が続き→16,500が1日→13,860 に戻るのは値下がりではない", () => {
+  assert.equal(heldThenDropped(hist([13860, 13860, 13860, 13860, 16500, 13860])), false);
+});
+
+test("heldThenDropped: 新価格が30日以内に既出なら false、30日より前なら true", () => {
+  // 14,000 が5日前(30日以内)に出ている
+  assert.equal(heldThenDropped(hist([14000, 15000, 15000, 15000, 14000])), false);
+  // 14,000 が40日前にだけ出ている
+  const old: H[] = [
+    { id: 1, price: 14000, recorded_at: day(0) },
+    { id: 2, price: 15000, recorded_at: day(40) },
+    { id: 3, price: 15000, recorded_at: day(41) },
+    { id: 4, price: 15000, recorded_at: day(42) },
+    { id: 5, price: 14000, recorded_at: day(43) },
+  ];
+  assert.equal(heldThenDropped(old), true);
+});
+
+test("heldThenDropped: 並び順が逆でも recorded_at で並べ替えて判定", () => {
+  assert.equal(heldThenDropped(hist([15000, 15000, 15000, 14000]).reverse()), true);
+});
+
+test("heldThenDropped: 入力配列を書き換えない", () => {
+  const h = hist([15000, 15000, 15000, 14000]).reverse();
+  const copy = JSON.stringify(h);
+  heldThenDropped(h);
+  assert.equal(JSON.stringify(h), copy);
+});
+
+test("stableDealCandidates: 3%以上25%未満だけ。3%未満・25%以上・null・値上がりは除く", () => {
+  const ps = [
+    prod(1, "A", "ball", 9700, 10000), // 3.0% 含む
+    prod(2, "B", "ball", 9800, 10000), // 2% 除く
+    prod(3, "C", "ball", 7500, 10000), // 25% 除く
+    prod(4, "D", "ball", 7600, 10000), // 24% 含む
+    prod(5, "E", "ball", null, 10000),
+    prod(6, "F", "ball", 10000, null),
+    prod(7, "G", "ball", 11000, 10000),
+  ];
+  assert.deepEqual(stableDealCandidates(ps).map((d) => d.product.id), [4, 1]); // 下げ幅の大きい順
+});
+
+test("stableDealCandidates: 同名は1件だけ、上限は STABLE_MAX_CANDIDATES", () => {
+  const dup = [prod(1, " X ", "ball", 9000, 10000), prod(2, "X", "ball", 8000, 10000)];
+  assert.equal(stableDealCandidates(dup).length, 1);
+  const many = Array.from({ length: 30 }, (_, i) => prod(i, `N${i}`, "ball", 9000, 10000));
+  assert.equal(stableDealCandidates(many).length, STABLE_MAX_CANDIDATES);
+});
+
+test("spreadByCategory: 1カテゴリ最大2件・limit内・補充しない", () => {
+  const deals = computeDeals([
+    prod(1, "b1", "ball", 90, 100),
+    prod(2, "b2", "ball", 91, 100),
+    prod(3, "b3", "ball", 92, 100),
+    prod(4, "i1", "iron", 90, 100),
+  ]);
+  const out = spreadByCategory(deals, 4);
+  assert.equal(out.filter((d) => d.product.category === "ball").length, 2);
+  assert.equal(out.length, 3); // ball 2 + iron 1 。4件には埋めない
+  assert.equal(spreadByCategory([], 4).length, 0);
+  assert.equal(spreadByCategory(deals, 1).length, 1);
+});
